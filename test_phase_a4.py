@@ -161,7 +161,7 @@ class TestArchived2023DutchGP(unittest.TestCase):
         cls.race_date = zandvoort[0]["date"]
 
         grid, is_sprint_weekend, _ = build_grid(cls.season, cls.round, cls.cache_dir)
-        form, _ = build_form(cls.season, cls.round, grid, cls.cache_dir)
+        form, _ = build_form(cls.season, cls.round, grid, cls.cache_dir, race_has_run=True)
         circuit_row, _ = jolpica.circuit("zandvoort", cls.cache_dir)
         lat = float(circuit_row["Location"]["lat"])
         lon = float(circuit_row["Location"]["long"])

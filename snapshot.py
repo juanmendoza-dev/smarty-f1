@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib import jolpica, openmeteo, polymarket, kalshi, driver_map, httpcache
 from lib.circuits import multiplier_for
 from lib.features import is_classified
+from lib.invariants import require
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CACHE_DIR = os.path.join(REPO_ROOT, "data", "cache")
@@ -123,14 +124,17 @@ def build_grid(season, round_, cache_dir):
     return grid, is_sprint_weekend, provenance
 
 
-def build_form(season, round_, grid, cache_dir):
-    """Form ingredients for F2 (team), F4 (driver), and F8 (teammate H2H).
+def build_form(season, round_, grid, cache_dir, race_has_run=False):
+    """Form ingredients for F2 (team), F4 (driver), F6 (championship), F8 (H2H).
 
     Race-classification results only (sprint excluded, sec4 F2/F4) for every
     completed round before this one -- F8 needs the full 1..round-1 range,
     F2/F4 only need the last 5 (recent_rounds is a subset of all_rounds).
     Stored raw so score.py can apply pos_score/shrinkage/normalization itself
     without ever calling the network (01-data-pipeline.md sec1).
+
+    race_has_run selects how F6's standings are sourced, and the two modes are
+    not interchangeable -- see the comment on the standings pull below.
     """
     all_rounds = list(range(1, round_))
     recent_rounds = all_rounds[-5:]
@@ -142,8 +146,44 @@ def build_form(season, round_, grid, cache_dir):
         provenance.append(meta)
         per_round_results[rnd] = [cast_result_row(r) for r in rows]
 
-    driver_standings, ds_meta = jolpica.driver_standings(season, cache_dir, round_=None)
-    provenance.append(ds_meta)
+    # F6's standings must contain everything that happened before this race and
+    # nothing from the race itself. Which endpoint gets you that depends on
+    # whether the race has run, and the two are NOT interchangeable:
+    #
+    # Live (race_has_run=False): round_=None, the "latest" standings. This is
+    #   the only way to capture a sprint that already ran this weekend. Jolpica
+    #   stamps that list with round_ itself even when it holds sprint points
+    #   only -- verified against the 2026 Dutch GP, where "latest" was stamped
+    #   round 12 and sat exactly 8/7/6/5/4/3/2/1 points above the round-11
+    #   table for the sprint's top 8. So a stamped round of round_ is expected
+    #   here and is not evidence of leakage; anything beyond round_ is.
+    #
+    # Backfill (race_has_run=True): "latest" is the FINAL table of a finished
+    #   season -- F6 (w=0.08) handed the answer. Ask for the prior round
+    #   explicitly instead. Known limitation: on a sprint weekend this drops
+    #   that weekend's sprint points from F6, because there is no round-indexed
+    #   way to ask for "after round N-1's race plus round N's sprint." Bounded
+    #   at 8 points against leader totals in the hundreds, on a feature
+    #   normalized by leader points -- documented in 01-data-pipeline.md sec4.6
+    #   rather than papered over with a per-season sprint-scoring table.
+    #
+    # Round 1 has no prior round and no standings; F6 scores everyone 0.0 off
+    # an empty list.
+    prior_round = round_ - 1
+    if prior_round < 1:
+        driver_standings, standings_after_round = [], None
+    elif race_has_run:
+        driver_standings, ds_meta = jolpica.driver_standings(
+            season, cache_dir, round_=prior_round, verify_round=prior_round
+        )
+        provenance.append(ds_meta)
+        standings_after_round = prior_round
+    else:
+        driver_standings, ds_meta = jolpica.driver_standings(
+            season, cache_dir, round_=None, max_round=round_
+        )
+        provenance.append(ds_meta)
+        standings_after_round = ds_meta.get("standings_round")
     standings = [
         {
             "code": s["Driver"]["code"],
@@ -154,11 +194,17 @@ def build_form(season, round_, grid, cache_dir):
         for s in driver_standings
     ]
 
+    require(
+        all(r < round_ for r in all_rounds),
+        f"form leakage: all_rounds={all_rounds} includes the round being predicted ({round_})",
+    )
+
     return {
         "all_rounds": all_rounds,
         "recent_rounds": recent_rounds,
         "results_by_round": per_round_results,
         "driver_standings": standings,
+        "standings_after_round": standings_after_round,
     }, provenance
 
 
@@ -170,6 +216,14 @@ def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
         provenance.append(meta)
         rows = []
         for race in races:
+            # Jolpica returns a driver's ENTIRE history at this circuit, past and
+            # future relative to race_date. Filtering here (not on season) is the
+            # only leakage guard in this function: a same-season backfill has to
+            # drop the target race itself, whose date is exactly race_date, and a
+            # season-level filter would keep it. ISO-8601 dates compare correctly
+            # as strings.
+            if race["date"] >= race_date:
+                continue
             res = race["Results"][0]
             status = res.get("status", "Finished")
             rows.append({
@@ -227,6 +281,14 @@ def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
             # re-rank an older edition into a newer one's weight slot.
             r["recency_weight"] = recency_weights[i]
         by_driver[code] = filtered
+
+    for code, rows in by_driver.items():
+        for r in rows:
+            require(
+                r["date"] < race_date,
+                f"track-history leakage: {code} has a {circuit_id} row dated {r['date']}, "
+                f"which is not strictly before the race being predicted ({race_date})",
+            )
 
     return {
         "circuit_id": circuit_id,
@@ -467,7 +529,13 @@ def main():
     grid, is_sprint_weekend, grid_prov = build_grid(args.season, args.round, cache_dir)
     provenance["grid"] = grid_prov
 
-    form, form_prov = build_form(args.season, args.round, grid, cache_dir)
+    # A past race is a backfill, which changes how F6's standings are sourced
+    # (see build_form). Race day itself counts as live: a pre-race snapshot on
+    # race morning must still see the sprint, and you do not snapshot after
+    # lights-out.
+    race_has_run = race_date < datetime.now(timezone.utc).date().isoformat()
+    form, form_prov = build_form(args.season, args.round, grid, cache_dir,
+                                  race_has_run=race_has_run)
     provenance["form"] = form_prov
 
     track_history, th_prov = build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir)

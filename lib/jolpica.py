@@ -13,6 +13,7 @@ Gotchas handled here (01-data-pipeline.md sec4.4, sec4.5):
 """
 
 from . import httpcache
+from .invariants import require
 
 BASE = "https://api.jolpi.ca/ergast/f1/"
 
@@ -86,8 +87,23 @@ def race_results(season, round_, cache_dir):
     return results, meta
 
 
-def driver_standings(season, cache_dir, round_=None):
-    """Standings after `round_`, or the latest available if round_ is None."""
+def driver_standings(season, cache_dir, round_=None, verify_round=None, max_round=None):
+    """Standings after `round_`, or the latest available if round_ is None.
+
+    verify_round: assert the StandingsList came back stamped with exactly this
+    round. Ergast-style APIs answer an out-of-range round with the nearest
+    available standings rather than an error, so asking for round 12 and being
+    handed round 22's table is a silent, plausible, completely wrong answer --
+    exactly the leakage an A3 backfill must not have.
+
+    max_round: the looser check for a round_=None ("latest") pull, which is
+    legitimately allowed to be stamped with the round being predicted when only
+    that round's sprint has run (see snapshot.build_form). Asserts the stamp is
+    at most max_round, which still catches a finished season's final table.
+
+    Either check also puts the stamped round on the returned meta as
+    "standings_round", so a snapshot records which table it actually got.
+    """
     path = f"{season}/{round_}/driverstandings.json?limit=40" if round_ else (
         f"{season}/driverstandings.json?limit=40"
     )
@@ -95,6 +111,22 @@ def driver_standings(season, cache_dir, round_=None):
     lists = body["MRData"]["StandingsTable"]["StandingsLists"]
     if not lists:
         return [], meta
+    got = int(lists[0]["round"])
+    meta = dict(meta)
+    meta["standings_round"] = got
+
+    if verify_round is not None:
+        require(
+            got == verify_round,
+            f"driver_standings({season}, round_={round_}) returned standings after "
+            f"round {got}, not the requested {verify_round}",
+        )
+    if max_round is not None:
+        require(
+            got <= max_round,
+            f"driver_standings({season}, latest) returned standings stamped round {got}, "
+            f"which is past round {max_round} -- these include the race being predicted",
+        )
     return lists[0]["DriverStandings"], meta
 
 
