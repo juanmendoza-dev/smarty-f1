@@ -15,7 +15,7 @@ Read `docs/welcome.md` first if you haven't. This doc tracks phases, status, and
 
 **Phase A0 — Data pipeline (current)**
 Lock down sources for historical results, weather, and market odds. See `01-data-pipeline.md`.
-Status: locked.
+Status: **locked and written** (2026-08-22). All sources verified live against production; every Phase A1 input (grid, sprint, standings, weather, both markets) confirmed available. Blocker noted: FastF1 needs Python >= 3.10, machine has 3.9.6 — A1/A2 deliberately do not depend on FastF1.
 
 **Phase A1 — Rule-based winner predictor (current focus)**
 Hand-weighted scoring function using grid position, season/team form, track history, weather. No training — the owner picks the weights. Output compared against Polymarket + Kalshi odds for the same race.
@@ -55,12 +55,19 @@ Status: not started.
 
 - Historical results: **FastF1 + Jolpica**, used redundantly (cross-validation/backup, not additional unique data volume — they mostly cover the same races)
 - Weather: **Open-Meteo** (free, confirmed)
-- Market odds: **Polymarket + Kalshi**, both confirmed to have active Dutch GP winner markets; owner providing API access for both
+- Market odds: **Polymarket + Kalshi**, both confirmed to have active Dutch GP winner markets. **No API credentials needed** — both venues' price-read endpoints are fully public (verified live 2026-08-22). See `01-data-pipeline.md` §6.3, §7.3.
+- Market data access: Polymarket **Gamma** API only (not CLOB/Data); Kalshi `GET /markets` on `external-api.kalshi.com`
+- Canonical driver key across all sources: **FIA three-letter code** (`ANT`, `NOR`), sourced from Jolpica `Driver.code`
+- Odds normalization for A1: proportional de-vig; raw + normalized both persisted
 - Live data (when needed): **FastF1's free live module**, not OpenF1's paid live tier (€9.90/month) — avoided per the zero-budget constraint
 - No paid capture hardware for Lane B — Apple TV app runs natively on Mac, so screen capture of the app window is the plan, not an HDMI capture card
 
 ## Open decisions
 
 - Feature list + weights for the Phase A1 rule-based score
-- Exact API integration details for Polymarket/Kalshi (auth method, rate limits)
+- Polymarket driver-name → FIA code mapping table (no code exposed by that API; must be maintained)
+- De-vig method beyond A1 (proportional vs. longshot-aware) — defer to A3 calibration data
+- Snapshot retention: are `data/snapshots/*.json` committed to git?
+- FastF1 interpreter upgrade path: `brew install python@3.12` + venv vs. `uv`
+- Lane B: FastF1's live module does **not** parse in real time (records raw for post-session parsing, ~2h connection cap) — the B0 premise needs revisiting. See `01-data-pipeline.md` §9.5
 - Whether Apple's broadcast even displays a persistent on-screen data overlay worth targeting for Phase B2 (unknown until observed)
