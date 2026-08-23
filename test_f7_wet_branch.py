@@ -19,7 +19,6 @@ expectation.
 """
 
 import copy
-import glob
 import json
 import os
 import unittest
@@ -30,16 +29,10 @@ REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 SNAPSHOT_DIR = os.path.join(REPO_ROOT, "data", "snapshots")
 
 
-def latest_snapshot():
-    paths = sorted(glob.glob(os.path.join(SNAPSHOT_DIR, "*.json")))
-    paths = [p for p in paths if not p.endswith("-score.json")]
-    return paths[-1]
-
-
 class TestF7WetBranch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        with open(latest_snapshot()) as f:
+        with open(score.load_latest_snapshot(SNAPSHOT_DIR)) as f:
             cls.snapshot = json.load(f)
         cls.algo_snapshot = {k: v for k, v in cls.snapshot.items() if k != "markets"}
 

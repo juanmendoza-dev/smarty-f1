@@ -340,8 +340,33 @@ def compute_post_race(p_algo, markets, winner):
     }
 
 
+def compute_comparison(p_algo, markets):
+    """sec6: per-driver algo-vs-market table (edge, venue spread). Pulled out
+    of main() so postrace.py can write the same comparison block instead of
+    silently dropping it -- the divergences are the product (sec6), not
+    something a post-race run should lose.
+    """
+    market_mean = markets["market_mean"]
+    comparison = {}
+    for code, p in p_algo.items():
+        pm = markets["polymarket"]["by_code"].get(code, {}).get("normalized")
+        kx = markets["kalshi"]["by_code"].get(code, {}).get("normalized")
+        mm = market_mean.get(code)
+        edge = (p - mm) if mm is not None else None
+        spread = (abs(pm - kx) if (pm is not None and kx is not None) else None)
+        comparison[code] = {
+            "p_algo": p, "p_polymarket": pm, "p_kalshi": kx, "p_market_mean": mm,
+            "edge": edge, "venue_spread": spread,
+        }
+    return comparison
+
+
+DERIVED_SUFFIXES = ("-score.json", "-postrace.json")
+
+
 def load_latest_snapshot(snapshot_dir):
     paths = sorted(glob.glob(os.path.join(snapshot_dir, "*.json")))
+    paths = [p for p in paths if not p.endswith(DERIVED_SUFFIXES)]
     if not paths:
         raise SystemExit(f"no snapshots found in {snapshot_dir}")
     return paths[-1]
@@ -376,18 +401,7 @@ def main():
 
     # market comparison -- only now, after scoring is fully complete
     markets = snapshot["markets"]
-    market_mean = markets["market_mean"]
-    comparison = {}
-    for code, p in p_algo.items():
-        pm = markets["polymarket"]["by_code"].get(code, {}).get("normalized")
-        kx = markets["kalshi"]["by_code"].get(code, {}).get("normalized")
-        mm = market_mean.get(code)
-        edge = (p - mm) if mm is not None else None
-        spread = (abs(pm - kx) if (pm is not None and kx is not None) else None)
-        comparison[code] = {
-            "p_algo": p, "p_polymarket": pm, "p_kalshi": kx, "p_market_mean": mm,
-            "edge": edge, "venue_spread": spread,
-        }
+    comparison = compute_comparison(p_algo, markets)
 
     print()
     print("algo vs market:")

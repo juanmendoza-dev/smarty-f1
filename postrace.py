@@ -2,11 +2,17 @@
 """Auto-score a snapshot against the actual race result. 02-winner-prediction-algo.md sec7.
 
 Everything score.py needs for post-race scoring already exists -- it's the
-same score_all()/compute_post_race() pipeline, just wired to --winner CODE
-typed by hand. This script is that same pipeline with the winner pulled from
-Jolpica's classification instead: it reads the snapshot's (season, round),
-fetches the race result, takes the classified P1, and writes the same
-post_race block score.py would, into the same <snapshot>-score.json file.
+same score_all()/compute_comparison()/compute_post_race() pipeline, just
+wired to --winner CODE typed by hand. This script is that same pipeline with
+the winner pulled from Jolpica's classification instead: it reads the
+snapshot's (season, round), fetches the race result, and takes the classified
+P1.
+
+Writes to <snapshot>-postrace.json, not score.py's <snapshot>-score.json --
+the owner re-snapshots the markets close to lights-out (sec8.3), and
+score.py's file is the committed pre-race audit trail for that snapshot.
+Overwriting it post-race would silently drop the "comparison" block, which
+sec6 is explicit is the product, not a defect to tune away.
 
 Refuses to run if Jolpica has no result for this round yet (lib/jolpica.py:
 race_results() returning [] means the race hasn't happened, or hasn't been
@@ -22,7 +28,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lib import jolpica
-from score import REPO_ROOT, load_latest_snapshot, score_all, compute_post_race
+from score import REPO_ROOT, load_latest_snapshot, score_all, compute_comparison, compute_post_race
 
 DEFAULT_CACHE_DIR = os.path.join(REPO_ROOT, "data", "cache")
 
@@ -46,9 +52,9 @@ def main():
                      help="path to a snapshot JSON; defaults to the latest in data/snapshots")
     ap.add_argument("--cache-dir", default=DEFAULT_CACHE_DIR)
     ap.add_argument("--out", default=None,
-                     help="path to write the score result JSON; defaults to <snapshot>-score.json, "
-                          "same file score.py writes, so post-race scoring lands alongside the "
-                          "pre-race prediction rather than a separate file")
+                     help="path to write the score result JSON; defaults to <snapshot>-postrace.json, "
+                          "kept separate from score.py's <snapshot>-score.json so this never "
+                          "overwrites the committed pre-race audit trail")
     args = ap.parse_args()
 
     snapshot_path = args.snapshot or load_latest_snapshot(os.path.join(REPO_ROOT, "data", "snapshots"))
@@ -65,7 +71,9 @@ def main():
     result = score_all(algo_snapshot)
     p_algo = result["p_algo"]
 
-    post_race = compute_post_race(p_algo, snapshot["markets"], winner)
+    markets = snapshot["markets"]
+    comparison = compute_comparison(p_algo, markets)
+    post_race = compute_post_race(p_algo, markets, winner)
 
     print(f"brier: algo={post_race['brier_algo']:.4f} polymarket={post_race['brier_polymarket']:.4f} "
           f"kalshi={post_race['brier_kalshi']:.4f} market_mean={post_race['brier_market_mean']:.4f}")
@@ -82,11 +90,12 @@ def main():
         "p_algo": p_algo,
         "weather_dormant": result["weather_dormant"],
         "p_max": result["p_max"],
+        "comparison": comparison,
         "post_race": post_race,
         "result_provenance": result_meta,
     }
 
-    out_path = args.out or (os.path.splitext(snapshot_path)[0] + "-score.json")
+    out_path = args.out or (os.path.splitext(snapshot_path)[0] + "-postrace.json")
     with open(out_path, "w") as f:
         json.dump(output, f, indent=2, default=str)
     print(f"\nwrote {out_path}")
