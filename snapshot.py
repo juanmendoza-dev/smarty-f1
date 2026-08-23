@@ -211,10 +211,10 @@ def build_track_history(circuit_id, grid, race_date, cache_dir):
     }, provenance
 
 
-def build_weather(lat, lon, race_date_str, race_time_str, circuit_id, cache_dir):
+def build_weather(lat, lon, race_date_str, race_time_str, circuit_id, cache_dir, force_refresh=False):
     tz_name = CIRCUIT_TIMEZONE[circuit_id]
     tz = ZoneInfo(tz_name)
-    body, meta = openmeteo.forecast(lat, lon, race_date_str, tz_name, cache_dir)
+    body, meta = openmeteo.forecast(lat, lon, race_date_str, tz_name, cache_dir, force_refresh=force_refresh)
     hourly = body["hourly"]
 
     start_utc = datetime.fromisoformat(f"{race_date_str}T{race_time_str.replace('Z', '+00:00')}")
@@ -245,11 +245,13 @@ def build_weather(lat, lon, race_date_str, race_time_str, circuit_id, cache_dir)
     }, [meta]
 
 
-def build_markets(polymarket_slug, race_date_str, kalshi_series, kalshi_event_ticker, cache_dir):
+def build_markets(polymarket_slug, race_date_str, kalshi_series, kalshi_event_ticker, cache_dir,
+                   force_refresh=False):
     provenance = []
 
     pm_event, pm_meta, pm_markets = polymarket.resolve_event(
-        polymarket_slug, race_date_str, cache_dir, fallback_title_contains="Dutch Grand Prix Winner"
+        polymarket_slug, race_date_str, cache_dir, fallback_title_contains="Dutch Grand Prix Winner",
+        force_refresh=force_refresh,
     )
     provenance.append(pm_meta)
     pm_overround, pm_normalized = polymarket.normalize(pm_markets)
@@ -269,7 +271,7 @@ def build_markets(polymarket_slug, race_date_str, kalshi_series, kalshi_event_ti
         }
 
     kx_markets, kx_events_meta, kx_markets_meta = kalshi.resolve_markets(
-        kalshi_series, kalshi_event_ticker, race_date_str, cache_dir
+        kalshi_series, kalshi_event_ticker, race_date_str, cache_dir, force_refresh=force_refresh
     )
     provenance.append(kx_events_meta)
     provenance.append(kx_markets_meta)
@@ -318,6 +320,11 @@ def main():
     ap.add_argument("--kalshi-event-ticker", default="KXF1RACE-DUTGP26")
     ap.add_argument("--cache-dir", default=DEFAULT_CACHE_DIR)
     ap.add_argument("--out-dir", default=DEFAULT_OUT_DIR)
+    ap.add_argument("--force-refresh", action="store_true",
+                     help="bypass the disk cache for markets + weather forecast (grid/form/track "
+                          "history are untouched -- they can't change once qualifying's happened). "
+                          "Use this for a re-snapshot close to lights-out; without it, a second run "
+                          "silently replays whatever odds were cached on the first run.")
     args = ap.parse_args()
 
     cache_dir = args.cache_dir
@@ -342,11 +349,14 @@ def main():
     track_history, th_prov = build_track_history(circuit_id, grid, race_date, cache_dir)
     provenance["track_history"] = th_prov
 
-    weather, weather_prov = build_weather(lat, lon, race_date, race_time, circuit_id, cache_dir)
+    weather, weather_prov = build_weather(
+        lat, lon, race_date, race_time, circuit_id, cache_dir, force_refresh=args.force_refresh
+    )
     provenance["weather"] = weather_prov
 
     markets, markets_prov = build_markets(
-        args.polymarket_slug, race_date, args.kalshi_series, args.kalshi_event_ticker, cache_dir
+        args.polymarket_slug, race_date, args.kalshi_series, args.kalshi_event_ticker, cache_dir,
+        force_refresh=args.force_refresh,
     )
     provenance["markets"] = markets_prov
     provenance["fastf1"] = {"status": "unavailable", "reason": "python<3.10"}

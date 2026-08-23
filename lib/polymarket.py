@@ -23,29 +23,35 @@ class StaleMarketError(Exception):
     pass
 
 
-def _events_by_slug(slug, cache_dir):
+def _events_by_slug(slug, cache_dir, force_refresh=False):
     url = f"{GAMMA_BASE}/events?" + urllib.parse.urlencode({"slug": slug})
-    return httpcache.cached_get_json(url, cache_dir)
+    return httpcache.cached_get_json(url, cache_dir, force_refresh=force_refresh)
 
 
-def _events_by_tag(tag_slug, cache_dir):
+def _events_by_tag(tag_slug, cache_dir, force_refresh=False):
     url = f"{GAMMA_BASE}/events?" + urllib.parse.urlencode(
         {"tag_slug": tag_slug, "closed": "false", "limit": 100}
     )
-    return httpcache.cached_get_json(url, cache_dir)
+    return httpcache.cached_get_json(url, cache_dir, force_refresh=force_refresh)
 
 
-def resolve_event(slug, expected_race_date, cache_dir, fallback_title_contains=None, tag_slug="f1"):
+def resolve_event(slug, expected_race_date, cache_dir, fallback_title_contains=None, tag_slug="f1",
+                   force_refresh=False):
     """Resolve the live winner-market event for one race, refusing anything stale.
 
     expected_race_date: "YYYY-MM-DD", used only to sanity-check endDate is not in
     the past relative to the race.
+
+    force_refresh: bypass the disk cache. Prices move; unlike Jolpica's grid/form/
+    track-history, replaying a cached response here silently reports stale odds
+    with no error (01-data-pipeline.md sec8.3's pre-lights-out re-snapshot depends
+    on this actually being true).
     """
-    body, meta = _events_by_slug(slug, cache_dir)
+    body, meta = _events_by_slug(slug, cache_dir, force_refresh=force_refresh)
     event = body[0] if body else None
 
     if event is None and fallback_title_contains:
-        body2, meta2 = _events_by_tag(tag_slug, cache_dir)
+        body2, meta2 = _events_by_tag(tag_slug, cache_dir, force_refresh=force_refresh)
         candidates = [
             e for e in body2
             if fallback_title_contains.lower() in e.get("title", "").lower()

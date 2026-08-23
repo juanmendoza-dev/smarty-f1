@@ -14,7 +14,7 @@ FORECAST_BASE = "https://api.open-meteo.com/v1/forecast"
 ARCHIVE_BASE = "https://archive-api.open-meteo.com/v1/archive"
 
 
-def forecast(lat, lon, date, tz, cache_dir):
+def forecast(lat, lon, date, tz, cache_dir, force_refresh=False):
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -24,7 +24,7 @@ def forecast(lat, lon, date, tz, cache_dir):
         "timezone": tz,
     }
     url = FORECAST_BASE + "?" + urllib.parse.urlencode(params)
-    return httpcache.cached_get_json(url, cache_dir)
+    return httpcache.cached_get_json(url, cache_dir, force_refresh=force_refresh)
 
 
 def archive(lat, lon, start_date, end_date, tz, cache_dir):
