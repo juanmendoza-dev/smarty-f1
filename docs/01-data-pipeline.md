@@ -131,8 +131,11 @@ server-enforced 100-row page cap, verified live 2026-08-23 — a 22-round season
 place of one `race_results` call per prior round (`jolpica.season_results`, used by
 `build_form` as of 2026-08-23). The season-level pull is cached per `(season, offset)`, so it's
 fetched from the network once per season for the life of the cache and then reused by every race
-in that season — the fix that made Phase A3's backfill volume line item moot rather than merely
-smaller.
+in that season — ~4x fewer calls per season than the per-round loop, and the marginal cost of
+each additional race backfilled from that season drops to zero instead of being merely smaller.
+`jolpica.season_results` also force-refreshes and re-validates page 0 and any short trailing page
+against a freshly-read row total, since a cached page from an earlier week would otherwise keep
+reporting a stale total for a season still in progress — see its docstring.
 
 ### 4.4 Gotchas
 

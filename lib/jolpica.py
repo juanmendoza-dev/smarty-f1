@@ -18,9 +18,9 @@ from .invariants import require
 BASE = "https://api.jolpi.ca/ergast/f1/"
 
 
-def _get(path, cache_dir):
+def _get(path, cache_dir, force_refresh=False):
     url = BASE + path
-    return httpcache.cached_get_json(url, cache_dir)
+    return httpcache.cached_get_json(url, cache_dir, force_refresh=force_refresh)
 
 
 def schedule(season, cache_dir):
@@ -104,27 +104,71 @@ def season_results(season, cache_dir):
     22-round season returns total=440 result rows (20 cars/round) paginated
     5 pages deep at limit=100, even when a larger limit is requested -- the
     server silently caps the page size rather than erroring or honoring it.
+
+    Two failure modes this guards against, both verified live against the
+    2016 season (22 cars/round, so 100 does not divide evenly):
+    - Pagination is by result ROW, not by race, so a round can straddle a
+      page boundary and arrive split across two responses (2016 round 5: 12
+      rows on the offset=0 page, 10 on offset=100). Rows are appended per
+      round rather than overwritten, so a split round is reassembled instead
+      of losing its first fragment.
+    - `total` lives in every page's body, including the offset=0 page, which
+      is cached like any other URL. For a season still in progress, a warm
+      cache would keep answering with whatever `total` was true the first
+      time that URL was fetched, silently truncating every later round --
+      most of the scorer's weight computed on a stale season. Worse, the
+      *previously-last* page is the same problem one level down: it was
+      cached as a short, partial page back when it was the tail, and revisiting
+      that same offset from cache would still show that short page even
+      after the season grew past it. Page 0 is always force-refreshed for an
+      accurate total; every other page is fetched cache-first but its row
+      count is checked against what that fresh total says it should hold --
+      a short page is a stale tail and gets force-refreshed too. A page that
+      was already fully populated (an interior page, or a genuinely finished
+      season's true tail) never mismatches, so a finished historical season
+      costs exactly one refreshed call (page 0) no matter how many times
+      this runs against it.
     """
     results_by_round = {}
     metas = []
-    offset = 0
     limit = 100
-    seen = 0
-    while True:
-        body, meta = _get(f"{season}/results.json?limit={limit}&offset={offset}", cache_dir)
-        metas.append(meta)
-        races = body["MRData"]["RaceTable"]["Races"]
-        total = int(body["MRData"]["total"])
+
+    def merge(races):
+        n = 0
         for race in races:
-            results_by_round[int(race["round"])] = race["Results"]
-            seen += len(race["Results"])
+            results_by_round.setdefault(int(race["round"]), []).extend(race["Results"])
+            n += len(race["Results"])
+        return n
+
+    body, meta = _get(f"{season}/results.json?limit={limit}&offset=0", cache_dir, force_refresh=True)
+    metas.append(meta)
+    total = int(body["MRData"]["total"])
+    seen = merge(body["MRData"]["RaceTable"]["Races"])
+
+    offset = limit
+    while offset < total:
+        expected = min(limit, total - offset)
+        body, meta = _get(f"{season}/results.json?limit={limit}&offset={offset}", cache_dir)
+        got = sum(len(r["Results"]) for r in body["MRData"]["RaceTable"]["Races"])
+        if got != expected:
+            body, meta = _get(
+                f"{season}/results.json?limit={limit}&offset={offset}", cache_dir, force_refresh=True
+            )
+        metas.append(meta)
+        seen += merge(body["MRData"]["RaceTable"]["Races"])
         offset += limit
-        if offset >= total:
-            require(seen == total, (
-                f"season_results({season}) collected {seen} rows across "
-                f"{len(metas)} page(s) but total={total}"
-            ))
-            break
+
+    require(seen == total, (
+        f"season_results({season}) collected {seen} rows across "
+        f"{len(metas)} page(s) but total={total}"
+    ))
+    for rnd, rows in results_by_round.items():
+        positions = sorted(int(r["position"]) for r in rows)
+        require(
+            positions == list(range(1, len(rows) + 1)),
+            f"season_results({season}) round {rnd}: positions {positions} aren't a "
+            f"contiguous 1..{len(rows)} classification -- a split or corrupted page merge",
+        )
     return results_by_round, metas
 
 
