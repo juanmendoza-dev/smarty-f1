@@ -221,13 +221,38 @@ same win-strength numbers, asked a different question ("who's in the top 3/10 of
 instead of "who's 1st"). **Zero new weights.** The only new hand-set constants are structural
 (K=3, K=10) and computational (simulation size/seed, §6.2), not modeling judgments.
 
-### 6.2 Computing it: exact draw, Monte Carlo estimate
+### 6.2 Computing it: exact for podium, Monte Carlo for points
 
-Exact closed-form top-K marginals for a 22-driver Plackett-Luce field require either enumerating
-size-K subsets (infeasible: `C(21,9)` for K=10) or a numerical-integration approach (exact, but
-adds machinery — quadrature, a Poisson-binomial CDF — that's disproportionate to this project's
-"hand-rule, explainable" philosophy for a first cut). Monte Carlo simulation is simpler, exact in
-expectation, and easy to explain, at the cost of a small, stated sampling error.
+**Revised 2026-08-23.** This section originally routed *both* top-K marginals through Monte Carlo,
+on the reasoning that exact top-K "requires enumerating size-K subsets (infeasible: `C(21,9)` for
+K=10)." That's correct for K=10 and wrong for K=3, which the original framing didn't separate.
+
+**Podium (K=3) is exact.** Summing over ordered (1st, 2nd, 3rd) triples is O(n³), ~10,000 terms on
+a 22-car grid, ~2.5ms:
+
+```
+P(d in top 3) = P(d 1st) + P(d 2nd) + P(d 3rd)
+P(d 1st)      = w_d / W
+P(d 2nd)      = sum_{a != d}                (w_a/W)(w_d/(W - w_a))
+P(d 3rd)      = sum_{a != d} sum_{b != a,d} (w_a/W)(w_b/(W - w_a))(w_d/(W - w_a - w_b))
+```
+
+Implemented as `lib/simulate.exact_top3_probabilities`. **The sum-to-3 check is the numerical
+guard, not decoration**: the third term divides by `W - w_a - w_b`, which cancels badly on a field
+where two drivers carry nearly all the weight. Top-3 marginals must sum to exactly 3 because every
+race puts exactly three drivers on the podium, so a failure of that identity is the signal that
+the recurrence has lost precision and the Monte Carlo estimate is the honest fallback.
+
+**Points (K=10) stays Monte Carlo.** A Plackett-Luce denominator depends on *which* drivers have
+already been placed, not merely how many, so there is no dynamic program that collapses a 10-deep
+sum — the original section's reasoning holds here unchanged.
+
+Note this buys **precision and a second estimator, not wall-clock**: the simulation still runs for
+K=10, so total runtime is unchanged. The simulation's own top-3 is retained as an independent
+cross-check against the exact value (two different methods agreeing to within sampling noise
+catches a bug in either one).
+
+The rest of this section describes the simulation, which still produces `p_points`.
 
 **Method** — the "exponential race" equivalence (a standard, exact way to sample a Plackett-Luce
 permutation, not an approximation): for each simulated race, draw `U_d ~ Uniform(0,1)` independently
@@ -237,9 +262,11 @@ from the Plackett-Luce distribution over full rankings (sorting independent
 sequential choice-by-relative-strength process). One simulated race gives one full order; a driver
 is "podium" if their sorted rank ≤ 3, "points" if ≤ 10, and — as a free byproduct — "win" if rank
 == 1 for the self-consistency check below. Because all three counts come from the **same** sorted
-order within a run, `p_win ≤ p_podium ≤ p_points` holds **exactly** by construction, not just in
-expectation — a driver counted in the top-1 set is necessarily in the top-3 and top-10 sets of that
-same simulated race.
+order within a run, `p_win ≤ p_podium ≤ p_points` holds **exactly** by construction *within the
+simulation*, not just in expectation — a driver counted in the top-1 set is necessarily in the
+top-3 and top-10 sets of that same simulated race. Since `p_podium` is now reported from the exact
+form instead, the published chain mixes estimators and the ordering is asserted within sampling
+tolerance rather than exactly.
 
 **Locked constants:**
 
@@ -254,11 +281,13 @@ being a fixed constant rather than fit per race. Benchmarked at ~1.2s in pure Py
 kept out deliberately; `01`'s zero-third-party-dependency-for-network-calls norm extends here to
 avoid adding a dependency for something the stdlib does adequately at this field size).
 
-**Stated precision — this is not exact-to-the-digit like `02` §9's closed-form win table.**
+**Stated precision — `p_points` is not exact-to-the-digit like `02` §9's closed-form win table.**
 Standard error of a Monte Carlo proportion is `sqrt(p(1-p)/N)`; at N=200,000 this is ≤0.11
-percentage points for any `p`. Reported probabilities are accurate to **within roughly ±0.3
-points (≈3 standard errors)**, not bit-reproducible the way `p_algo` is. This is a deliberate,
-documented precision tradeoff — state it, don't hide it.
+percentage points for any `p`. `p_points` is accurate to **within roughly ±0.3 points (≈3 standard
+errors)**, not bit-reproducible the way `p_algo` is. This is a deliberate, documented precision
+tradeoff — state it, don't hide it. `p_podium` no longer carries it (see above); the monotonicity
+assertions consequently compare an exact quantity against a sampled one and use the same ±1pp
+tolerance as the self-consistency check rather than an exact-equality epsilon.
 
 **Self-consistency assertion (implementation-bug guard):** for every driver, the simulation's own
 top-1 empirical frequency must match `02`'s closed-form `p_algo` within 1 percentage point (≈9
@@ -467,10 +496,35 @@ degenerate-price check's threshold (§6.4) — at `k=1` the check is byte-for-by
 
 ### 8.3 CLI surface
 
-`snapshot.py` gains per-outcome slug/ticker overrides (`--polymarket-podium-slug`,
-`--polymarket-fastestlap-slug`, `--kalshi-podium-ticker`, `--kalshi-top10-ticker`,
-`--kalshi-fastlap-ticker`), following the exact pattern the existing `--polymarket-slug`/
-`--kalshi-event-ticker` args already use — race-specific, not derived, same as today.
+**Superseded 2026-08-23.** This section originally specced five per-outcome flags
+(`--polymarket-podium-slug`, `--polymarket-fastestlap-slug`, `--kalshi-podium-ticker`,
+`--kalshi-top10-ticker`, `--kalshi-fastlap-ticker`) "following the exact pattern the existing
+`--polymarket-slug`/`--kalshi-event-ticker` args already use." That pattern turned out to be the
+problem: seven race-specific argparse defaults all pinned to the Dutch GP meant every other race
+was a seven-flag invocation, and forgetting one silently snapshotted Dutch odds against a
+different weekend's grid — with nothing downstream able to notice.
+
+Per-race identifiers now live in `races/*.json` instead:
+
+```
+python3 snapshot.py --race races/2026-monza.json
+python3 preview_odds.py --race races/2026-monza.json
+```
+
+Fields: `season`, `round`, `polymarket_slug`, `polymarket_fallback_title`,
+`polymarket_podium_slug`, `polymarket_fastestlap_slug`, `kalshi_series`, `kalshi_event_ticker`,
+`kalshi_podium_ticker`, `kalshi_top10_ticker`, `kalshi_fastlap_ticker`. The first five of those
+(`season`, `round`, `polymarket_slug`, `kalshi_series`, `kalshi_event_ticker`) are required; the
+extended-market fields may be null, because those pulls soft-fail per venue by design (§8.2) and a
+null ticker is just the ordinary "Kalshi hasn't opened this event yet" case.
+
+Every field still has a matching `--flag` that overrides the config for one run, so a config
+remains a base rather than a straitjacket. There are no defaults: a bare `python3 snapshot.py`
+now exits telling you what's missing instead of quietly building the wrong race.
+`postrace.py` is unaffected — it takes a snapshot *path* and reads season/round out of the file.
+
+`test_config.py` checks each config's round against Jolpica's schedule and asserts the
+Polymarket slug's trailing date matches that round's real race date.
 
 ---
 
@@ -478,9 +532,11 @@ degenerate-price check's threshold (§6.4) — at `k=1` the check is byte-for-by
 
 Real data: the frozen pre-race snapshot (`02` §9's reference run, unchanged) scored with this
 spec's additions, then compared against the real 2026-08-23 result. **A correct implementation
-reproduces the `p_win`/`p_dnf`/`p_fastlap` columns exactly** (closed-form) **and the
-`p_podium`/`p_points` columns to within ±0.3 percentage points** (Monte Carlo, `SIM_N=200_000`,
-`SIM_SEED=20260823` — §6.2's stated precision, not a looser standard for this table specifically).
+reproduces the `p_win`/`p_dnf`/`p_fastlap`/`p_podium` columns exactly** (all closed-form since
+2026-08-23 — podium moved off Monte Carlo, see §6.2) **and the `p_points` column to within ±0.3
+percentage points** (Monte Carlo, `SIM_N=200_000`, `SIM_SEED=20260823` — §6.2's stated precision,
+not a looser standard for this table specifically). Podium figures published before that change
+came from the sampler and can sit up to ~0.2pp off the exact value.
 `p_win` is shown post-§10.5-erratum (36.1%, not `02`'s originally-locked 36.2% — see §10.5 for why
 that 0.1pp move is expected and not a bug).
 

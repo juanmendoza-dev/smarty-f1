@@ -15,27 +15,49 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from snapshot import build_markets
+from snapshot import RACE_CONFIG_FIELDS, build_markets, resolve_race_config
+from lib import jolpica
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--polymarket-slug", default="f1-dutch-grand-prix-winner-2026-08-23")
-    ap.add_argument("--kalshi-series", default="KXF1RACE")
-    ap.add_argument("--kalshi-event-ticker", default="KXF1RACE-DUTGP26")
-    ap.add_argument("--race-date", default="2026-08-23")
+    # Same race-config surface as snapshot.py -- these used to be four defaults
+    # pinned to the Dutch GP, which meant a bare run silently previewed last
+    # month's odds rather than the race you were thinking about.
+    ap.add_argument("--race", help="path to a races/*.json, e.g. races/2026-monza.json")
+    ap.add_argument("--polymarket-slug")
+    ap.add_argument("--kalshi-series")
+    ap.add_argument("--kalshi-event-ticker")
+    ap.add_argument("--polymarket-fallback-title")
+    ap.add_argument("--season", type=int)
+    ap.add_argument("--round", type=int)
+    ap.add_argument("--race-date", help="defaults to Jolpica's date for the config's season/round")
     args = ap.parse_args()
 
+    for field in RACE_CONFIG_FIELDS:
+        if not hasattr(args, field):
+            setattr(args, field, None)
+    cfg = resolve_race_config(args)
+
     with tempfile.TemporaryDirectory(prefix="f1-odds-preview-") as cache_dir:
+        race_date = args.race_date
+        if race_date is None:
+            # Derived, not configured: a hand-typed date that disagrees with the
+            # schedule is exactly what the venues' staleness checks are for, and
+            # deriving it means the two can't drift apart.
+            race, _ = jolpica.race_info(cfg["season"], cfg["round"], cache_dir)
+            race_date = race["date"]
         markets, _ = build_markets(
-            args.polymarket_slug, args.race_date, args.kalshi_series, args.kalshi_event_ticker,
+            cfg["polymarket_slug"], race_date, cfg["kalshi_series"], cfg["kalshi_event_ticker"],
             cache_dir, force_refresh=True,
+            fallback_title_contains=cfg["polymarket_fallback_title"],
         )
 
     pm_by_code = markets["polymarket"]["by_code"]
     kx_by_code = markets["kalshi"]["by_code"]
     mean = markets["market_mean"]
 
+    print(f"{cfg['polymarket_slug']}  ({race_date})")
     print(f"polymarket overround={markets['polymarket']['overround']:.4f}  "
           f"kalshi overround={markets['kalshi']['overround']:.4f}")
     print()
