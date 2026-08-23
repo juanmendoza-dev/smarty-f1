@@ -1,0 +1,14 @@
+{
+  "_comment": "Dutch GP 2026, round 12. The Phase A2 reference race -- these are the exact identifiers the committed snapshot was built from.",
+  "season": 2026,
+  "round": 12,
+  "polymarket_slug": "f1-dutch-grand-prix-winner-2026-08-23",
+  "polymarket_fallback_title": "Dutch Grand Prix Winner",
+  "polymarket_podium_slug": "f1-dutch-grand-prix-driver-podium-2026-08-23",
+  "polymarket_fastestlap_slug": "f1-dutch-grand-prix-driver-fastest-lap-2026-08-23",
+  "kalshi_series": "KXF1RACE",
+  "kalshi_event_ticker": "KXF1RACE-DUTGP26",
+  "kalshi_podium_ticker": "KXF1RACEPODIUM-DUTGP26",
+  "kalshi_top10_ticker": "KXF1TOP10-DUTGP26",
+  "kalshi_fastlap_ticker": "KXF1FASTLAP-DUTGP26"
+}

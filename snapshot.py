@@ -368,7 +368,17 @@ def _pull_polymarket_market(slug, race_date_str, cache_dir, force_refresh, k=1,
 def _pull_kalshi_market(series_ticker, event_ticker, race_date_str, cache_dir, force_refresh, k=1):
     """One Kalshi market -> (block, [meta, meta]). Raises kalshi.StaleMarketError
     on anything unresolvable; same soft/hard-fail split as the Polymarket helper.
+
+    A null event_ticker means the race config hasn't been given one yet, which
+    for the extended markets is the ordinary "Kalshi hasn't opened this event"
+    case -- raise the same error type so soft_pull records it as unavailable
+    instead of building a nonsense URL out of the string "None".
     """
+    if not event_ticker:
+        raise kalshi.StaleMarketError(
+            f"no Kalshi event ticker configured for series {series_ticker!r} "
+            f"-- not open yet, or missing from the race config"
+        )
     markets, events_meta, markets_meta = kalshi.resolve_markets(
         series_ticker, event_ticker, race_date_str, cache_dir, force_refresh=force_refresh, k=k,
     )
@@ -405,14 +415,19 @@ def _market_mean(by_code_blocks):
 
 
 def build_markets(polymarket_slug, race_date_str, kalshi_series, kalshi_event_ticker, cache_dir,
-                   force_refresh=False):
+                   force_refresh=False, fallback_title_contains=None):
     """Winner market only. Hard-fails on anything unresolvable -- unchanged
-    01-data-pipeline.md/02-winner-prediction-algo.md behavior."""
+    01-data-pipeline.md/02-winner-prediction-algo.md behavior.
+
+    fallback_title_contains comes from the race config; it used to be the
+    hardcoded string "Dutch Grand Prix Winner", which silently made the
+    slug-lookup fallback useless for every other race.
+    """
     provenance = []
 
     pm_block, pm_meta = _pull_polymarket_market(
         polymarket_slug, race_date_str, cache_dir, force_refresh,
-        fallback_title_contains="Dutch Grand Prix Winner",
+        fallback_title_contains=fallback_title_contains,
     )
     provenance.append(pm_meta)
 
@@ -485,22 +500,89 @@ def build_extended_markets(race_date_str, cache_dir, force_refresh,
     return {"podium": podium, "points": points, "fastest_lap": fastest_lap}, provenance
 
 
+# Per-race identifiers (market slugs/tickers) live in races/*.json, not in
+# argparse defaults. They are pure per-race data with no sane default -- the old
+# defaults pointed at the Dutch GP, so every other race meant remembering to
+# override seven flags and silently snapshotting Dutch odds if you forgot.
+RACE_CONFIG_DIR = os.path.join(REPO_ROOT, "races")
+
+RACE_CONFIG_FIELDS = (
+    "season", "round",
+    "polymarket_slug", "polymarket_fallback_title",
+    "polymarket_podium_slug", "polymarket_fastestlap_slug",
+    "kalshi_series", "kalshi_event_ticker",
+    "kalshi_podium_ticker", "kalshi_top10_ticker", "kalshi_fastlap_ticker",
+)
+
+# Without these a snapshot cannot be built at all. The extended-market fields
+# are allowed to be null: those pulls soft-fail per venue by design (04 sec8.2).
+RACE_CONFIG_REQUIRED = ("season", "round", "polymarket_slug", "kalshi_series",
+                         "kalshi_event_ticker")
+
+
+def load_race_config(path):
+    """Read one races/*.json and return it as a plain dict of known fields."""
+    if not os.path.exists(path):
+        available = sorted(glob.glob(os.path.join(RACE_CONFIG_DIR, "*.json")))
+        raise SystemExit(
+            f"no race config at {path}\navailable: "
+            + (", ".join(os.path.basename(a) for a in available) or "(none)")
+        )
+    with open(path) as f:
+        raw = json.load(f)
+    unknown = set(raw) - set(RACE_CONFIG_FIELDS) - {"_comment"}
+    if unknown:
+        raise SystemExit(f"{path}: unknown field(s) {sorted(unknown)}")
+    return {k: raw.get(k) for k in RACE_CONFIG_FIELDS}
+
+
+def resolve_race_config(args):
+    """Merge --race config with explicit CLI flags. Flags win, so a config can
+    be used as a base and one value overridden for a single run."""
+    cfg = load_race_config(args.race) if args.race else {k: None for k in RACE_CONFIG_FIELDS}
+    for field in RACE_CONFIG_FIELDS:
+        override = getattr(args, field, None)
+        if override is not None:
+            cfg[field] = override
+
+    missing = [f for f in RACE_CONFIG_REQUIRED if cfg.get(f) is None]
+    if missing:
+        hint = ""
+        if "kalshi_event_ticker" in missing:
+            hint = (
+                "\n\nKalshi opens its race events later than Polymarket does "
+                "(04-outcome-expansion-algo.md sec2), so this is often just 'not yet'."
+                "\nList what's currently open with:"
+                "\n  python3 -c \"import sys;sys.path.insert(0,'.');"
+                "from lib import kalshi;from snapshot import DEFAULT_CACHE_DIR as C;"
+                "print([e['event_ticker'] for e in kalshi.discover_event_ticker("
+                "'KXF1RACE',C,force_refresh=True)[0]])\""
+            )
+        raise SystemExit(
+            f"race config is missing required field(s): {missing}"
+            f"\nset them in {args.race or 'a races/*.json passed via --race'} "
+            f"or pass the matching --flag{hint}"
+        )
+    return cfg
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--season", type=int, default=2026)
-    ap.add_argument("--round", type=int, default=12)
-    ap.add_argument("--polymarket-slug", default="f1-dutch-grand-prix-winner-2026-08-23")
-    ap.add_argument("--kalshi-series", default="KXF1RACE")
-    ap.add_argument("--kalshi-event-ticker", default="KXF1RACE-DUTGP26")
-    # 04-outcome-expansion-algo.md sec8.3: per-outcome overrides, race-specific
-    # like the winner-market args above, not derived. Defaults point at the
-    # Dutch GP -- override all five for a different race.
-    ap.add_argument("--polymarket-podium-slug", default="f1-dutch-grand-prix-driver-podium-2026-08-23")
-    ap.add_argument("--polymarket-fastestlap-slug",
-                     default="f1-dutch-grand-prix-driver-fastest-lap-2026-08-23")
-    ap.add_argument("--kalshi-podium-ticker", default="KXF1RACEPODIUM-DUTGP26")
-    ap.add_argument("--kalshi-top10-ticker", default="KXF1TOP10-DUTGP26")
-    ap.add_argument("--kalshi-fastlap-ticker", default="KXF1FASTLAP-DUTGP26")
+    ap.add_argument("--race", help="path to a races/*.json holding this race's season/round and "
+                                    "market identifiers, e.g. races/2026-monza.json")
+    # Every flag below overrides the corresponding --race field for one run and
+    # defaults to None so 'unset' is distinguishable from 'set to the Dutch GP'.
+    ap.add_argument("--season", type=int)
+    ap.add_argument("--round", type=int)
+    ap.add_argument("--polymarket-slug")
+    ap.add_argument("--polymarket-fallback-title")
+    ap.add_argument("--kalshi-series")
+    ap.add_argument("--kalshi-event-ticker")
+    ap.add_argument("--polymarket-podium-slug")
+    ap.add_argument("--polymarket-fastestlap-slug")
+    ap.add_argument("--kalshi-podium-ticker")
+    ap.add_argument("--kalshi-top10-ticker")
+    ap.add_argument("--kalshi-fastlap-ticker")
     ap.add_argument("--skip-extended-markets", action="store_true",
                      help="skip the podium/points/fastest-lap market pulls entirely (grid/form/"
                           "track-history/weather/winner-market snapshot is unaffected either way).")
@@ -512,11 +594,13 @@ def main():
                           "Use this for a re-snapshot close to lights-out; without it, a second run "
                           "silently replays whatever odds were cached on the first run.")
     args = ap.parse_args()
+    cfg = resolve_race_config(args)
+    season, round_ = cfg["season"], cfg["round"]
 
     cache_dir = args.cache_dir
     provenance = {}
 
-    race_info, race_meta = jolpica.race_info(args.season, args.round, cache_dir)
+    race_info, race_meta = jolpica.race_info(season, round_, cache_dir)
     provenance["schedule"] = race_meta
     circuit_id = race_info["Circuit"]["circuitId"]
     circuit_row, circuit_meta = jolpica.circuit(circuit_id, cache_dir)
@@ -526,7 +610,7 @@ def main():
     race_date = race_info["date"]
     race_time = race_info["time"]
 
-    grid, is_sprint_weekend, grid_prov = build_grid(args.season, args.round, cache_dir)
+    grid, is_sprint_weekend, grid_prov = build_grid(season, round_, cache_dir)
     provenance["grid"] = grid_prov
 
     # A past race is a backfill, which changes how F6's standings are sourced
@@ -534,7 +618,7 @@ def main():
     # race morning must still see the sprint, and you do not snapshot after
     # lights-out.
     race_has_run = race_date < datetime.now(timezone.utc).date().isoformat()
-    form, form_prov = build_form(args.season, args.round, grid, cache_dir,
+    form, form_prov = build_form(season, round_, grid, cache_dir,
                                   race_has_run=race_has_run)
     provenance["form"] = form_prov
 
@@ -547,8 +631,9 @@ def main():
     provenance["weather"] = weather_prov
 
     markets, markets_prov = build_markets(
-        args.polymarket_slug, race_date, args.kalshi_series, args.kalshi_event_ticker, cache_dir,
-        force_refresh=args.force_refresh,
+        cfg["polymarket_slug"], race_date, cfg["kalshi_series"], cfg["kalshi_event_ticker"],
+        cache_dir, force_refresh=args.force_refresh,
+        fallback_title_contains=cfg["polymarket_fallback_title"],
     )
     provenance["markets"] = markets_prov
 
@@ -559,8 +644,8 @@ def main():
     else:
         extended_markets, extended_prov = build_extended_markets(
             race_date, cache_dir, args.force_refresh,
-            args.polymarket_podium_slug, args.polymarket_fastestlap_slug,
-            args.kalshi_podium_ticker, args.kalshi_top10_ticker, args.kalshi_fastlap_ticker,
+            cfg["polymarket_podium_slug"], cfg["polymarket_fastestlap_slug"],
+            cfg["kalshi_podium_ticker"], cfg["kalshi_top10_ticker"], cfg["kalshi_fastlap_ticker"],
         )
         markets.update(extended_markets)
         provenance["extended_markets"] = extended_prov
@@ -570,8 +655,8 @@ def main():
     snapshot_ts = datetime.now(timezone.utc)
     snapshot = {
         "meta": {
-            "season": args.season,
-            "round": args.round,
+            "season": season,
+            "round": round_,
             "race_name": race_info["raceName"],
             "circuit_id": circuit_id,
             "circuit_lat": lat,
@@ -593,7 +678,7 @@ def main():
     }
 
     os.makedirs(args.out_dir, exist_ok=True)
-    fname = f"{args.season}-{args.round}-race-{snapshot_ts.strftime('%Y%m%dT%H%M%SZ')}.json"
+    fname = f"{season}-{round_}-race-{snapshot_ts.strftime('%Y%m%dT%H%M%SZ')}.json"
     out_path = os.path.join(args.out_dir, fname)
     if os.path.exists(out_path):
         raise SystemExit(f"refusing to overwrite existing snapshot {out_path}")
