@@ -36,8 +36,8 @@ def _events_by_tag(tag_slug, cache_dir, force_refresh=False):
 
 
 def resolve_event(slug, expected_race_date, cache_dir, fallback_title_contains=None, tag_slug="f1",
-                   force_refresh=False):
-    """Resolve the live winner-market event for one race, refusing anything stale.
+                   force_refresh=False, k=1):
+    """Resolve the live event for one race's market, refusing anything stale.
 
     expected_race_date: "YYYY-MM-DD", used only to sanity-check endDate is not in
     the past relative to the race.
@@ -46,6 +46,11 @@ def resolve_event(slug, expected_race_date, cache_dir, fallback_title_contains=N
     track-history, replaying a cached response here silently reports stale odds
     with no error (01-data-pipeline.md sec8.3's pre-lights-out re-snapshot depends
     on this actually being true).
+
+    k: the market's outcome-of-K shape (1 for winner/fastest-lap, 3 for podium,
+    10 for points -- 04-outcome-expansion-algo.md sec6.4/sec8.2). Governs only
+    the degenerate-price check below; k=1 is byte-for-byte the original
+    single-winner check.
     """
     body, meta = _events_by_slug(slug, cache_dir, force_refresh=force_refresh)
     event = body[0] if body else None
@@ -82,11 +87,20 @@ def resolve_event(slug, expected_race_date, cache_dir, fallback_title_contains=N
     if not driver_markets:
         raise StaleMarketError(f"Polymarket event {event.get('slug')} has no driver markets")
 
-    for m in driver_markets:
-        if m["mid"] is not None and m["mid"] >= 0.999:
-            raise StaleMarketError(
-                f"Polymarket outcome {m['name']} priced at {m['mid']} -- looks settled, not live"
-            )
+    # 04-outcome-expansion-algo.md sec6.4: a live K-of-N market can plausibly
+    # have up to K-1 near-certain legs without being settled (e.g. a dominant
+    # favourite's podium spot effectively locked in); K or more means the
+    # market already knows the full top-K, which is the stale/settled trap
+    # sec3/01 sec6.5 warns about. At k=1 this is exactly the original
+    # single-outcome-at-0.999 check -- same threshold, same trigger condition
+    # ("any" == "count >= 1").
+    threshold = 0.999 if k == 1 else 0.99
+    near_certain = sum(1 for m in driver_markets if m["mid"] is not None and m["mid"] >= threshold)
+    if near_certain >= k:
+        raise StaleMarketError(
+            f"Polymarket event {event.get('slug')} has {near_certain} outcome(s) priced >={threshold} "
+            f"against k={k} -- looks settled, not live"
+        )
 
     return event, meta, markets
 
@@ -134,13 +148,17 @@ def parse_markets(event):
     return out
 
 
-def normalize(markets):
-    """Proportional de-vig over active driver markets only (sec8.4).
+def normalize(markets, k=1):
+    """Proportional de-vig over active driver markets only (01-data-pipeline.md
+    sec8.4, generalized in 04-outcome-expansion-algo.md sec6.4/sec8.2 for K-of-N
+    markets like podium/points, whose raw mids sum to ~K rather than ~1).
 
-    Returns (overround, {code: normalized_probability}). Raw values are left
-    untouched in the market entries the caller already has.
+    Returns (overround, {code: normalized_probability}), where overround is the
+    raw sum (not divided by k) so it stays comparable to how sec8.4 already
+    records/logs it. Raw values are left untouched in the market entries the
+    caller already has.
     """
     active_driver = [m for m in markets if m["active"] and m["code"] is not None and m["mid"] is not None]
     overround = sum(m["mid"] for m in active_driver)
-    normalized = {m["code"]: m["mid"] / overround for m in active_driver}
+    normalized = {m["code"]: m["mid"] * k / overround for m in active_driver}
     return overround, normalized

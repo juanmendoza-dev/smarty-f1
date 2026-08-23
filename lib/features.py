@@ -30,17 +30,25 @@ def is_classified(status):
     return status == "Finished" or status == "Lapped" or status.startswith("+")
 
 
-def shrink_by_n(s, n):
-    """sec4 F5 small-sample shrinkage toward NEUTRAL, by appearance count n.
-    Applies identically to F5 track history and F7's wet-weather branch.
+def shrink_by_n(s, n, prior=NEUTRAL):
+    """sec4 F5 small-sample shrinkage toward a prior, by appearance count n.
+    Applies identically to F5 track history and F7's wet-weather branch, both
+    of which use the default prior=NEUTRAL (a normalized position score, where
+    0.5 is a genuine "middle of the field" prior).
+
+    04-outcome-expansion-algo.md sec4/sec5.1 reuses this same blend table for
+    DNF probability with an explicit prior= the field's own average DNF rate
+    this season -- NEUTRAL=0.5 would mean "50% chance of not finishing," which
+    is nonsense as a prior for an unproven driver/team, unlike for a position
+    score where 0.5 is the honest middle.
     """
     if n >= 3:
         return s
     if n == 2:
-        return 0.65 * s + 0.35 * NEUTRAL
+        return 0.65 * s + 0.35 * prior
     if n == 1:
-        return 0.40 * s + 0.60 * NEUTRAL
-    return NEUTRAL
+        return 0.40 * s + 0.60 * prior
+    return prior
 
 
 def field_normalize(raw_by_code):

@@ -31,7 +31,8 @@ def get_markets(event_ticker, cache_dir, force_refresh=False):
     return httpcache.cached_get_json(url, cache_dir, force_refresh=force_refresh)
 
 
-def resolve_markets(series_ticker, event_ticker, expected_race_date, cache_dir, force_refresh=False):
+def resolve_markets(series_ticker, event_ticker, expected_race_date, cache_dir, force_refresh=False,
+                     k=1):
     """Fetch + validate one race's Kalshi markets.
 
     expected_race_date: "YYYY-MM-DD" -- must match the date component of every
@@ -40,6 +41,10 @@ def resolve_markets(series_ticker, event_ticker, expected_race_date, cache_dir, 
 
     force_refresh: bypass the disk cache -- see polymarket.resolve_event's
     docstring, same reasoning applies here.
+
+    k: the market's outcome-of-K shape (1 for winner/fastest-lap, 3 for podium,
+    10 for points -- 04-outcome-expansion-algo.md sec6.4/sec8.2). Governs only
+    the degenerate-price check below.
     """
     events, events_meta = discover_event_ticker(series_ticker, cache_dir, force_refresh=force_refresh)
     tickers = {e["event_ticker"] for e in events}
@@ -88,11 +93,30 @@ def resolve_markets(series_ticker, event_ticker, expected_race_date, cache_dir, 
             "expected_expiration_time": expiration,
         })
 
+    # 04-outcome-expansion-algo.md sec6.4: degenerate-price check for K-of-N
+    # markets (podium/points), same logic as polymarket.resolve_event. This
+    # module never had this check for k=1 -- Kalshi's winner market relies on
+    # the status/expiration checks above alone (01-data-pipeline.md sec7.5:
+    # ticker-based resolution is "much safer than Polymarket" and doesn't need
+    # it) -- so it's deliberately skipped at k=1 to leave that already-verified
+    # path's behavior untouched.
+    if k > 1:
+        threshold = 0.99
+        near_certain = sum(1 for m in parsed if m["mid"] >= threshold)
+        if near_certain >= k:
+            raise StaleMarketError(
+                f"Kalshi event {event_ticker} has {near_certain} outcome(s) priced >={threshold} "
+                f"against k={k} -- looks settled, not live"
+            )
+
     return parsed, events_meta, markets_meta
 
 
-def normalize(markets):
-    """Proportional de-vig (sec8.4). Prefer mid over last_price for illiquid legs."""
+def normalize(markets, k=1):
+    """Proportional de-vig (01-data-pipeline.md sec8.4, generalized in
+    04-outcome-expansion-algo.md sec6.4/sec8.2 for K-of-N markets whose raw
+    mids sum to ~K rather than ~1). Prefer mid over last_price for illiquid legs.
+    """
     overround = sum(m["mid"] for m in markets)
-    normalized = {m["code"]: m["mid"] / overround for m in markets}
+    normalized = {m["code"]: m["mid"] * k / overround for m in markets}
     return overround, normalized
