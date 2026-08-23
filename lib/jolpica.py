@@ -87,6 +87,47 @@ def race_results(season, round_, cache_dir):
     return results, meta
 
 
+def season_results(season, cache_dir):
+    """All of a season's race results, grouped by round, via the season-level
+    endpoint paginated at its 100-row page cap -- not a loop over rounds.
+
+    01-data-pipeline.md sec4.3: "prefer one filtered query over N per-entity
+    queries." snapshot.build_form used to call race_results() once per prior
+    round, which is fine for one race but means a Phase A3 backfill re-walks
+    the same season's rounds from scratch for every race in it. A season's
+    pages are cached by (season, offset) and so are fetched from the network
+    at most once per season for the life of the cache, then reused by every
+    race in that season -- backfill or single-race snapshot alike.
+
+    Returns (results_by_round: {round_int: [Result, ...]}, metas: [meta, ...]).
+    A round with no key hasn't happened yet. Verified live 2026-08-23: a
+    22-round season returns total=440 result rows (20 cars/round) paginated
+    5 pages deep at limit=100, even when a larger limit is requested -- the
+    server silently caps the page size rather than erroring or honoring it.
+    """
+    results_by_round = {}
+    metas = []
+    offset = 0
+    limit = 100
+    seen = 0
+    while True:
+        body, meta = _get(f"{season}/results.json?limit={limit}&offset={offset}", cache_dir)
+        metas.append(meta)
+        races = body["MRData"]["RaceTable"]["Races"]
+        total = int(body["MRData"]["total"])
+        for race in races:
+            results_by_round[int(race["round"])] = race["Results"]
+            seen += len(race["Results"])
+        offset += limit
+        if offset >= total:
+            require(seen == total, (
+                f"season_results({season}) collected {seen} rows across "
+                f"{len(metas)} page(s) but total={total}"
+            ))
+            break
+    return results_by_round, metas
+
+
 def driver_standings(season, cache_dir, round_=None, verify_round=None, max_round=None):
     """Standings after `round_`, or the latest available if round_ is None.
 

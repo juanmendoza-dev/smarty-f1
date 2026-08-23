@@ -139,12 +139,18 @@ def build_form(season, round_, grid, cache_dir, race_has_run=False):
     all_rounds = list(range(1, round_))
     recent_rounds = all_rounds[-5:]
 
-    provenance = []
-    per_round_results = {}
-    for rnd in all_rounds:
-        rows, meta = jolpica.race_results(season, rnd, cache_dir)
-        provenance.append(meta)
-        per_round_results[rnd] = [cast_result_row(r) for r in rows]
+    # One bulk season-level pull instead of a loop over jolpica.race_results()
+    # per prior round -- 01-data-pipeline.md sec4.3's "one filtered query over
+    # N per-entity queries" advice, previously not followed here. Round 1 has
+    # no prior rounds and no results to fetch.
+    if all_rounds:
+        results_by_round, provenance = jolpica.season_results(season, cache_dir)
+    else:
+        results_by_round, provenance = {}, []
+    per_round_results = {
+        rnd: [cast_result_row(r) for r in results_by_round.get(rnd, [])]
+        for rnd in all_rounds
+    }
 
     # F6's standings must contain everything that happened before this race and
     # nothing from the race itself. Which endpoint gets you that depends on

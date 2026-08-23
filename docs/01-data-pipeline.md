@@ -126,7 +126,13 @@ Documented, and low enough to matter:
 cache on repeat. A snapshot run needs well under 30 requests; the limit only becomes a problem
 when backfilling history for Phase A3, which is precisely when a cache is worth the most. Prefer
 one filtered query over N per-entity queries — `circuits/{id}/drivers/{id}/results.json` in place
-of a loop over rounds.
+of a loop over rounds (`build_track_history`), and `{season}/results.json` (paginated at a
+server-enforced 100-row page cap, verified live 2026-08-23 — a 22-round season is 5 pages) in
+place of one `race_results` call per prior round (`jolpica.season_results`, used by
+`build_form` as of 2026-08-23). The season-level pull is cached per `(season, offset)`, so it's
+fetched from the network once per season for the life of the cache and then reused by every race
+in that season — the fix that made Phase A3's backfill volume line item moot rather than merely
+smaller.
 
 ### 4.4 Gotchas
 
