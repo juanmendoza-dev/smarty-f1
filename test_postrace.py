@@ -5,9 +5,13 @@ race hasn't finished, so Jolpica has no result to auto-pull yet.
 find_winner() is tested against a real, already-decided race instead --
 the 2023 Dutch Grand Prix, round looked up live from Jolpica's 2023 schedule
 rather than hardcoded (Jolpica paginates a season's races in order, so the
-round number isn't a fact worth assuming). Verstappen won that race ahead of
-Piastri and Norris -- Piastri's maiden podium, in the wet -- which is checked
-against the network response, not asserted from memory alone.
+round number isn't a fact worth assuming). Verstappen won his home race, in
+the wet -- the only thing checked below, and it is checked against the
+network response. (An earlier version of this docstring claimed Piastri and
+Norris rounded out the podium; that was never actually asserted by a test
+here and turned out to be wrong -- the real podium is VER/ALO/GAS, verified
+and asserted in test_phase_a4.py's TestArchived2023DutchGP, which needed the
+full result for podium/points/DNF/fastest-lap validation anyway.)
 
 compute_post_race() is exercised separately with hand-built inputs small
 enough to check the Brier arithmetic by sight, so a bug in the real snapshot's
