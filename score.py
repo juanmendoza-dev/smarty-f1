@@ -309,6 +309,37 @@ def score_all(algo_snapshot):
     }
 
 
+def compute_post_race(p_algo, markets, winner):
+    """sec7: Brier score for algo/Polymarket/Kalshi/market-mean vs. the actual
+    winner, plus whether the algo's top pick was right and whether it beat the
+    market mean. Pulled out of main() so postrace.py can call it with a winner
+    code sourced from Jolpica instead of a CLI flag.
+    """
+    assert winner in p_algo, f"winner code {winner!r} not in this snapshot's driver set"
+    outcome = {code: (1.0 if code == winner else 0.0) for code in p_algo}
+
+    def brier(probs):
+        return sum((probs.get(code, 0.0) - outcome[code]) ** 2 for code in outcome)
+
+    market_mean = markets["market_mean"]
+    pm_probs = {code: markets["polymarket"]["by_code"].get(code, {}).get("normalized") or 0.0 for code in p_algo}
+    kx_probs = {code: markets["kalshi"]["by_code"].get(code, {}).get("normalized") or 0.0 for code in p_algo}
+    mm_probs = {code: market_mean.get(code, 0.0) for code in p_algo}
+
+    brier_algo = brier(p_algo)
+    brier_pm = brier(pm_probs)
+    brier_kx = brier(kx_probs)
+    brier_mm = brier(mm_probs)
+    top_pick = max(p_algo.items(), key=lambda kv: kv[1])[0]
+
+    return {
+        "winner": winner, "brier_algo": brier_algo, "brier_polymarket": brier_pm,
+        "brier_kalshi": brier_kx, "brier_market_mean": brier_mm,
+        "top_pick": top_pick, "top_pick_correct": top_pick == winner,
+        "beat_market_mean_on_brier": brier_algo < brier_mm,
+    }
+
+
 def load_latest_snapshot(snapshot_dir):
     paths = sorted(glob.glob(os.path.join(snapshot_dir, "*.json")))
     if not paths:
@@ -388,34 +419,15 @@ def main():
     }
 
     if args.winner:
-        winner = args.winner
-        assert winner in p_algo, f"winner code {winner!r} not in this snapshot's driver set"
-        outcome = {code: (1.0 if code == winner else 0.0) for code in p_algo}
+        post_race = compute_post_race(p_algo, markets, args.winner)
 
-        def brier(probs):
-            return sum((probs.get(code, 0.0) - outcome[code]) ** 2 for code in outcome)
+        print(f"\n--- post-race scoring vs winner={post_race['winner']} ---")
+        print(f"brier: algo={post_race['brier_algo']:.4f} polymarket={post_race['brier_polymarket']:.4f} "
+              f"kalshi={post_race['brier_kalshi']:.4f} market_mean={post_race['brier_market_mean']:.4f}")
+        print(f"algo top pick: {post_race['top_pick']} ({'correct' if post_race['top_pick_correct'] else 'incorrect'})")
+        print(f"algo beat market_mean on brier: {post_race['beat_market_mean_on_brier']}")
 
-        pm_probs = {code: markets["polymarket"]["by_code"].get(code, {}).get("normalized") or 0.0 for code in p_algo}
-        kx_probs = {code: markets["kalshi"]["by_code"].get(code, {}).get("normalized") or 0.0 for code in p_algo}
-        mm_probs = {code: market_mean.get(code, 0.0) for code in p_algo}
-
-        brier_algo = brier(p_algo)
-        brier_pm = brier(pm_probs)
-        brier_kx = brier(kx_probs)
-        brier_mm = brier(mm_probs)
-        top_pick = max(p_algo.items(), key=lambda kv: kv[1])[0]
-
-        print(f"\n--- post-race scoring vs winner={winner} ---")
-        print(f"brier: algo={brier_algo:.4f} polymarket={brier_pm:.4f} kalshi={brier_kx:.4f} market_mean={brier_mm:.4f}")
-        print(f"algo top pick: {top_pick} ({'correct' if top_pick == winner else 'incorrect'})")
-        print(f"algo beat market_mean on brier: {brier_algo < brier_mm}")
-
-        output["post_race"] = {
-            "winner": winner, "brier_algo": brier_algo, "brier_polymarket": brier_pm,
-            "brier_kalshi": brier_kx, "brier_market_mean": brier_mm,
-            "top_pick": top_pick, "top_pick_correct": top_pick == winner,
-            "beat_market_mean_on_brier": brier_algo < brier_mm,
-        }
+        output["post_race"] = post_race
 
     out_path = args.out or (os.path.splitext(snapshot_path)[0] + "-score.json")
     with open(out_path, "w") as f:
