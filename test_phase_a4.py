@@ -85,19 +85,26 @@ class TestDutchGP2026OutcomeOnly(unittest.TestCase):
         for code in self.base["p_algo"]:
             self.assertGreaterEqual(p_dnf[code], -1e-9)
             self.assertLessEqual(p_dnf[code], 1 + 1e-9)
-            # sec9 assertion 1: p_win <= p_podium <= p_points
+            # sec10 assertion 1: p_win <= p_podium <= p_points
             self.assertLessEqual(self.base["p_algo"][code], p_podium[code] + 0.01)
             self.assertLessEqual(p_podium[code], p_points[code] + 1e-9)
 
-    def test_algo_favoured_the_actual_podium_over_the_field(self):
+    def test_algo_gave_antonelli_real_podium_credit_despite_a_weak_win_probability(self):
         """Sanity check, not a hard pass/fail on prediction quality -- one
-        race proves nothing (02 sec7). The two drivers the algo had within
-        1.5pp of the market pre-race (02 sec9: NOR, RUS) should land among
-        its top podium picks, not buried mid-field."""
+        race proves nothing (02 sec7). NOR/RUS ranking highest on podium
+        probability would hold by construction (podium probability is
+        monotone in win strength, sec6.1) regardless of what actually
+        happened, so it isn't a real check. ANT is: the algo's win
+        probability for ANT was only 11.3% (02 sec9's story -- the market
+        backed the championship leader more than the algo did), but ANT
+        actually did podium (P2). This checks the algo's *podium* number for
+        ANT specifically credits that possibility rather than writing ANT off
+        the way a pure win-probability read would suggest."""
         p_podium, _, _ = score.compute_podium_points(self.base["raw_scores"], self.base["p_algo"])
         ranked = sorted(p_podium.items(), key=lambda kv: -kv[1])
         top5_codes = {c for c, _ in ranked[:5]}
-        self.assertTrue({"NOR", "RUS"}.issubset(top5_codes))
+        self.assertIn("ANT", top5_codes)
+        self.assertGreater(p_podium["ANT"], 0.3)
 
     def test_no_market_comparison_for_this_snapshot(self):
         """sec3: this snapshot predates Phase A4's market pulls -- podium/

@@ -3,7 +3,7 @@
 Status: **weights locked by owner-delegated design, 2026-08-23.** Read `welcome.md`,
 `00-roadmap.md`, `01-data-pipeline.md`, and `02-winner-prediction-algo.md` first. This spec
 extends `02` — it does not replace it. The win-probability pipeline in `02` is **untouched**;
-every number in `02` §9 still reproduces exactly (see §9.5 erratum below for the one caveat,
+every number in `02` §9 still reproduces exactly (see §10.5 erratum below for the one caveat,
 which is a bugfix to a shared primitive, not a change to `02`'s formulas).
 
 This spec defines four new outputs, market-verified live on 2026-08-23 the same way `01` did for
@@ -89,7 +89,7 @@ trust*. §3's "outcome-only" rule for the Dutch GP is therefore not a one-race e
 genuinely trustworthy pre-race market comparison for these three outcome types needs to wait until
 close to a race's lights-out, the same point at which the *winner* market's own liquidity
 concentrates (`00-roadmap.md`'s pre-lights-out re-snapshot already exists for exactly this reason).
-Flagged again in §10.
+Flagged again in §11.
 
 **K-of-N markets do not sum to 1.** Verified live: Polymarket's Dutch GP podium market (already
 resolved in fact, still `closed: false`) sums to 3.0975 across 21 driver legs; Kalshi's podium
@@ -130,10 +130,10 @@ Nothing here is new:
 - `T = 0.1168` — the locked win-market softmax temperature (`02` §5.4). Reused as-is for the
   Plackett-Luce strengths (§6) and, provisionally, for fastest lap (§7.4 — flagged as borrowed,
   not independently calibrated).
-- `is_classified(status)` — the classification test, now fixed (§9.5). DNF probability's outcome
+- `is_classified(status)` — the classification test, now fixed (§10.5). DNF probability's outcome
   label is defined as its exact complement: `dnf == not is_classified(status)`. No separate DNF
   status list to maintain.
-- `shrink_by_n(s, n, prior=NEUTRAL)` — generalized (§9.5) to take an explicit prior instead of
+- `shrink_by_n(s, n, prior=NEUTRAL)` — generalized (§10.5) to take an explicit prior instead of
   always blending toward 0.5. DNF reuses the same blend table (n≥3 unchanged, n==2 → 65/35,
   n==1 → 40/60, n==0 → prior) with `prior` = the field's own average DNF rate this season, not
   NEUTRAL. **NEUTRAL=0.5 is a nonsense prior for a DNF rate** — half of drivers do not fail to
@@ -191,14 +191,14 @@ non-DNS retirement cause into the single literal status `"Retired"` (confirmed l
 start` 7). There is no field distinguishing "driver put it in the wall" from "engine let go," so
 driver-attributable and car-attributable failure rates **cannot be separated from this season's
 data**, and 0.5/0.5 is the only defensible default until a data source with cause-level detail is
-added (flagged in §10).
+added (flagged in §11).
 
 ### 5.3 What DNF does *not* include (v1 scope)
 
 - **No grid-position term.** A plausible "further back → more first-lap contact risk" effect is
   real in principle but not built here — it would be a genuinely new, unverified hand-guess with
   no anchor, unlike every other feature in this project which either reuses `02`'s already-vetted
-  primitives or is sourced from real data (§5.1). Flagged in §10 rather than guessed at.
+  primitives or is sourced from real data (§5.1). Flagged in §11 rather than guessed at.
 - **No circuit-attrition term.** Some circuits (street circuits especially) have materially higher
   historical DNF rates. Computable from Jolpica in principle, deferred to keep v1's scope matched
   to the other three outcomes' first-cut simplicity.
@@ -284,12 +284,20 @@ simulated P(win) that no longer equals `02`'s locked closed-form number, breakin
 self-consistency check and leaving two different "true" win probabilities with no principled way
 to say which one is right.
 
-**Practical cost, stated rather than hidden:** a driver who is near-certain to DNF (e.g. a known
-mechanical issue) still carries some podium/points probability mass in this model, because the
-simulation runs over the full field regardless of DNF risk. This is the *same* implicit treatment
-`02` already gives that driver's win probability — consistent, not a new gap. Revisit together with
-`02`'s `T` recalibration once Phase A3 has real outcome data to separate "won despite high DNF
-risk" from "won because DNF risk didn't materialize" — logged in §10, not patched around here.
+**Practical cost, stated with real numbers rather than hedged language.** This is not a small
+edge-case discount — run against the real Dutch GP snapshot, it produces an internally
+*incoherent* pair of numbers for several front-runners: NOR's `p_points = 100.0%` sits right next
+to `p_dnf = 27.3%`; PIA is `p_points = 98.6%` / `p_dnf = 27.3%`; VER is `p_points = 97.9%` /
+`p_dnf = 25.0%`. Read literally, a driver cannot simultaneously have a >25% chance of not finishing
+and a ~100% chance of finishing top-10 — `p_points` should never exceed `1 - p_dnf`, and for these
+three it does, by a wide margin. This is `02`'s existing implicit treatment of DNF risk (via `T`'s
+historical calibration) made visible rather than a new gap introduced here — the win probability
+has the same property, it's just less visually jarring at 3-4% than at 97-100%. **Consequence for
+market comparison, stated in §6.4:** any points/podium edge this produces for a heavy favorite
+should be read as *this artifact*, not necessarily as the algo disagreeing with the market, until
+DNF risk and finishing-order strength are reconciled in one model — revisit together with `02`'s
+`T` recalibration once Phase A3 has real outcome data to separate "won despite high DNF risk" from
+"won because DNF risk didn't materialize." Logged again in §11, not patched around here.
 
 ### 6.4 K-of-N market comparison and Brier
 
@@ -316,6 +324,15 @@ outcome ("did they finish top-K"), so the natural score is a **per-driver binary
 sum (a sum would scale with field size and isn't a stable quantity to compare race-to-race).
 **Do not compare a podium Brier number to a winner Brier number** — they're different metrics that
 happen to share a name and a formula shape.
+
+**A points/podium edge at the top of the grid is expected to carry a systematic artifact, not
+just noise, until §6.3's coherence issue is resolved.** A real market prices DNF risk into a
+points-lock the algo doesn't: Kalshi's actual Dutch GP top-10 legs for the eventual finishers
+priced at 0.995, never 1.000 (verified live, §2) — leaving room for the driver not finishing.
+The algo's `p_points` for the same tier runs to 97.9-100.0% regardless of that driver's own
+`p_dnf`. Read a positive points/podium edge on a heavy favorite as *this*, first, before reading
+it as insight — and note this is exactly the one outcome type (points) with no second venue to
+cross-check the edge against (§2, §11).
 
 `outcome_d` for podium/points requires checking classification, not just position number — **Jolpica
 assigns a finishing position even to retirees** (verified: 2026 R12 has VER at position 22,
@@ -356,7 +373,7 @@ and the remaining two renormalized to sum to 1.0, exactly `02` §5.2's rule.
 driver's chance of holding the fastest lap by race end (most fastest laps come late, on
 fresh tyres/low fuel), and fastest lap sometimes goes to a driver with nothing left to race for
 (a well-known real pattern, not modeled here). Neither effect is built into `raw_score_fl_d` in
-v1 — flagged in §10 rather than force-fitting an unverified correction.
+v1 — flagged in §11 rather than force-fitting an unverified correction.
 
 ### 7.2 Score and probability
 
@@ -372,7 +389,7 @@ form exactly, standard numerical-stability subtraction included.
 An honest placeholder: deriving a real fastest-lap-specific temperature would need the same kind
 of calibration `02` §5.4 did (a synthetic scenario anchored to a real long-run conversion rate —
 here, "how often does the fastest car/driver combination actually set the fastest lap"), and that
-number doesn't exist yet. Borrowing `T` avoids fabricating false precision; flagged in §10 for
+number doesn't exist yet. Borrowing `T` avoids fabricating false precision; flagged in §11 for
 replacement once real fastest-lap outcome data accumulates (Phase A3-style).
 
 ### 7.3 Market comparison and Brier
@@ -457,7 +474,57 @@ degenerate-price check's threshold (§6.4) — at `k=1` the check is byte-for-by
 
 ---
 
-## 9. Required assertions
+## 9. Reference run — Dutch GP 2026 (outcome-only, per §3)
+
+Real data: the frozen pre-race snapshot (`02` §9's reference run, unchanged) scored with this
+spec's additions, then compared against the real 2026-08-23 result. **A correct implementation
+reproduces the `p_win`/`p_dnf`/`p_fastlap` columns exactly** (closed-form) **and the
+`p_podium`/`p_points` columns to within ±0.3 percentage points** (Monte Carlo, `SIM_N=200_000`,
+`SIM_SEED=20260823` — §6.2's stated precision, not a looser standard for this table specifically).
+`p_win` is shown post-§10.5-erratum (36.1%, not `02`'s originally-locked 36.2% — see §10.5 for why
+that 0.1pp move is expected and not a bug).
+
+| Driver | p_win | p_podium | p_points | p_dnf | p_fastlap |
+|---|---|---|---|---|---|
+| NOR | 36.1% | 85.9% | 100.0% | 27.3% | 6.5% |
+| RUS | 35.1% | 85.3% | 100.0% | 15.9% | 31.9% |
+| ANT | 11.3% | 47.8% | 100.0% | 11.4% | 9.8% |
+| LEC | 4.5% | 20.6% | 99.3% | 13.6% | 24.5% |
+| HAM | 3.8% | 17.3% | 98.7% | 4.5% | 17.8% |
+| PIA | 3.6% | 16.6% | 98.6% | 27.3% | 1.7% |
+| VER | 3.2% | 14.6% | 97.9% | 25.0% | 6.1% |
+| LAW | 0.7% | 3.1% | 64.0% | 15.9% | 1.2% |
+| TSU | 0.2% | 1.1% | 30.0% | 15.1% | 0.2% |
+| LIN | 0.2% | 1.2% | 29.3% | 9.1% | 0.1% |
+
+`field_dnf_rate` this season (season-to-date, before this race): **21.1%**. `p_win ≤ p_podium ≤
+p_points` holds for every row above, as required (§10 assertion 1) — and NOR/PIA/VER's
+`p_points`/`p_dnf` pairs are exactly §6.3's coherence-violation example, visible directly in this
+table rather than only described in prose.
+
+### Post-race: algo vs. real outcome (no market columns — this snapshot predates Phase A4's
+market pulls, §3)
+
+Real result: podium **NOR / ANT / RUS**. DNF (not classified): **VER, ALB, BOT, OCO, STR, BEA**.
+Fastest lap: **unavailable** — Jolpica's `FastestLap` field was `None` for every driver in this
+round at time of scoring (§7.4's ingest lag, reproduced live, not simulated — `find_fastest_lap()`
+correctly raised `FastestLapNotIngestedError` rather than guessing).
+
+| Outcome | `brier_algo` (mean per-driver binary Brier, §6.4 — not comparable to `02`'s winner Brier) |
+|---|---|
+| Podium | 0.0198 |
+| Points | 0.1598 |
+| DNF | 0.1790 |
+| Fastest lap | not computed (data unavailable) |
+
+Podium's low Brier reflects the algo correctly favoring NOR/RUS (both >85%) and ANT (47.8%, the
+field's clear third-highest) for the three spots that actually podiumed. See `test_phase_a4.py`
+for the full assertion suite this table and `02` §9's archived-2023 companion run are both checked
+against.
+
+---
+
+## 10. Required assertions
 
 In addition to `02` §8's assertions (all still apply, unchanged):
 
@@ -472,7 +539,7 @@ In addition to `02` §8's assertions (all still apply, unchanged):
 6. `find_full_result()` raises if `fastest_lap_rank` is `None` for every row (§7.4, §8.1) or if
    more than one row has `fastest_lap_rank == "1"`.
 
-### 9.5 Erratum — classification bug found and fixed while building this spec, not caused by it
+### 10.5 Erratum — classification bug found and fixed while building this spec, not caused by it
 
 While instrumenting DNF probability (which leans directly on `is_classified()`), verification
 against live 2026 data (`/2026/status.json`) showed the 2026 season spells a lapped-but-classified
@@ -513,7 +580,7 @@ delta is within its own stated precision. This erratum is the record of the fix.
 
 ---
 
-## 10. Open items
+## 11. Open items
 
 1. **Podium/points precision is Monte Carlo, not exact** (§6.2) — ±0.3pp, not bit-reproducible.
    Revisit if an exact top-K marginal algorithm (e.g. numerical integration over the exponential-race
@@ -527,10 +594,16 @@ delta is within its own stated precision. This erratum is the record of the fix.
    needs its own anchor once real fastest-lap outcome data exists.
 5. **Fastest lap doesn't model the "DNF drivers can't set a late fastest lap" or "no-strategic-reason
    driver goes for it" effects** (§7.1) — stated simplifications, not built.
-6. **DNF is not fed into the podium/points simulation** (§6.3) — consistent with how `02` already
-   implicitly prices DNF risk into win probability via `T`'s historical calibration, but means a
-   near-certain-DNF driver still carries some podium/points mass. Revisit alongside `02`'s `T`
-   recalibration in Phase A3.
+6. **`p_points`/`p_podium` can exceed `1 - p_dnf` — a real coherence violation, not a rounding
+   artifact** (§6.3/§6.4). Direct consequence of item 6's design (DNF not fed into the simulation):
+   run against the real Dutch GP snapshot, NOR shows `p_points = 100.0%` next to `p_dnf = 27.3%`;
+   PIA `p_points = 98.6%` / `p_dnf = 27.3%`; VER `p_points = 97.9%` / `p_dnf = 25.0%`. A driver
+   cannot coherently have both. Not patched here because the obvious fix — multiply by
+   `(1 - p_dnf)` after the fact — breaks the `p_win ≤ p_podium` assertion (§10 item 1) and
+   reopens the double-counting problem §6.3 rejected an explicit DNF draw over. The right fix is a
+   single model that prices DNF risk into finishing-order strength once, not two models bolted
+   together — that's `02`'s `T` recalibration in Phase A3, not something to improvise now.
+   **Until then, treat any points/podium edge for a high-p_dnf favorite as suspect** (§6.4).
 7. **The Dutch GP has zero market validation for podium/points/fastest-lap** (§3) — outcome-only.
    The first real algo-vs-market data point for these three outcome types is whatever race this
    pipeline snapshots *before* it happens next — Monza is the earliest candidate but isn't
