@@ -502,25 +502,30 @@ p_points` holds for every row above, as required (§10 assertion 1) — and NOR/
 `p_points`/`p_dnf` pairs are exactly §6.3's coherence-violation example, visible directly in this
 table rather than only described in prose.
 
-### Post-race: algo vs. real outcome (no market columns — this snapshot predates Phase A4's
-market pulls, §3)
+### Post-race: algo vs. real outcome
 
-Real result: podium **NOR / ANT / RUS**. DNF (not classified): **VER, ALB, BOT, OCO, STR, BEA**.
-Fastest lap: **unavailable** — Jolpica's `FastestLap` field was `None` for every driver in this
-round at time of scoring (§7.4's ingest lag, reproduced live, not simulated — `find_fastest_lap()`
-correctly raised `FastestLapNotIngestedError` rather than guessing).
+No market columns — this snapshot predates Phase A4's market pulls (§3). Real result: podium
+**NOR / ANT / RUS**. DNF (not classified): **VER, ALB, BOT, OCO, STR, BEA**. Fastest lap:
+**LEC** (lap 60) — this took longer to become available than everything else: Jolpica's
+`FastestLap` field was `None` for every driver in this round for a period after the race finished
+(§7.4's ingest lag, reproduced live while this spec was being written — `find_fastest_lap()`
+correctly raised `FastestLapNotIngestedError` rather than guessing, in exactly the state this
+paragraph now reports as resolved).
 
 | Outcome | `brier_algo` (mean per-driver binary Brier, §6.4 — not comparable to `02`'s winner Brier) |
 |---|---|
 | Podium | 0.0198 |
 | Points | 0.1598 |
 | DNF | 0.1790 |
-| Fastest lap | not computed (data unavailable) |
+| Fastest lap | 0.0328 |
 
 Podium's low Brier reflects the algo correctly favoring NOR/RUS (both >85%) and ANT (47.8%, the
-field's clear third-highest) for the three spots that actually podiumed. See `test_phase_a4.py`
-for the full assertion suite this table and `02` §9's archived-2023 companion run are both checked
-against.
+field's clear third-highest) for the three spots that actually podiumed. Fastest lap's low Brier
+similarly reflects LEC's `p_fastlap = 24.5%` (§9 table above) — the field's second-highest, behind
+only RUS — correctly landing on the actual answer. See `test_phase_a4.py`'s
+`TestDutchGP2026OutcomeOnly` for the full assertion suite this table is checked against, and its
+`TestArchived2023DutchGP` for a second, independent fastest-lap answer (Alonso, P2 finish, fastest
+lap anyway — same pattern as LEC here, confirming fastest lap doesn't track finishing position).
 
 ---
 

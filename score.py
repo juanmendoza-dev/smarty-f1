@@ -460,7 +460,7 @@ def compute_fastest_lap(algo_snapshot, sub_scores):
     """sec7.2. Reuses sub_scores['team']/['driver_form']/['sprint'] already
     computed by score_all() -- no recomputation, no network call. T_FL == T,
     borrowed from the win-market calibration (sec7.2 -- not independently
-    anchored, flagged in sec10).
+    anchored, flagged in sec11).
     """
     grid = algo_snapshot["grid"]
     codes = [d["code"] for d in grid]
@@ -509,7 +509,7 @@ def compute_podium_points(raw_scores, p_algo):
     p_points = {code: sim_probs[code][10] for code in weights}
 
     for code in weights:
-        # p_win <= p_podium <= p_points (sec9 assertion 1). podium<=points is
+        # p_win <= p_podium <= p_points (sec10 assertion 1). podium<=points is
         # exact by construction (same simulated draws, sec6.2); win<=podium
         # is exact for the *simulated* top-1 and holds for the closed-form
         # p_algo only up to the self-consistency tolerance already checked

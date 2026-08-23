@@ -66,7 +66,7 @@ and the just-completed 2026 Dutch GP (frozen snapshot, real result) — 23 tests
 2026's `"Lapped"` status literal (only the older `"+1 Lap"` form), silently scoring lapped-but-
 classified 2026 finishers as DNFs in F4/F8. Verified negligible impact on the locked A2 winner
 numbers (bit-identical top-7 raw scores; `postrace.json`'s committed Brier 0.5499 vs. a fresh run's
-0.5504 — see `04` §9.5 for the full erratum). Also caught a real market-data gap: Polymarket's
+0.5504 — see `04` §10.5 for the full erratum). Also caught a real market-data gap: Polymarket's
 podium/fastest-lap markets exist ~2 weeks before a race but are too illiquid to price meaningfully
 (Monza's podium market, checked live, priced almost every driver near 0.5 on ~$0-300 volume vs. the
 winner market's $1,400-$14,000) — no fix built, the fix is timing (snapshot close to lights-out).
