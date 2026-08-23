@@ -53,9 +53,9 @@ def qualifying(season, round_, cache_dir):
         return [], meta
     results = races[0]["QualifyingResults"]
     total = int(body["MRData"]["total"])
-    assert total == len(results), (
+    require(total == len(results), (
         f"qualifying total={total} but got {len(results)} rows for {season}/{round_}"
-    )
+    ))
     return results, meta
 
 
@@ -67,9 +67,9 @@ def sprint(season, round_, cache_dir):
         return [], meta
     results = races[0]["SprintResults"]
     total = int(body["MRData"]["total"])
-    assert total == len(results), (
+    require(total == len(results), (
         f"sprint total={total} but got {len(results)} rows for {season}/{round_}"
-    )
+    ))
     return results, meta
 
 
@@ -81,9 +81,9 @@ def race_results(season, round_, cache_dir):
         return [], meta
     results = races[0]["Results"]
     total = int(body["MRData"]["total"])
-    assert total == len(results), (
+    require(total == len(results), (
         f"results total={total} but got {len(results)} rows for {season}/{round_}"
-    )
+    ))
     return results, meta
 
 
@@ -151,7 +151,7 @@ def driver_track_history(circuit_id, driver_id, cache_dir):
     )
     races = body["MRData"]["RaceTable"]["Races"]
     total = int(body["MRData"]["total"])
-    assert total == len(races), (
+    require(total == len(races), (
         f"track history total={total} but got {len(races)} races for {driver_id}@{circuit_id}"
-    )
+    ))
     return races, meta

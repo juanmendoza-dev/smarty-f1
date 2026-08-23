@@ -21,7 +21,8 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lib.features import NEUTRAL, K_GRID, K_SPRINT, K_FIN, pos_score, shrink_by_n, field_normalize, is_classified
-from lib.simulate import simulate_topk_probabilities
+from lib.invariants import require
+from lib.simulate import simulate_topk_probabilities, exact_top3_probabilities
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 T = 0.1168
@@ -30,7 +31,7 @@ BASE_WEIGHTS = {
     "grid": 0.35, "team": 0.15, "sprint": 0.13, "driver_form": 0.11,
     "track": 0.08, "champ": 0.08, "weather": 0.05, "teammate": 0.05,
 }
-assert abs(sum(BASE_WEIGHTS.values()) - 1.0) < 1e-9, "base weights must sum to 1.0"
+require(abs(sum(BASE_WEIGHTS.values()) - 1.0) < 1e-9, "base weights must sum to 1.0")
 
 # ---------- Phase A4 (04-outcome-expansion-algo.md) constants ----------
 
@@ -46,7 +47,7 @@ DEFAULT_DNF_RATE = 0.1253
 # have no clear causal link to who sets one fast lap and are dropped rather
 # than force-included.
 FASTLAP_BASE_WEIGHTS = {"team": 0.55, "driver_form": 0.30, "sprint": 0.15}
-assert abs(sum(FASTLAP_BASE_WEIGHTS.values()) - 1.0) < 1e-9, "fastlap base weights must sum to 1.0"
+require(abs(sum(FASTLAP_BASE_WEIGHTS.values()) - 1.0) < 1e-9, "fastlap base weights must sum to 1.0")
 
 # sec6.2: Monte Carlo self-consistency tolerance between the simulation's own
 # top-1 marginal and 02's closed-form p_algo (which has a known-exact answer
@@ -265,19 +266,19 @@ def effective_weights(base_weights, m, is_sprint_weekend):
         if k == "grid":
             continue
         eff[k] = v * scale
-    assert abs(sum(eff.values()) - 1.0) < 1e-9, "effective weights must sum to 1.0 after flex"
+    require(abs(sum(eff.values()) - 1.0) < 1e-9, "effective weights must sum to 1.0 after flex")
 
     if not is_sprint_weekend:
         eff.pop("sprint")
         total = sum(eff.values())
         eff = {k: v / total for k, v in eff.items()}
-        assert abs(sum(eff.values()) - 1.0) < 1e-9, "effective weights must sum to 1.0 after drop"
+        require(abs(sum(eff.values()) - 1.0) < 1e-9, "effective weights must sum to 1.0 after drop")
 
     return eff
 
 
 def score_all(algo_snapshot):
-    assert "markets" not in algo_snapshot, "market-blindness violated: scorer received market data"
+    require("markets" not in algo_snapshot, "market-blindness violated: scorer received market data")
 
     grid = algo_snapshot["grid"]
     codes = [d["code"] for d in grid]
@@ -297,7 +298,7 @@ def score_all(algo_snapshot):
     }
     for fname, by_code in sub_scores.items():
         for code, v in by_code.items():
-            assert -1e-9 <= v <= 1 + 1e-9, f"sub-score {fname}/{code}={v} out of [0,1]"
+            require(-1e-9 <= v <= 1 + 1e-9, f"sub-score {fname}/{code}={v} out of [0,1]")
 
     m = algo_snapshot["meta"]["track_overtaking_multiplier"]
     is_sprint_weekend = algo_snapshot["meta"]["is_sprint_weekend"]
@@ -310,17 +311,17 @@ def score_all(algo_snapshot):
             total += w * sub_scores[fkey][code]
         raw_scores[code] = total
 
-    assert T > 0, "T must be > 0"
+    require(T > 0, "T must be > 0")
     max_score = max(raw_scores.values())
     exps = {code: math.exp((s - max_score) / T) for code, s in raw_scores.items()}
     denom = sum(exps.values())
     p_algo = {code: v / denom for code, v in exps.items()}
 
     total_p = sum(p_algo.values())
-    assert abs(total_p - 1.0) < 1e-6, f"probabilities sum to {total_p}, expected 1.0"
+    require(abs(total_p - 1.0) < 1e-6, f"probabilities sum to {total_p}, expected 1.0")
 
     qualifying_codes = set(codes)
-    assert qualifying_codes == set(p_algo.keys()), "driver set mismatch vs qualifying classification"
+    require(qualifying_codes == set(p_algo.keys()), "driver set mismatch vs qualifying classification")
 
     return {
         "sub_scores": sub_scores,
@@ -339,7 +340,7 @@ def compute_post_race(p_algo, markets, winner):
     market mean. Pulled out of main() so postrace.py can call it with a winner
     code sourced from Jolpica instead of a CLI flag.
     """
-    assert winner in p_algo, f"winner code {winner!r} not in this snapshot's driver set"
+    require(winner in p_algo, f"winner code {winner!r} not in this snapshot's driver set")
     outcome = {code: (1.0 if code == winner else 0.0) for code in p_algo}
 
     def brier(probs):
@@ -439,7 +440,7 @@ def compute_dnf(algo_snapshot):
         n_by_code[code] = {"driver_n": n_driver, "team_n": n_team}
 
     for code, v in p_dnf.items():
-        assert -1e-9 <= v <= 1 + 1e-9, f"p_dnf/{code}={v} out of [0,1]"
+        require(-1e-9 <= v <= 1 + 1e-9, f"p_dnf/{code}={v} out of [0,1]")
 
     return p_dnf, n_by_code, field_dnf_rate
 
@@ -469,14 +470,14 @@ def compute_fastest_lap(algo_snapshot, sub_scores):
 
     raw_scores = {code: sum(w * sub_scores[fkey][code] for fkey, w in eff.items()) for code in codes}
 
-    assert T > 0, "T must be > 0"
+    require(T > 0, "T must be > 0")
     max_score = max(raw_scores.values())
     exps = {code: math.exp((s - max_score) / T) for code, s in raw_scores.items()}
     denom = sum(exps.values())
     p_fastlap = {code: v / denom for code, v in exps.items()}
 
     total_p = sum(p_fastlap.values())
-    assert abs(total_p - 1.0) < 1e-6, f"fastlap probabilities sum to {total_p}, expected 1.0"
+    require(abs(total_p - 1.0) < 1e-6, f"fastlap probabilities sum to {total_p}, expected 1.0")
 
     return {"effective_weights": eff, "raw_scores": raw_scores, "p_fastlap": p_fastlap}
 
@@ -500,25 +501,46 @@ def compute_podium_points(raw_scores, p_algo):
 
     for code in weights:
         sim_top1 = sim_probs[code][1]
-        assert abs(sim_top1 - p_algo[code]) < SELF_CONSISTENCY_TOLERANCE, (
+        require(
+            abs(sim_top1 - p_algo[code]) < SELF_CONSISTENCY_TOLERANCE,
             f"simulated top-1 for {code}={sim_top1:.4f} vs closed-form p_algo={p_algo[code]:.4f} "
-            f"-- exceeds self-consistency tolerance (sec6.2); likely an implementation bug"
+            f"-- exceeds self-consistency tolerance (sec6.2); likely an implementation bug",
         )
 
-    p_podium = {code: sim_probs[code][3] for code in weights}
+    # Podium is reported from the exact O(n^3) closed form, not the simulation:
+    # same distribution, no sampling error, ~2.5ms. The simulation's own top-3
+    # is kept as an independent cross-check -- two different methods agreeing to
+    # within Monte Carlo noise catches a bug in either one. Points stays on the
+    # simulation; see exact_top3_probabilities' docstring for why K=10 can't
+    # get the same treatment.
+    p_podium = exact_top3_probabilities(weights)
     p_points = {code: sim_probs[code][10] for code in weights}
 
     for code in weights:
-        # p_win <= p_podium <= p_points (sec10 assertion 1). podium<=points is
-        # exact by construction (same simulated draws, sec6.2); win<=podium
-        # is exact for the *simulated* top-1 and holds for the closed-form
-        # p_algo only up to the self-consistency tolerance already checked
-        # above, so the same tolerance applies here.
-        assert p_algo[code] <= p_podium[code] + SELF_CONSISTENCY_TOLERANCE, (
-            f"p_win > p_podium for {code}"
+        require(
+            abs(p_podium[code] - sim_probs[code][3]) < SELF_CONSISTENCY_TOLERANCE,
+            f"exact top-3 for {code}={p_podium[code]:.4f} disagrees with the simulated "
+            f"{sim_probs[code][3]:.4f} beyond sampling noise -- bug in one of the two",
         )
-        assert p_podium[code] <= p_points[code] + 1e-9, f"p_podium > p_points for {code}"
 
+    for code in weights:
+        # p_win <= p_podium <= p_points (sec10 assertion 1). All three now come
+        # from a mix of exact and sampled estimators, so every comparison gets
+        # the sampling tolerance rather than 1e-9: p_podium is exact but
+        # p_points is not, and for a near-certain points finisher the two can
+        # sit within noise of each other.
+        require(
+            p_algo[code] <= p_podium[code] + SELF_CONSISTENCY_TOLERANCE,
+            f"p_win > p_podium for {code}",
+        )
+        require(
+            p_podium[code] <= p_points[code] + SELF_CONSISTENCY_TOLERANCE,
+            f"p_podium > p_points for {code}",
+        )
+
+    sim_meta = dict(sim_meta)
+    sim_meta["podium_method"] = "exact_closed_form"
+    sim_meta["points_method"] = "monte_carlo"
     return p_podium, p_points, sim_meta
 
 

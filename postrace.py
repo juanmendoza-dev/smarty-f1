@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lib import jolpica
 from lib.features import is_classified
+from lib.invariants import require
 from score import (
     REPO_ROOT, load_latest_snapshot, score_all, compute_comparison, compute_post_race,
     compute_dnf, compute_fastest_lap, compute_podium_points,
@@ -70,9 +71,9 @@ def find_full_result(season, round_, cache_dir):
         })
 
     classified_p1 = [row for row in rows if row["classified"] and row["position"] == 1]
-    assert len(classified_p1) == 1, (
+    require(len(classified_p1) == 1, (
         f"expected exactly one classified P1 for {season}/{round_}, got {len(classified_p1)}"
-    )
+    ))
 
     return rows, meta
 
@@ -98,7 +99,7 @@ def find_fastest_lap(rows):
             "every row's FastestLap is null"
         )
     winners = [row["code"] for row in ranked if row["fastest_lap_rank"] == "1"]
-    assert len(winners) == 1, f"expected exactly one fastest-lap holder, got {winners}"
+    require(len(winners) == 1, f"expected exactly one fastest-lap holder, got {winners}")
     return winners[0]
 
 
