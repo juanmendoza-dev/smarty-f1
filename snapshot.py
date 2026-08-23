@@ -35,8 +35,26 @@ DEFAULT_OUT_DIR = os.path.join(REPO_ROOT, "data", "snapshots")
 # (lib/circuits.py) -- defaulting to UTC here would silently reproduce exactly
 # the bug 01-data-pipeline.md sec5.4 warns about, so an unknown circuit raises
 # instead of guessing.
+#
+# Kept in sync with lib/circuits.OVERTAKING_MULTIPLIER: a circuit you can score
+# but can't resolve a timezone for is a snapshot that dies partway through, so
+# every circuit listed there is listed here (test_config.py asserts it).
 CIRCUIT_TIMEZONE = {
     "zandvoort": "Europe/Amsterdam",
+    "monza": "Europe/Rome",
+    "monaco": "Europe/Monaco",
+    "hungaroring": "Europe/Budapest",
+    "marina_bay": "Asia/Singapore",
+    "imola": "Europe/Rome",
+    "silverstone": "Europe/London",
+    "suzuka": "Asia/Tokyo",
+    "catalunya": "Europe/Madrid",
+    "americas": "America/Chicago",
+    "albert_park": "Australia/Melbourne",
+    "baku": "Asia/Baku",
+    "jeddah": "Asia/Riyadh",
+    "spa": "Europe/Brussels",
+    "interlagos": "America/Sao_Paulo",
 }
 
 
@@ -144,7 +162,7 @@ def build_form(season, round_, grid, cache_dir):
     }, provenance
 
 
-def build_track_history(circuit_id, grid, race_date, cache_dir):
+def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
     provenance = []
     per_driver_all = {}
     for entry in grid:
@@ -182,7 +200,7 @@ def build_track_history(circuit_id, grid, race_date, cache_dir):
         start_local = start_utc.astimezone(tz)
         window_start = start_local - timedelta(hours=2)
         window_end = start_local + timedelta(hours=2)
-        body, meta = openmeteo.archive(52.3888, 4.54092, date_str, date_str, tz_name, cache_dir)
+        body, meta = openmeteo.archive(lat, lon, date_str, date_str, tz_name, cache_dir)
         provenance.append(meta)
         hourly = body["hourly"]
         window_vals = []
@@ -452,7 +470,7 @@ def main():
     form, form_prov = build_form(args.season, args.round, grid, cache_dir)
     provenance["form"] = form_prov
 
-    track_history, th_prov = build_track_history(circuit_id, grid, race_date, cache_dir)
+    track_history, th_prov = build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir)
     provenance["track_history"] = th_prov
 
     weather, weather_prov = build_weather(

@@ -162,7 +162,12 @@ class TestArchived2023DutchGP(unittest.TestCase):
 
         grid, is_sprint_weekend, _ = build_grid(cls.season, cls.round, cls.cache_dir)
         form, _ = build_form(cls.season, cls.round, grid, cls.cache_dir)
-        track_history, _ = build_track_history("zandvoort", grid, cls.race_date, cls.cache_dir)
+        circuit_row, _ = jolpica.circuit("zandvoort", cls.cache_dir)
+        lat = float(circuit_row["Location"]["lat"])
+        lon = float(circuit_row["Location"]["long"])
+        track_history, _ = build_track_history(
+            "zandvoort", lat, lon, grid, cls.race_date, cls.cache_dir
+        )
 
         # Weather is irrelevant to what this test validates (podium/points/
         # DNF/fastest-lap, not F7) and Open-Meteo's forecast API doesn't serve
