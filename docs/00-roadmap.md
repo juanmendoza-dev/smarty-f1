@@ -19,11 +19,11 @@ Status: **locked and written** (2026-08-22). All sources verified live against p
 
 **Phase A1 — Rule-based winner predictor (current focus)**
 Hand-weighted scoring function using grid position, season/team form, track history, weather. No training — the owner picks the weights. Output compared against Polymarket + Kalshi odds for the same race.
-Status: feature list/weights not yet defined — next step.
+Status: **specced, weights locked by owner 2026-08-22.** See `02-winner-prediction-algo.md`. Eight features (grid 0.35, team form 0.15, sprint 0.13, driver form 0.11, track history 0.08, championship 0.08, weather 0.05, teammate H2H 0.05), softmax T=0.1168, market-blind. Design was dry-run against real Dutch GP data before locking, which added the championship feature and small-sample shrinkage on track history. Implementation not yet written.
 
 **Phase A2 — First live test: Dutch GP, 2026-08-23**
 Qualifying already happened (2026-08-22), so grid positions are known. Build the Phase A1 predictor tonight, lock in a prediction + market snapshot before lights-out, compare against the actual result after the race.
-Status: pending Phase A1.
+Status: **reference prediction computed** — see `02-winner-prediction-algo.md` §9. Algo: NOR 36.2%, RUS 35.2%, ANT 11.4%. Market: NOR 37.2%, RUS 25.0%, ANT 25.0%. Two testable divergences (RUS +10.2, ANT -13.6). Remaining: implement the scorer, persist a snapshot, record the result after the race.
 
 **Phase A3 — Trained model**
 Once enough historical race data (features + outcomes) has been collected, train logistic regression as a first real model and compare its calibration against the Phase A1 rule-based baseline. Move to gradient-boosted trees (XGBoost/LightGBM) once the data pipeline is trusted.
@@ -64,7 +64,9 @@ Status: not started.
 
 ## Open decisions
 
-- Feature list + weights for the Phase A1 rule-based score
+- Track overtaking multipliers (`02` §5.1) are hand-set judgements, not measurements — replace with real overtake data in A3
+- `T=0.1168` is calibrated on a grid-only synthetic field and understates real correlated spread — recalibrate against outcomes in A3
+- Weather feature's wet branch has never executed (Dutch GP was dry) — untested before a wet weekend
 - Polymarket driver-name → FIA code mapping table (no code exposed by that API; must be maintained)
 - De-vig method beyond A1 (proportional vs. longshot-aware) — defer to A3 calibration data
 - Snapshot retention: are `data/snapshots/*.json` committed to git?
