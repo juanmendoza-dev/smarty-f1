@@ -149,6 +149,34 @@ returns round 12 with ANT 224, HAM 171, RUS 168, LEC 145, NOR 134, VER 112, PIA 
 
 **All Phase A1 grid and form inputs are therefore already available.** Nothing is waiting on data.
 
+### 4.6 Standings as-of a round — the live/backfill split
+
+F6 (championship, `02` §4) needs the standings as they stood **before** the race being predicted.
+There are two ways to ask Jolpica for that and they are not interchangeable.
+
+`{season}/driverstandings.json` ("latest") is correct for a **live pre-race snapshot**, and it is
+the only form that captures a sprint that has already run this weekend. Jolpica stamps that list
+with the *current* round even when only the sprint has been scored — §4.5 above is exactly this
+case: the 2026 Dutch GP "latest" table is stamped round 12 and sits 8/7/6/5/4/3/2/1 points above
+the round-11 table, one sprint's scoring for its top eight. **A stamp equal to the round being
+predicted is therefore expected here and is not evidence of leakage.** A stamp *beyond* it is.
+
+`{season}/{round-1}/driverstandings.json` is required for a **backfill of a past race**. Asking
+for "latest" on a finished season returns that season's *final* table — F6 handed the answer, with
+no error and a completely plausible-looking result. This was a real bug: it fed end-of-2023
+standings (VER 575) into a 2023 Dutch GP backfill whose correct input was VER 314.
+
+`snapshot.build_form` picks between them on `race_has_run`, and `jolpica.driver_standings` takes
+`verify_round=` (exact match, backfill) or `max_round=` (at-most, live) so the wrong table fails
+loudly instead of scoring. The stamped round is recorded on the snapshot as
+`form.standings_after_round`.
+
+**Known limitation.** A backfilled sprint weekend loses that weekend's sprint points from F6:
+there is no round-indexed way to ask for "after round N-1's race plus round N's sprint." Bounded
+at 8 points against leader totals in the hundreds, on a feature normalised by leader points. Not
+worked around, because the workaround is a per-season sprint-scoring table (the format has changed
+more than once) to recover a fraction of one 0.08-weight feature.
+
 ---
 
 ## 5. Open-Meteo — weather
@@ -206,6 +234,26 @@ applies equally.
 
 Zandvoort, 2026-08-23, local time: 13:00 → 18.4 °C, 37% precip probability, 0.0 mm, 15.5 km/h wind;
 falling to 20% by 17:00. **Dry race forecast, moderate wind, no meaningful rain signal.**
+
+---
+
+### 5.6 The archive endpoint cannot reproduce F7's input (A3 blocker)
+
+F7's dormancy gate is `P_max < 40`, a **precipitation probability**. The forecast endpoint serves
+that field; the archive endpoint does not — it serves observed precipitation in mm only (§5.4),
+and it is the only endpoint that answers for a past date. So a historical race has no `p_max` at
+all, and an A3 backfill has to choose:
+
+- **Train F7-dormant.** Every backfilled row scores F7 at NEUTRAL, i.e. 7 live features and 8 at
+  inference time. Simple and honest, but the model never learns a wet-weather effect.
+- **Define a wet proxy from observed mm.** Recovers wet races, but the training feature means
+  "it rained" while the inference feature means "rain is forecast" — different quantities wearing
+  the same name.
+
+Both are train/serve skew; there is no third option that isn't one of these two wearing a hat.
+**Whichever is chosen, A3's feature set has to match what inference actually has**, and the choice
+must be recorded here rather than settled implicitly by whoever writes the backfill script.
+`test_phase_a4.py` already stubs `weather = {"p_max": 0}` for its 2023 snapshot for this reason.
 
 ---
 

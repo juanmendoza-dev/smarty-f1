@@ -386,8 +386,25 @@ let a season of Brier scores (§7) decide whether it is real overconfidence.
 
 1. **Track overtaking multipliers are hand-set judgements**, not measurements. Replace with
    per-circuit overtake counts once A3 has the data.
-2. **`T` is calibrated on a grid-only synthetic field** and so understates the score spread of a
-   real, correlated field (§9). Recalibrate against realised outcomes in A3.
+2. **`T` is calibrated on a grid-only synthetic field, and the real field is *flatter*, not
+   sharper.** This item previously said the calibration "understates the score spread of a real,
+   correlated field." Measured against §9's own reference run, the sign is the other way round:
+
+   | | P1−P2 raw-score gap |
+   |---|---|
+   | Synthetic calibration field (grid ramp, everything else NEUTRAL) | 0.0774 |
+   | Real 2026 Dutch GP (NOR vs. RUS) | 0.0032 |
+
+   Averaging eight partially-disagreeing features **compresses** top-of-field separation relative
+   to a single-feature grid ramp — the favourite is rarely top of all eight. So the same `T`
+   yields a flatter favourite than the calibration targeted: 36.1% at `T = 0.1168` against the
+   0.42 anchor, and it would take `T ≈ 0.0871` to put the real field's favourite at 0.42.
+
+   This matters for A3 because it sets the *direction* of the recalibration, and the previous
+   wording pointed the wrong way. Caveat: n=1, and the Dutch GP had two near-tied favourites, so
+   the magnitude is not established — but the compression argument is structural, not specific to
+   this race. Recalibrate against realised outcomes in A3, and check the sign against more than
+   one race before trusting a number.
 3. **The 0.42 pole-conversion anchor is a rounded historical figure.** It should be recomputed
    from the actual Jolpica record over a defined era rather than assumed.
 4. **Weather (F7) has never executed in its active branch** — the reference run was dry. Its wet
