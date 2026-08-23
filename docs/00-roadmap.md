@@ -43,7 +43,39 @@ Status: not started — depends on accumulating real historical prediction data 
 
 **Phase A4 — Expand outcome types**
 Podium, points finishers, DNF probability, fastest lap — same batch pattern, new labels.
-Status: not started.
+Status: **implemented and validated against real data** (2026-08-23). See
+`04-outcome-expansion-algo.md`. Market-verified first: podium and fastest lap exist on both
+Polymarket and Kalshi; points exists on Kalshi only (no per-driver points market on Polymarket);
+DNF has **no market on either venue** — Kalshi's `KXF1RETIRE` is a career-retirement-announcement
+market, not a per-race DNF market, and is not used as one. Podium/points reuse Phase A1's locked
+win-strength scores unchanged via a Plackett-Luce Monte Carlo simulation (200,000 draws, seed
+20260823, ~1.2s) rather than a new hand-tuned mapping — zero new feature weights, self-consistency
+checked against `02`'s closed-form win probability every run. DNF gets a new reliability-rate
+feature (driver + team, 50/50, shrunk toward the field's own season DNF rate — 2026's status data
+can't separate crash-caused from mechanical DNFs, so the split isn't measurable this season, stated
+as a limitation rather than guessed at more finely). Fastest lap reuses 3 of the 8 win features
+(team form, driver form, sprint) with the win market's `T` borrowed rather than independently
+calibrated. `snapshot.py` now pulls all three new market types, soft-failing per venue (a market
+not open yet doesn't block a snapshot that would otherwise succeed); `score.py`/`postrace.py` gained
+the new scoring functions. Validated against two real, fully-resolved data points: the archived 2023
+Dutch GP (fresh snapshot, exercises fastest lap end to end — real podium VER/ALO/GAS, verified live)
+and the just-completed 2026 Dutch GP (frozen snapshot, real result) — 23 tests passing, see
+`test_phase_a4.py`.
+
+**Found and fixed along the way, not caused by this phase:** `is_classified()` didn't recognize
+2026's `"Lapped"` status literal (only the older `"+1 Lap"` form), silently scoring lapped-but-
+classified 2026 finishers as DNFs in F4/F8. Verified negligible impact on the locked A2 winner
+numbers (bit-identical top-7 raw scores; `postrace.json`'s committed Brier 0.5499 vs. a fresh run's
+0.5504 — see `04` §9.5 for the full erratum). Also caught a real market-data gap: Polymarket's
+podium/fastest-lap markets exist ~2 weeks before a race but are too illiquid to price meaningfully
+(Monza's podium market, checked live, priced almost every driver near 0.5 on ~$0-300 volume vs. the
+winner market's $1,400-$14,000) — no fix built, the fix is timing (snapshot close to lights-out).
+
+**What's still open, not yet real:** no genuine pre-race algo-vs-market comparison exists yet for
+podium/points/fastest lap — the Dutch GP predates the market-pulling code, and the next race
+(Monza, 2026-09-06) is currently too far out for its markets to be liquid. The first real market
+comparison for these three outcome types happens whenever this pipeline snapshots a race close
+enough to its lights-out to have priced markets — not guaranteed to be Monza specifically.
 
 ## Lane B phases
 
@@ -88,6 +120,10 @@ Status: not started.
 - Historical results: **FastF1 + Jolpica**, used redundantly (cross-validation/backup, not additional unique data volume — they mostly cover the same races)
 - Weather: **Open-Meteo** (free, confirmed)
 - Market odds: **Polymarket + Kalshi**, both confirmed to have active Dutch GP winner markets. **No API credentials needed** — both venues' price-read endpoints are fully public (verified live 2026-08-22). See `01-data-pipeline.md` §6.3, §7.3.
+- Phase A4 market coverage (verified live 2026-08-23, see `04-outcome-expansion-algo.md` §2):
+  podium and fastest lap on **both** venues; points on **Kalshi only** (no per-driver Polymarket
+  market); DNF on **neither** venue (Kalshi's `KXF1RETIRE` is career-retirement speculation, not a
+  per-race DNF market — do not use it as one)
 - Market data access: Polymarket **Gamma** API only (not CLOB/Data); Kalshi `GET /markets` on `external-api.kalshi.com`. This was a *read-only* scoping decision for Lane A/B. Lane C's order execution needs Polymarket's CLOB (or equivalent) for placing trades — reopened, not yet decided, see Phase C2
 - Canonical driver key across all sources: **FIA three-letter code** (`ANT`, `NOR`), sourced from Jolpica `Driver.code`
 - Odds normalization for A1: proportional de-vig; raw + normalized both persisted
@@ -111,3 +147,19 @@ Status: not started.
 - Lane C: Kalshi's CFTC-regulated status vs. Polymarket's structure may carry different compliance obligations for an automated trader — unconfirmed
 - Lane C: realistic latency here is home network + broadcast delay, not co-located/exchange-proximity infrastructure — "HFT" in the goal statement means "fast relative to a slow-to-reprice retail market," not literal microsecond HFT; keep that honest in any future spec
 - Lane C: whether to scope the first cut to settled markets only (winner/podium, no live feed needed) before attempting live overtake markets — leaning yes, not decided
+- Phase A4: podium/points precision is Monte Carlo (±0.3pp), not the exact closed-form the win
+  market has — revisit if an exact top-K marginal algorithm is worth the added complexity
+- Phase A4: DNF's driver/team split is a hand-set 50/50, unmeasurable with 2026's status data
+  (no crash-vs-mechanical breakdown) — revisit if a richer status source appears or once enough
+  seasons accumulate to fit the split in A3
+- Phase A4: fastest lap's `T` is borrowed from the win-market calibration, not independently
+  anchored — needs its own real-outcome-based anchor eventually
+- Phase A4: DNF risk is not fed into the podium/points simulation (deliberate — an explicit DNF
+  draw would double-count risk already implicit in the win market's `T` calibration and break
+  reproducing `02`'s locked win numbers) — revisit together with a `T` recalibration in A3
+- Phase A4: points market comparison is Kalshi-only, no independent second-venue corroboration
+  the way winner/podium/fastest-lap have — a large points edge could be the algo or could be a
+  thin Kalshi book, and there's currently no way to tell which
+- Phase A4: no genuine pre-race market comparison exists yet for podium/points/fastest lap (see
+  Phase A4 status above) — needs a race snapshotted close enough to lights-out to have liquid
+  markets, which hasn't happened yet as of this writing
