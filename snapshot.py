@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from lib import jolpica, openmeteo, polymarket, kalshi, driver_map
+from lib import jolpica, openmeteo, polymarket, kalshi, driver_map, httpcache
 from lib.circuits import multiplier_for
 from lib.features import is_classified
 
@@ -59,6 +59,12 @@ def cast_result_row(r):
         "position": int(r["position"]),
         "status": r.get("status", "Finished"),
         "points": float(r["points"]),
+        # 04-outcome-expansion-algo.md sec8.1: nullable -- Jolpica has an
+        # ingest lag on this field right after a race finishes (verified live,
+        # sec7.4), so a None here can mean "not this driver" or "not ingested
+        # yet for anyone." Callers that need to tell those apart (postrace.py)
+        # check across the whole field, not per-row.
+        "fastest_lap_rank": (r.get("FastestLap") or {}).get("rank"),
     }
 
 
@@ -246,70 +252,157 @@ def build_weather(lat, lon, race_date_str, race_time_str, circuit_id, cache_dir,
     }, [meta]
 
 
-def build_markets(polymarket_slug, race_date_str, kalshi_series, kalshi_event_ticker, cache_dir,
-                   force_refresh=False):
-    provenance = []
-
-    pm_event, pm_meta, pm_markets = polymarket.resolve_event(
-        polymarket_slug, race_date_str, cache_dir, fallback_title_contains="Dutch Grand Prix Winner",
-        force_refresh=force_refresh,
+def _pull_polymarket_market(slug, race_date_str, cache_dir, force_refresh, k=1,
+                             fallback_title_contains=None):
+    """One Polymarket market -> (block, meta). Raises polymarket.StaleMarketError
+    on anything unresolvable; caller decides whether that's fatal (winner,
+    build_markets) or soft (podium/points/fastest-lap, build_extended_markets --
+    04-outcome-expansion-algo.md sec8.2).
+    """
+    event, meta, markets = polymarket.resolve_event(
+        slug, race_date_str, cache_dir, fallback_title_contains=fallback_title_contains,
+        force_refresh=force_refresh, k=k,
     )
-    provenance.append(pm_meta)
-    pm_overround, pm_normalized = polymarket.normalize(pm_markets)
-    pm_by_code = {}
-    pm_other = []
-    for m in pm_markets:
+    overround, normalized = polymarket.normalize(markets, k=k)
+    by_code = {}
+    other = []
+    for m in markets:
         if m["code"] is None:
-            pm_other.append({"name": m["name"], "active": m["active"], "mid": m["mid"]})
+            other.append({"name": m["name"], "active": m["active"], "mid": m["mid"]})
             continue
-        pm_by_code[m["code"]] = {
+        by_code[m["code"]] = {
             "raw": {
                 "best_bid": m["best_bid"], "best_ask": m["best_ask"],
                 "outcome_prices": m["outcome_prices_raw"], "last_trade_price": m["last_trade_price"],
                 "mid": m["mid"], "active": m["active"], "volume": m["volume"],
             },
-            "normalized": pm_normalized.get(m["code"]),
+            "normalized": normalized.get(m["code"]),
         }
+    block = {
+        "event_id": event.get("id"), "slug": event.get("slug"),
+        "overround": overround, "by_code": by_code, "excluded_outcomes": other,
+    }
+    return block, meta
 
-    kx_markets, kx_events_meta, kx_markets_meta = kalshi.resolve_markets(
-        kalshi_series, kalshi_event_ticker, race_date_str, cache_dir, force_refresh=force_refresh
+
+def _pull_kalshi_market(series_ticker, event_ticker, race_date_str, cache_dir, force_refresh, k=1):
+    """One Kalshi market -> (block, [meta, meta]). Raises kalshi.StaleMarketError
+    on anything unresolvable; same soft/hard-fail split as the Polymarket helper.
+    """
+    markets, events_meta, markets_meta = kalshi.resolve_markets(
+        series_ticker, event_ticker, race_date_str, cache_dir, force_refresh=force_refresh, k=k,
     )
-    provenance.append(kx_events_meta)
-    provenance.append(kx_markets_meta)
-    kx_overround, kx_normalized = kalshi.normalize(kx_markets)
-    kx_by_code = {
+    overround, normalized = kalshi.normalize(markets, k=k)
+    by_code = {
         m["code"]: {
             "raw": {
                 "yes_bid": m["yes_bid"], "yes_ask": m["yes_ask"], "last_price": m["last_price"],
                 "mid": m["mid"], "volume": m["volume"], "open_interest": m["open_interest"],
                 "no_sub_title": m["no_sub_title"],
             },
-            "normalized": kx_normalized.get(m["code"]),
+            "normalized": normalized.get(m["code"]),
         }
-        for m in kx_markets
+        for m in markets
     }
+    block = {"event_ticker": event_ticker, "overround": overround, "by_code": by_code}
+    return block, [events_meta, markets_meta]
 
-    all_codes = set(pm_by_code) | set(kx_by_code)
+
+def _market_mean(by_code_blocks):
+    """by_code_blocks: list of {code: {"normalized": float|None, ...}} dicts,
+    one per venue that has a market for this outcome. Skips venues that don't
+    (e.g. points has no Polymarket entry -- 04 sec2/sec6.4)."""
+    all_codes = set()
+    for bc in by_code_blocks:
+        all_codes |= set(bc)
     market_mean = {}
     for code in all_codes:
-        vals = []
-        if code in pm_by_code and pm_by_code[code]["normalized"] is not None:
-            vals.append(pm_by_code[code]["normalized"])
-        if code in kx_by_code and kx_by_code[code]["normalized"] is not None:
-            vals.append(kx_by_code[code]["normalized"])
+        vals = [bc[code]["normalized"] for bc in by_code_blocks
+                if code in bc and bc[code]["normalized"] is not None]
         if vals:
             market_mean[code] = sum(vals) / len(vals)
+    return market_mean
+
+
+def build_markets(polymarket_slug, race_date_str, kalshi_series, kalshi_event_ticker, cache_dir,
+                   force_refresh=False):
+    """Winner market only. Hard-fails on anything unresolvable -- unchanged
+    01-data-pipeline.md/02-winner-prediction-algo.md behavior."""
+    provenance = []
+
+    pm_block, pm_meta = _pull_polymarket_market(
+        polymarket_slug, race_date_str, cache_dir, force_refresh,
+        fallback_title_contains="Dutch Grand Prix Winner",
+    )
+    provenance.append(pm_meta)
+
+    kx_block, kx_metas = _pull_kalshi_market(
+        kalshi_series, kalshi_event_ticker, race_date_str, cache_dir, force_refresh,
+    )
+    provenance.extend(kx_metas)
+
+    market_mean = _market_mean([pm_block["by_code"], kx_block["by_code"]])
 
     return {
-        "polymarket": {
-            "event_id": pm_event.get("id"), "slug": pm_event.get("slug"),
-            "overround": pm_overround, "by_code": pm_by_code, "excluded_outcomes": pm_other,
-        },
-        "kalshi": {
-            "event_ticker": kalshi_event_ticker, "overround": kx_overround, "by_code": kx_by_code,
-        },
+        "polymarket": pm_block,
+        "kalshi": kx_block,
         "market_mean": market_mean,
     }, provenance
+
+
+def build_extended_markets(race_date_str, cache_dir, force_refresh,
+                            polymarket_podium_slug, polymarket_fastestlap_slug,
+                            kalshi_podium_ticker, kalshi_top10_ticker, kalshi_fastlap_ticker):
+    """Podium/points/fastest-lap markets. 04-outcome-expansion-algo.md sec8.2:
+    additive to build_markets(), never touches the winner block, and every
+    pull here is soft-fail per venue -- a market not open yet (verified live,
+    04 sec2: Kalshi opens race markets later than Polymarket does) or
+    otherwise unresolvable must not block a snapshot that would otherwise
+    succeed. Points has no Polymarket entry (04 sec2 -- no such market exists).
+    """
+    provenance = []
+
+    def soft_pull(fn, *args, **kwargs):
+        try:
+            block, meta = fn(*args, **kwargs)
+            if isinstance(meta, list):
+                provenance.extend(meta)
+            else:
+                provenance.append(meta)
+            return block
+        except (polymarket.StaleMarketError, kalshi.StaleMarketError, httpcache.HttpError) as e:
+            return {"status": "unavailable", "reason": str(e)}
+
+    podium_pm = soft_pull(_pull_polymarket_market, polymarket_podium_slug, race_date_str,
+                          cache_dir, force_refresh, 3)
+    podium_kx = soft_pull(_pull_kalshi_market, "KXF1RACEPODIUM", kalshi_podium_ticker,
+                          race_date_str, cache_dir, force_refresh, 3)
+    podium = {
+        "polymarket": podium_pm, "kalshi": podium_kx,
+        "market_mean": _market_mean([
+            podium_pm.get("by_code", {}), podium_kx.get("by_code", {}),
+        ]),
+    }
+
+    points_kx = soft_pull(_pull_kalshi_market, "KXF1TOP10", kalshi_top10_ticker,
+                          race_date_str, cache_dir, force_refresh, 10)
+    points = {
+        "kalshi": points_kx,
+        "market_mean": _market_mean([points_kx.get("by_code", {})]),
+    }
+
+    fastlap_pm = soft_pull(_pull_polymarket_market, polymarket_fastestlap_slug, race_date_str,
+                           cache_dir, force_refresh, 1)
+    fastlap_kx = soft_pull(_pull_kalshi_market, "KXF1FASTLAP", kalshi_fastlap_ticker,
+                           race_date_str, cache_dir, force_refresh, 1)
+    fastest_lap = {
+        "polymarket": fastlap_pm, "kalshi": fastlap_kx,
+        "market_mean": _market_mean([
+            fastlap_pm.get("by_code", {}), fastlap_kx.get("by_code", {}),
+        ]),
+    }
+
+    return {"podium": podium, "points": points, "fastest_lap": fastest_lap}, provenance
 
 
 def main():
@@ -319,6 +412,18 @@ def main():
     ap.add_argument("--polymarket-slug", default="f1-dutch-grand-prix-winner-2026-08-23")
     ap.add_argument("--kalshi-series", default="KXF1RACE")
     ap.add_argument("--kalshi-event-ticker", default="KXF1RACE-DUTGP26")
+    # 04-outcome-expansion-algo.md sec8.3: per-outcome overrides, race-specific
+    # like the winner-market args above, not derived. Defaults point at the
+    # Dutch GP -- override all five for a different race.
+    ap.add_argument("--polymarket-podium-slug", default="f1-dutch-grand-prix-driver-podium-2026-08-23")
+    ap.add_argument("--polymarket-fastestlap-slug",
+                     default="f1-dutch-grand-prix-driver-fastest-lap-2026-08-23")
+    ap.add_argument("--kalshi-podium-ticker", default="KXF1RACEPODIUM-DUTGP26")
+    ap.add_argument("--kalshi-top10-ticker", default="KXF1TOP10-DUTGP26")
+    ap.add_argument("--kalshi-fastlap-ticker", default="KXF1FASTLAP-DUTGP26")
+    ap.add_argument("--skip-extended-markets", action="store_true",
+                     help="skip the podium/points/fastest-lap market pulls entirely (grid/form/"
+                          "track-history/weather/winner-market snapshot is unaffected either way).")
     ap.add_argument("--cache-dir", default=DEFAULT_CACHE_DIR)
     ap.add_argument("--out-dir", default=DEFAULT_OUT_DIR)
     ap.add_argument("--force-refresh", action="store_true",
@@ -360,6 +465,20 @@ def main():
         force_refresh=args.force_refresh,
     )
     provenance["markets"] = markets_prov
+
+    if args.skip_extended_markets:
+        markets["podium"] = {"status": "skipped"}
+        markets["points"] = {"status": "skipped"}
+        markets["fastest_lap"] = {"status": "skipped"}
+    else:
+        extended_markets, extended_prov = build_extended_markets(
+            race_date, cache_dir, args.force_refresh,
+            args.polymarket_podium_slug, args.polymarket_fastestlap_slug,
+            args.kalshi_podium_ticker, args.kalshi_top10_ticker, args.kalshi_fastlap_ticker,
+        )
+        markets.update(extended_markets)
+        provenance["extended_markets"] = extended_prov
+
     provenance["fastf1"] = {"status": "unavailable", "reason": "python<3.10"}
 
     snapshot_ts = datetime.now(timezone.utc)
@@ -400,6 +519,21 @@ def main():
     print(f"weather P_max={weather['p_max']}% (dormant if <40)")
     print(f"polymarket overround={markets['polymarket']['overround']:.4f}, "
           f"kalshi overround={markets['kalshi']['overround']:.4f}")
+
+    def venue_status(block, venue):
+        v = block.get(venue)
+        if v is None:
+            return "n/a"
+        return "ok" if "by_code" in v else v.get("status", "unknown")
+
+    for outcome in ("podium", "points", "fastest_lap"):
+        block = markets.get(outcome, {})
+        if block.get("status") == "skipped":
+            print(f"{outcome}: skipped (--skip-extended-markets)")
+        else:
+            print(f"{outcome}: polymarket={venue_status(block, 'polymarket')} "
+                  f"kalshi={venue_status(block, 'kalshi')}")
+
     return out_path
 
 

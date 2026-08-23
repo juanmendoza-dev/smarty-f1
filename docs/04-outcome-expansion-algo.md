@@ -71,6 +71,26 @@ for the new outcome types. §8.2 specs how the pipeline must handle this (soft-s
 a hard abort) for the three *new* market types — the existing winner-market hard-abort-on-missing
 behavior from `01`/`02` is unchanged.
 
+**Podium/fastest-lap markets exist two weeks out but are too illiquid to trust yet.** Verified
+live 2026-08-23 against Monza (Italian GP, round 13, race date 2026-09-06 — the earliest race
+with genuinely pre-race, not-yet-resolved markets): Polymarket's podium market pulled successfully
+(not degenerate, `closed: false`) but its raw mids summed to **10.515** for a K=3 market — nowhere
+near the ~3.0-3.3 a real market should show. Root cause, confirmed by comparing `volumeNum` across
+markets: most Monza podium legs show `volume: None` or low tens/hundreds (Gasly `None`, Alonso
+$40, Perez $119, Antonelli $306), against the Dutch GP winner market's thousands ($1,420-$14,390
+per leg, checked the same day). With that little real trading, `bestBid`/`bestAsk` spreads span
+almost the full `[0,1]` range (Gasly bid 0.01 / ask 0.99), so `(bid+ask)/2` collapses toward 0.5 for
+nearly every driver regardless of actual likelihood — a real liquidity gap, not a code bug (the
+same pull against the Dutch GP's podium market, while it lasted, produced a sane ~3.0-3.1 sum).
+**Consequence:** the pipeline is proven to work end-to-end against real live data (§8.2's soft-fail
+correctly handled Kalshi not being open yet for Monza at all), but there is currently no race where
+podium/points/fastest-lap prices are simultaneously *not yet resolved* and *liquid enough to
+trust*. §3's "outcome-only" rule for the Dutch GP is therefore not a one-race exception — a
+genuinely trustworthy pre-race market comparison for these three outcome types needs to wait until
+close to a race's lights-out, the same point at which the *winner* market's own liquidity
+concentrates (`00-roadmap.md`'s pre-lights-out re-snapshot already exists for exactly this reason).
+Flagged again in §10.
+
 **K-of-N markets do not sum to 1.** Verified live: Polymarket's Dutch GP podium market (already
 resolved in fact, still `closed: false`) sums to 3.0975 across 21 driver legs; Kalshi's podium
 sums to 3.085; Kalshi's top-10 sums to 10.005. `01` §8.4's proportional de-vig was written for a
@@ -523,3 +543,8 @@ delta is within its own stated precision. This erratum is the record of the fix.
    Kalshi ever launches a genuine per-race DNF market (as opposed to the career-retirement market
    that exists today), §2's "no DNF market" finding needs re-verification, not an assumption that
    it's still true.
+10. **Podium/fastest-lap prices two weeks pre-race are too illiquid to trust** (§2) — verified
+    against real Monza data, not assumed. No liquidity filter (e.g. a minimum-volume threshold) is
+    built for v1; that would be a new modeling decision needing its own justification, and the
+    simpler fix is timing — snapshot these markets close to lights-out, not two weeks out. Revisit
+    if a genuinely early pre-race comparison is ever wanted for its own sake.
