@@ -151,6 +151,19 @@ def build_form(season, round_, grid, cache_dir, race_has_run=False):
         rnd: [cast_result_row(r) for r in results_by_round.get(rnd, [])]
         for rnd in all_rounds
     }
+    # The old per-round race_results loop made a missing round visible as an
+    # explicit empty list from that call. results_by_round.get(rnd, []) above
+    # would silently do the same for a round season_results() didn't return at
+    # all -- F2/F4/F8/F_dnf would just average over fewer races with no error.
+    # Every round strictly before round_ has necessarily already happened, so
+    # a gap here is a real problem (a cancelled round with no classification,
+    # or a season_results bug), not an expected state.
+    missing = [rnd for rnd in all_rounds if not per_round_results[rnd]]
+    require(
+        not missing,
+        f"build_form: round(s) {missing} of {season} came back with no results from "
+        f"season_results -- either a real gap or a season_results bug, not silently averaged over",
+    )
 
     # F6's standings must contain everything that happened before this race and
     # nothing from the race itself. Which endpoint gets you that depends on
