@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lib import jolpica, openmeteo, polymarket, kalshi, driver_map
 from lib.circuits import multiplier_for
+from lib.features import is_classified
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CACHE_DIR = os.path.join(REPO_ROOT, "data", "cache")
@@ -88,7 +89,7 @@ def build_grid(season, round_, cache_dir):
             entry["sprint"] = {
                 "position": int(sr["position"]),
                 "status": status,
-                "classified": status == "Finished" or status.startswith("+"),
+                "classified": is_classified(status),
             }
         else:
             entry["sprint"] = None
@@ -153,7 +154,7 @@ def build_track_history(circuit_id, grid, race_date, cache_dir):
                 "time": race.get("time"),
                 "position": int(res["position"]),
                 "status": status,
-                "classified": status == "Finished" or status.startswith("+"),
+                "classified": is_classified(status),
             })
         per_driver_all[entry["code"]] = rows
 

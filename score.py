@@ -20,7 +20,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from lib.features import NEUTRAL, K_GRID, K_SPRINT, K_FIN, pos_score, shrink_by_n, field_normalize
+from lib.features import NEUTRAL, K_GRID, K_SPRINT, K_FIN, pos_score, shrink_by_n, field_normalize, is_classified
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 T = 0.1168
@@ -70,7 +70,7 @@ def compute_sprint(algo_snapshot):
         sprint = d.get("sprint")
         if sprint is None:
             out[d["code"]] = NEUTRAL
-        elif sprint["classified"]:
+        elif is_classified(sprint["status"]):
             out[d["code"]] = pos_score(sprint["position"], K_SPRINT)
         else:
             out[d["code"]] = 0.0
@@ -96,7 +96,7 @@ def compute_driver_form(algo_snapshot):
             continue
         scores = []
         for row in rows:
-            classified = row["status"] == "Finished" or row["status"].startswith("+")
+            classified = is_classified(row["status"])
             scores.append(pos_score(row["position"], K_FIN) if classified else 0.0)
         raw_by_code[d["code"]] = sum(scores) / len(scores)
     return field_normalize(raw_by_code)
@@ -115,7 +115,7 @@ def _weighted_mean(rows):
     num, den = 0.0, 0.0
     for row in rows:
         w = row["recency_weight"]
-        s = pos_score(row["position"], K_FIN) if row["classified"] else 0.0
+        s = pos_score(row["position"], K_FIN) if is_classified(row["status"]) else 0.0
         num += w * s
         den += w
     return num / den if den > 0 else None
@@ -207,7 +207,7 @@ def compute_teammate_h2h(algo_snapshot):
         rows = per_round[str(rnd)]
         seen_constructors = defaultdict(list)
         for row in rows:
-            classified = row["status"] == "Finished" or row["status"].startswith("+")
+            classified = is_classified(row["status"])
             seen_constructors[row["constructor_id"]].append((row["code"], row["position"], classified))
         for cid, entries in seen_constructors.items():
             if len(entries) != 2:

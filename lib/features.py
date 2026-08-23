@@ -15,10 +15,19 @@ def pos_score(p, k):
 
 
 def is_classified(status):
-    """sec3.4: Finished, or a lapped classification ('+1 Lap' etc), counts.
-    Anything else (Retired, Accident, Engine, ...) is a DNF and scores 0.0.
+    """sec3.4: Finished, or a lapped classification, counts as classified.
+
+    Two status text conventions cover the same thing: older Jolpica/Ergast data
+    spells a lapped finish as '+1 Lap' / '+2 Laps' (a lap-count suffix), while
+    the 2026 season collapses this to the literal string 'Lapped' -- confirmed
+    live against Jolpica's own /status.json (statusId 143, 'Lapped', 87 rows in
+    2026 so far) and against 2026 R1/R12 results, which show cars in P7-P17
+    finishing genuinely classified (they scored points and started the next
+    round) under this status. Checking only the '+' prefix silently treats
+    every 2026 lapped finisher as a DNF. Anything else (Retired, Accident,
+    Engine, Did not start, ...) is a real DNF and scores 0.0.
     """
-    return status == "Finished" or status.startswith("+")
+    return status == "Finished" or status == "Lapped" or status.startswith("+")
 
 
 def shrink_by_n(s, n):
