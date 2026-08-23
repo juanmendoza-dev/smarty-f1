@@ -1,0 +1,4574 @@
+{
+  "meta": {
+    "season": 2026,
+    "round": 12,
+    "race_name": "Dutch Grand Prix",
+    "circuit_id": "zandvoort",
+    "circuit_lat": 52.3888,
+    "circuit_lon": 4.54092,
+    "race_start_utc": "2026-08-23T13:00:00Z",
+    "race_start_local": "2026-08-23T15:00:00+02:00",
+    "is_sprint_weekend": true,
+    "track_overtaking_multiplier": 1.15,
+    "snapshot_timestamp_utc": "2026-08-23T03:10:58.890016+00:00",
+    "git_commit": "997d2ba9ed119d0018af2b01cdab800336b36ef2"
+  },
+  "provenance": {
+    "schedule": {
+      "url": "https://api.jolpi.ca/ergast/f1/2026/12.json",
+      "status": 200,
+      "timestamp": "2026-08-23T03:06:10.409910+00:00",
+      "cached": true
+    },
+    "circuit": {
+      "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort.json",
+      "status": 200,
+      "timestamp": "2026-08-23T03:06:10.518107+00:00",
+      "cached": true
+    },
+    "grid": [
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/12/qualifying.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:10.993990+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/12/sprint.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:11.631646+00:00",
+        "cached": true
+      }
+    ],
+    "form": [
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/1/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:09:54.769008+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/2/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:09:55.453285+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/3/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:09:56.081783+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/4/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:09:56.711265+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/5/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:09:57.333038+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/6/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:09:58.116509+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/7/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:12.241571+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/8/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:12.864272+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/9/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:13.528344+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/10/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:14.148649+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/11/results.json?limit=30",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:14.762492+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/2026/driverstandings.json?limit=40",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:15.390367+00:00",
+        "cached": true
+      }
+    ],
+    "track_history": [
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/norris/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:15.740504+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/russell/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:16.314860+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/antonelli/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:17.083407+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/piastri/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:17.669522+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/hamilton/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:18.249493+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/leclerc/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:18.837074+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/max_verstappen/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:19.410830+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/lawson/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:19.500572+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/bortoleto/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:20.070342+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/arvid_lindblad/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:20.640915+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/gasly/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:21.121910+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/tsunoda/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:21.702765+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/hulkenberg/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:22.284679+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/colapinto/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:22.868101+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/ocon/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:23.452321+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/albon/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:24.046376+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/sainz/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:24.629928+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/alonso/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:25.211310+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/stroll/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:25.802946+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/bearman/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:26.376280+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/bottas/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:26.947728+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/drivers/perez/results.json?limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:27.522685+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://archive-api.open-meteo.com/v1/archive?latitude=52.3888&longitude=4.54092&hourly=precipitation&start_date=2023-08-27&end_date=2023-08-27&timezone=Europe%2FAmsterdam",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:28.092730+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://archive-api.open-meteo.com/v1/archive?latitude=52.3888&longitude=4.54092&hourly=precipitation&start_date=2024-08-25&end_date=2024-08-25&timezone=Europe%2FAmsterdam",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:28.807070+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://archive-api.open-meteo.com/v1/archive?latitude=52.3888&longitude=4.54092&hourly=precipitation&start_date=2025-08-31&end_date=2025-08-31&timezone=Europe%2FAmsterdam",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:29.500384+00:00",
+        "cached": true
+      }
+    ],
+    "weather": [
+      {
+        "url": "https://api.open-meteo.com/v1/forecast?latitude=52.3888&longitude=4.54092&hourly=temperature_2m%2Cprecipitation_probability%2Cprecipitation%2Cwind_speed_10m%2Crelative_humidity_2m&start_date=2026-08-23&end_date=2026-08-23&timezone=Europe%2FAmsterdam",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:30.260792+00:00",
+        "cached": true
+      }
+    ],
+    "markets": [
+      {
+        "url": "https://gamma-api.polymarket.com/events?slug=f1-dutch-grand-prix-winner-2026-08-23",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:31.034352+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://external-api.kalshi.com/trade-api/v2/events?series_ticker=KXF1RACE&status=open",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:31.206286+00:00",
+        "cached": true
+      },
+      {
+        "url": "https://external-api.kalshi.com/trade-api/v2/markets?event_ticker=KXF1RACE-DUTGP26&limit=100",
+        "status": 200,
+        "timestamp": "2026-08-23T03:06:31.476010+00:00",
+        "cached": true
+      }
+    ],
+    "fastf1": {
+      "status": "unavailable",
+      "reason": "python<3.10"
+    }
+  },
+  "grid": [
+    {
+      "code": "NOR",
+      "driver_id": "norris",
+      "given_name": "Lando",
+      "family_name": "Norris",
+      "constructor_id": "mclaren",
+      "quali_position": 1,
+      "q1": "1:12.695",
+      "q2": "1:11.628",
+      "q3": "1:11.163",
+      "sprint": {
+        "position": 3,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "RUS",
+      "driver_id": "russell",
+      "given_name": "George",
+      "family_name": "Russell",
+      "constructor_id": "mercedes",
+      "quali_position": 2,
+      "q1": "1:12.924",
+      "q2": "1:11.959",
+      "q3": "1:11.265",
+      "sprint": {
+        "position": 1,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "ANT",
+      "driver_id": "antonelli",
+      "given_name": "Andrea Kimi",
+      "family_name": "Antonelli",
+      "constructor_id": "mercedes",
+      "quali_position": 3,
+      "q1": "1:13.022",
+      "q2": "1:11.915",
+      "q3": "1:11.296",
+      "sprint": {
+        "position": 4,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "PIA",
+      "driver_id": "piastri",
+      "given_name": "Oscar",
+      "family_name": "Piastri",
+      "constructor_id": "mclaren",
+      "quali_position": 4,
+      "q1": "1:12.610",
+      "q2": "1:11.641",
+      "q3": "1:11.305",
+      "sprint": {
+        "position": 5,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "HAM",
+      "driver_id": "hamilton",
+      "given_name": "Lewis",
+      "family_name": "Hamilton",
+      "constructor_id": "ferrari",
+      "quali_position": 5,
+      "q1": "1:12.673",
+      "q2": "1:11.970",
+      "q3": "1:11.494",
+      "sprint": {
+        "position": 7,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "LEC",
+      "driver_id": "leclerc",
+      "given_name": "Charles",
+      "family_name": "Leclerc",
+      "constructor_id": "ferrari",
+      "quali_position": 6,
+      "q1": "1:13.064",
+      "q2": "1:11.910",
+      "q3": "1:11.558",
+      "sprint": {
+        "position": 2,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "VER",
+      "driver_id": "max_verstappen",
+      "given_name": "Max",
+      "family_name": "Verstappen",
+      "constructor_id": "red_bull",
+      "quali_position": 7,
+      "q1": "1:13.290",
+      "q2": "1:11.874",
+      "q3": "1:11.618",
+      "sprint": {
+        "position": 6,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "LAW",
+      "driver_id": "lawson",
+      "given_name": "Liam",
+      "family_name": "Lawson",
+      "constructor_id": "red_bull",
+      "quali_position": 8,
+      "q1": "1:13.392",
+      "q2": "1:12.301",
+      "q3": "1:11.733",
+      "sprint": {
+        "position": 11,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "BOR",
+      "driver_id": "bortoleto",
+      "given_name": "Gabriel",
+      "family_name": "Bortoleto",
+      "constructor_id": "audi",
+      "quali_position": 9,
+      "q1": "1:13.142",
+      "q2": "1:12.433",
+      "q3": "1:12.079",
+      "sprint": {
+        "position": 9,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "LIN",
+      "driver_id": "arvid_lindblad",
+      "given_name": "Arvid",
+      "family_name": "Lindblad",
+      "constructor_id": "rb",
+      "quali_position": 10,
+      "q1": "1:13.074",
+      "q2": "1:12.525",
+      "q3": "1:12.185",
+      "sprint": {
+        "position": 10,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "GAS",
+      "driver_id": "gasly",
+      "given_name": "Pierre",
+      "family_name": "Gasly",
+      "constructor_id": "alpine",
+      "quali_position": 11,
+      "q1": "1:13.115",
+      "q2": "1:12.616",
+      "q3": null,
+      "sprint": {
+        "position": 8,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "TSU",
+      "driver_id": "tsunoda",
+      "given_name": "Yuki",
+      "family_name": "Tsunoda",
+      "constructor_id": "rb",
+      "quali_position": 12,
+      "q1": "1:13.085",
+      "q2": "1:12.627",
+      "q3": null,
+      "sprint": {
+        "position": 13,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "HUL",
+      "driver_id": "hulkenberg",
+      "given_name": "Nico",
+      "family_name": "H\u00fclkenberg",
+      "constructor_id": "audi",
+      "quali_position": 13,
+      "q1": "1:13.188",
+      "q2": "1:12.797",
+      "q3": null,
+      "sprint": {
+        "position": 22,
+        "status": "Lapped",
+        "classified": false
+      }
+    },
+    {
+      "code": "COL",
+      "driver_id": "colapinto",
+      "given_name": "Franco",
+      "family_name": "Colapinto",
+      "constructor_id": "alpine",
+      "quali_position": 14,
+      "q1": "1:13.322",
+      "q2": "1:12.800",
+      "q3": null,
+      "sprint": {
+        "position": 12,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "OCO",
+      "driver_id": "ocon",
+      "given_name": "Esteban",
+      "family_name": "Ocon",
+      "constructor_id": "haas",
+      "quali_position": 15,
+      "q1": "1:13.544",
+      "q2": "1:13.137",
+      "q3": null,
+      "sprint": {
+        "position": 14,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "ALB",
+      "driver_id": "albon",
+      "given_name": "Alexander",
+      "family_name": "Albon",
+      "constructor_id": "williams",
+      "quali_position": 16,
+      "q1": "1:13.552",
+      "q2": "1:13.182",
+      "q3": null,
+      "sprint": {
+        "position": 16,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "SAI",
+      "driver_id": "sainz",
+      "given_name": "Carlos",
+      "family_name": "Sainz",
+      "constructor_id": "williams",
+      "quali_position": 17,
+      "q1": "1:13.574",
+      "q2": null,
+      "q3": null,
+      "sprint": {
+        "position": 20,
+        "status": "Lapped",
+        "classified": false
+      }
+    },
+    {
+      "code": "ALO",
+      "driver_id": "alonso",
+      "given_name": "Fernando",
+      "family_name": "Alonso",
+      "constructor_id": "aston_martin",
+      "quali_position": 18,
+      "q1": "1:13.650",
+      "q2": null,
+      "q3": null,
+      "sprint": {
+        "position": 18,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "STR",
+      "driver_id": "stroll",
+      "given_name": "Lance",
+      "family_name": "Stroll",
+      "constructor_id": "aston_martin",
+      "quali_position": 19,
+      "q1": "1:13.818",
+      "q2": null,
+      "q3": null,
+      "sprint": {
+        "position": 17,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "BEA",
+      "driver_id": "bearman",
+      "given_name": "Oliver",
+      "family_name": "Bearman",
+      "constructor_id": "haas",
+      "quali_position": 20,
+      "q1": "1:13.826",
+      "q2": null,
+      "q3": null,
+      "sprint": {
+        "position": 15,
+        "status": "Finished",
+        "classified": true
+      }
+    },
+    {
+      "code": "BOT",
+      "driver_id": "bottas",
+      "given_name": "Valtteri",
+      "family_name": "Bottas",
+      "constructor_id": "cadillac",
+      "quali_position": 21,
+      "q1": "1:14.371",
+      "q2": null,
+      "q3": null,
+      "sprint": {
+        "position": 19,
+        "status": "Lapped",
+        "classified": false
+      }
+    },
+    {
+      "code": "PER",
+      "driver_id": "perez",
+      "given_name": "Sergio",
+      "family_name": "P\u00e9rez",
+      "constructor_id": "cadillac",
+      "quali_position": 22,
+      "q1": "1:14.600",
+      "q2": null,
+      "q3": null,
+      "sprint": {
+        "position": 21,
+        "status": "Lapped",
+        "classified": false
+      }
+    }
+  ],
+  "form": {
+    "all_rounds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "recent_rounds": [
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "results_by_round": {
+      "1": [
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 6,
+          "status": "Finished",
+          "points": 8.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 7,
+          "status": "Lapped",
+          "points": 6.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 8,
+          "status": "Lapped",
+          "points": 4.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 9,
+          "status": "Lapped",
+          "points": 2.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 10,
+          "status": "Lapped",
+          "points": 1.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 11,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 12,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 13,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 14,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 15,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 16,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 17,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 18,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 19,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 20,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 21,
+          "status": "Did not start",
+          "points": 0.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 22,
+          "status": "Did not start",
+          "points": 0.0
+        }
+      ],
+      "2": [
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 6,
+          "status": "Finished",
+          "points": 8.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 7,
+          "status": "Finished",
+          "points": 6.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 8,
+          "status": "Finished",
+          "points": 4.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 9,
+          "status": "Lapped",
+          "points": 2.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 10,
+          "status": "Lapped",
+          "points": 1.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 11,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 12,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 13,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 14,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 15,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 16,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 17,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 18,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 19,
+          "status": "Did not start",
+          "points": 0.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 20,
+          "status": "Did not start",
+          "points": 0.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 21,
+          "status": "Did not start",
+          "points": 0.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 22,
+          "status": "Did not start",
+          "points": 0.0
+        }
+      ],
+      "3": [
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 6,
+          "status": "Finished",
+          "points": 8.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 7,
+          "status": "Finished",
+          "points": 6.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 8,
+          "status": "Finished",
+          "points": 4.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 9,
+          "status": "Finished",
+          "points": 2.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 10,
+          "status": "Finished",
+          "points": 1.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 11,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 12,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 13,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 14,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 15,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 16,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 17,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 18,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 19,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 20,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 21,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 22,
+          "status": "Retired",
+          "points": 0.0
+        }
+      ],
+      "4": [
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 6,
+          "status": "Finished",
+          "points": 8.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 7,
+          "status": "Finished",
+          "points": 6.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 8,
+          "status": "Finished",
+          "points": 4.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 9,
+          "status": "Finished",
+          "points": 2.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 10,
+          "status": "Finished",
+          "points": 1.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 11,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 12,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 13,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 14,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 15,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 16,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 17,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 18,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 19,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 20,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 21,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 22,
+          "status": "Retired",
+          "points": 0.0
+        }
+      ],
+      "5": [
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 5,
+          "status": "Lapped",
+          "points": 10.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 6,
+          "status": "Lapped",
+          "points": 8.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 7,
+          "status": "Lapped",
+          "points": 6.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 8,
+          "status": "Lapped",
+          "points": 4.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 9,
+          "status": "Lapped",
+          "points": 2.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 10,
+          "status": "Lapped",
+          "points": 1.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 11,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 12,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 13,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 14,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 15,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 16,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 17,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 18,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 19,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 20,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 21,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 22,
+          "status": "Did not start",
+          "points": 0.0
+        }
+      ],
+      "6": [
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 6,
+          "status": "Finished",
+          "points": 8.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 7,
+          "status": "Finished",
+          "points": 6.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 8,
+          "status": "Finished",
+          "points": 4.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 9,
+          "status": "Finished",
+          "points": 2.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 10,
+          "status": "Finished",
+          "points": 1.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 11,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 12,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 13,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 14,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 15,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 16,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 17,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 18,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 19,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 20,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 21,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 22,
+          "status": "Retired",
+          "points": 0.0
+        }
+      ],
+      "7": [
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 6,
+          "status": "Lapped",
+          "points": 8.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 7,
+          "status": "Lapped",
+          "points": 6.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 8,
+          "status": "Lapped",
+          "points": 4.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 9,
+          "status": "Lapped",
+          "points": 2.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 10,
+          "status": "Lapped",
+          "points": 1.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 11,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 12,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 13,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 14,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 15,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 16,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 17,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 18,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 19,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 20,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 21,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 22,
+          "status": "Retired",
+          "points": 0.0
+        }
+      ],
+      "8": [
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 6,
+          "status": "Finished",
+          "points": 8.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 7,
+          "status": "Finished",
+          "points": 6.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 8,
+          "status": "Finished",
+          "points": 4.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 9,
+          "status": "Lapped",
+          "points": 2.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 10,
+          "status": "Lapped",
+          "points": 1.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 11,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 12,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 13,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 14,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 15,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 16,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 17,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 18,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 19,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 20,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 21,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 22,
+          "status": "Retired",
+          "points": 0.0
+        }
+      ],
+      "9": [
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 6,
+          "status": "Finished",
+          "points": 8.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 7,
+          "status": "Finished",
+          "points": 6.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 8,
+          "status": "Finished",
+          "points": 4.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 9,
+          "status": "Finished",
+          "points": 2.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 10,
+          "status": "Finished",
+          "points": 1.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 11,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 12,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 13,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 14,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 15,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 16,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 17,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 18,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 19,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 20,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 21,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 22,
+          "status": "Retired",
+          "points": 0.0
+        }
+      ],
+      "10": [
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 6,
+          "status": "Finished",
+          "points": 8.0
+        },
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 7,
+          "status": "Finished",
+          "points": 6.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 8,
+          "status": "Finished",
+          "points": 4.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 9,
+          "status": "Finished",
+          "points": 2.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 10,
+          "status": "Finished",
+          "points": 1.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 11,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 12,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 13,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 14,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 15,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 16,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 17,
+          "status": "Finished",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 18,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 19,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 20,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 21,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 22,
+          "status": "Retired",
+          "points": 0.0
+        }
+      ],
+      "11": [
+        {
+          "code": "NOR",
+          "driver_id": "norris",
+          "given_name": "Lando",
+          "family_name": "Norris",
+          "constructor_id": "mclaren",
+          "position": 1,
+          "status": "Finished",
+          "points": 25.0
+        },
+        {
+          "code": "VER",
+          "driver_id": "max_verstappen",
+          "given_name": "Max",
+          "family_name": "Verstappen",
+          "constructor_id": "red_bull",
+          "position": 2,
+          "status": "Finished",
+          "points": 18.0
+        },
+        {
+          "code": "ANT",
+          "driver_id": "antonelli",
+          "given_name": "Andrea Kimi",
+          "family_name": "Antonelli",
+          "constructor_id": "mercedes",
+          "position": 3,
+          "status": "Finished",
+          "points": 15.0
+        },
+        {
+          "code": "LEC",
+          "driver_id": "leclerc",
+          "given_name": "Charles",
+          "family_name": "Leclerc",
+          "constructor_id": "ferrari",
+          "position": 4,
+          "status": "Finished",
+          "points": 12.0
+        },
+        {
+          "code": "HAM",
+          "driver_id": "hamilton",
+          "given_name": "Lewis",
+          "family_name": "Hamilton",
+          "constructor_id": "ferrari",
+          "position": 5,
+          "status": "Finished",
+          "points": 10.0
+        },
+        {
+          "code": "HAD",
+          "driver_id": "hadjar",
+          "given_name": "Isack",
+          "family_name": "Hadjar",
+          "constructor_id": "red_bull",
+          "position": 6,
+          "status": "Finished",
+          "points": 8.0
+        },
+        {
+          "code": "RUS",
+          "driver_id": "russell",
+          "given_name": "George",
+          "family_name": "Russell",
+          "constructor_id": "mercedes",
+          "position": 7,
+          "status": "Finished",
+          "points": 6.0
+        },
+        {
+          "code": "LAW",
+          "driver_id": "lawson",
+          "given_name": "Liam",
+          "family_name": "Lawson",
+          "constructor_id": "rb",
+          "position": 8,
+          "status": "Lapped",
+          "points": 4.0
+        },
+        {
+          "code": "HUL",
+          "driver_id": "hulkenberg",
+          "given_name": "Nico",
+          "family_name": "H\u00fclkenberg",
+          "constructor_id": "audi",
+          "position": 9,
+          "status": "Lapped",
+          "points": 2.0
+        },
+        {
+          "code": "LIN",
+          "driver_id": "arvid_lindblad",
+          "given_name": "Arvid",
+          "family_name": "Lindblad",
+          "constructor_id": "rb",
+          "position": 10,
+          "status": "Lapped",
+          "points": 1.0
+        },
+        {
+          "code": "BOR",
+          "driver_id": "bortoleto",
+          "given_name": "Gabriel",
+          "family_name": "Bortoleto",
+          "constructor_id": "audi",
+          "position": 11,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "GAS",
+          "driver_id": "gasly",
+          "given_name": "Pierre",
+          "family_name": "Gasly",
+          "constructor_id": "alpine",
+          "position": 12,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "STR",
+          "driver_id": "stroll",
+          "given_name": "Lance",
+          "family_name": "Stroll",
+          "constructor_id": "aston_martin",
+          "position": 13,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALO",
+          "driver_id": "alonso",
+          "given_name": "Fernando",
+          "family_name": "Alonso",
+          "constructor_id": "aston_martin",
+          "position": 14,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "COL",
+          "driver_id": "colapinto",
+          "given_name": "Franco",
+          "family_name": "Colapinto",
+          "constructor_id": "alpine",
+          "position": 15,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "OCO",
+          "driver_id": "ocon",
+          "given_name": "Esteban",
+          "family_name": "Ocon",
+          "constructor_id": "haas",
+          "position": 16,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "ALB",
+          "driver_id": "albon",
+          "given_name": "Alexander",
+          "family_name": "Albon",
+          "constructor_id": "williams",
+          "position": 17,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "SAI",
+          "driver_id": "sainz",
+          "given_name": "Carlos",
+          "family_name": "Sainz",
+          "constructor_id": "williams",
+          "position": 18,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "BEA",
+          "driver_id": "bearman",
+          "given_name": "Oliver",
+          "family_name": "Bearman",
+          "constructor_id": "haas",
+          "position": 19,
+          "status": "Lapped",
+          "points": 0.0
+        },
+        {
+          "code": "PIA",
+          "driver_id": "piastri",
+          "given_name": "Oscar",
+          "family_name": "Piastri",
+          "constructor_id": "mclaren",
+          "position": 20,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "PER",
+          "driver_id": "perez",
+          "given_name": "Sergio",
+          "family_name": "P\u00e9rez",
+          "constructor_id": "cadillac",
+          "position": 21,
+          "status": "Retired",
+          "points": 0.0
+        },
+        {
+          "code": "BOT",
+          "driver_id": "bottas",
+          "given_name": "Valtteri",
+          "family_name": "Bottas",
+          "constructor_id": "cadillac",
+          "position": 22,
+          "status": "Retired",
+          "points": 0.0
+        }
+      ]
+    },
+    "driver_standings": [
+      {
+        "code": "ANT",
+        "position": 1,
+        "points": 224.0,
+        "constructor_id": "mercedes"
+      },
+      {
+        "code": "HAM",
+        "position": 2,
+        "points": 171.0,
+        "constructor_id": "ferrari"
+      },
+      {
+        "code": "RUS",
+        "position": 3,
+        "points": 168.0,
+        "constructor_id": "mercedes"
+      },
+      {
+        "code": "LEC",
+        "position": 4,
+        "points": 145.0,
+        "constructor_id": "ferrari"
+      },
+      {
+        "code": "NOR",
+        "position": 5,
+        "points": 134.0,
+        "constructor_id": "mclaren"
+      },
+      {
+        "code": "VER",
+        "position": 6,
+        "points": 112.0,
+        "constructor_id": "red_bull"
+      },
+      {
+        "code": "PIA",
+        "position": 7,
+        "points": 96.0,
+        "constructor_id": "mclaren"
+      },
+      {
+        "code": "HAD",
+        "position": 8,
+        "points": 68.0,
+        "constructor_id": "red_bull"
+      },
+      {
+        "code": "GAS",
+        "position": 9,
+        "points": 43.0,
+        "constructor_id": "alpine"
+      },
+      {
+        "code": "LAW",
+        "position": 10,
+        "points": 43.0,
+        "constructor_id": "rb"
+      },
+      {
+        "code": "LIN",
+        "position": 11,
+        "points": 23.0,
+        "constructor_id": "rb"
+      },
+      {
+        "code": "COL",
+        "position": 12,
+        "points": 19.0,
+        "constructor_id": "alpine"
+      },
+      {
+        "code": "BEA",
+        "position": 13,
+        "points": 18.0,
+        "constructor_id": "haas"
+      },
+      {
+        "code": "BOR",
+        "position": 14,
+        "points": 10.0,
+        "constructor_id": "audi"
+      },
+      {
+        "code": "SAI",
+        "position": 15,
+        "points": 6.0,
+        "constructor_id": "williams"
+      },
+      {
+        "code": "ALB",
+        "position": 16,
+        "points": 5.0,
+        "constructor_id": "williams"
+      },
+      {
+        "code": "OCO",
+        "position": 17,
+        "points": 3.0,
+        "constructor_id": "haas"
+      },
+      {
+        "code": "HUL",
+        "position": 18,
+        "points": 2.0,
+        "constructor_id": "audi"
+      },
+      {
+        "code": "ALO",
+        "position": 19,
+        "points": 1.0,
+        "constructor_id": "aston_martin"
+      },
+      {
+        "code": "STR",
+        "position": 20,
+        "points": 0.0,
+        "constructor_id": "aston_martin"
+      },
+      {
+        "code": "BOT",
+        "position": 21,
+        "points": 0.0,
+        "constructor_id": "cadillac"
+      },
+      {
+        "code": "PER",
+        "position": 22,
+        "points": 0.0,
+        "constructor_id": "cadillac"
+      },
+      {
+        "code": "TSU",
+        "position": 23,
+        "points": 0.0,
+        "constructor_id": "rb"
+      }
+    ]
+  },
+  "track_history": {
+    "circuit_id": "zandvoort",
+    "editions_considered": [
+      2025,
+      2024,
+      2023
+    ],
+    "editions_weather": {
+      "2023": {
+        "date": "2023-08-27",
+        "race_window_precip_max_mm": 0.4,
+        "wet": true
+      },
+      "2024": {
+        "date": "2024-08-25",
+        "race_window_precip_max_mm": 0.0,
+        "wet": false
+      },
+      "2025": {
+        "date": "2025-08-31",
+        "race_window_precip_max_mm": 0.2,
+        "wet": true
+      }
+    },
+    "by_driver": {
+      "NOR": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 18,
+          "status": "Retired",
+          "classified": false,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 1,
+          "status": "Finished",
+          "classified": true,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 7,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "RUS": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 4,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 7,
+          "status": "Finished",
+          "classified": true,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 17,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "ANT": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 16,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        }
+      ],
+      "PIA": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 1,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 4,
+          "status": "Finished",
+          "classified": true,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 9,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "HAM": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 20,
+          "status": "Retired",
+          "classified": false,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 8,
+          "status": "Finished",
+          "classified": true,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 6,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "LEC": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 19,
+          "status": "Retired",
+          "classified": false,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 3,
+          "status": "Finished",
+          "classified": true,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 19,
+          "status": "Undertray",
+          "classified": false,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "VER": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 2,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 2,
+          "status": "Finished",
+          "classified": true,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 1,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "LAW": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 12,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 13,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.7
+        }
+      ],
+      "BOR": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 15,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        }
+      ],
+      "LIN": [],
+      "GAS": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 17,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 9,
+          "status": "Lapped",
+          "classified": false,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 3,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "TSU": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 9,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 17,
+          "status": "Lapped",
+          "classified": false,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 15,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "HUL": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 14,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 11,
+          "status": "Lapped",
+          "classified": false,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 12,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "COL": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 11,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        }
+      ],
+      "OCO": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 10,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 15,
+          "status": "Lapped",
+          "classified": false,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 10,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "ALB": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 5,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 14,
+          "status": "Lapped",
+          "classified": false,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 8,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "SAI": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 13,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 5,
+          "status": "Finished",
+          "classified": true,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 5,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "ALO": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 8,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 10,
+          "status": "Lapped",
+          "classified": false,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 2,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "STR": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 7,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 13,
+          "status": "Lapped",
+          "classified": false,
+          "wet": false,
+          "recency_weight": 0.7
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 11,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.5
+        }
+      ],
+      "BEA": [
+        {
+          "season": 2025,
+          "date": "2025-08-31",
+          "time": "13:00:00Z",
+          "position": 6,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 1.0
+        }
+      ],
+      "BOT": [
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 19,
+          "status": "Lapped",
+          "classified": false,
+          "wet": false,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 14,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.7
+        }
+      ],
+      "PER": [
+        {
+          "season": 2024,
+          "date": "2024-08-25",
+          "time": "13:00:00Z",
+          "position": 6,
+          "status": "Finished",
+          "classified": true,
+          "wet": false,
+          "recency_weight": 1.0
+        },
+        {
+          "season": 2023,
+          "date": "2023-08-27",
+          "time": "13:00:00Z",
+          "position": 4,
+          "status": "Finished",
+          "classified": true,
+          "wet": true,
+          "recency_weight": 0.7
+        }
+      ]
+    }
+  },
+  "weather": {
+    "race_window_local": {
+      "start": "2026-08-23T13:00:00+02:00",
+      "end": "2026-08-23T17:00:00+02:00"
+    },
+    "hourly_window": [
+      {
+        "local_time": "2026-08-23T13:00",
+        "temperature_2m": 16.8,
+        "precipitation_probability": 37,
+        "precipitation": 0.0,
+        "wind_speed_10m": 15.8,
+        "relative_humidity_2m": 69
+      },
+      {
+        "local_time": "2026-08-23T14:00",
+        "temperature_2m": 16.8,
+        "precipitation_probability": 31,
+        "precipitation": 0.0,
+        "wind_speed_10m": 8.6,
+        "relative_humidity_2m": 69
+      },
+      {
+        "local_time": "2026-08-23T15:00",
+        "temperature_2m": 19.0,
+        "precipitation_probability": 27,
+        "precipitation": 0.0,
+        "wind_speed_10m": 16.9,
+        "relative_humidity_2m": 60
+      },
+      {
+        "local_time": "2026-08-23T16:00",
+        "temperature_2m": 18.3,
+        "precipitation_probability": 24,
+        "precipitation": 0.0,
+        "wind_speed_10m": 16.6,
+        "relative_humidity_2m": 62
+      },
+      {
+        "local_time": "2026-08-23T17:00",
+        "temperature_2m": 17.7,
+        "precipitation_probability": 20,
+        "precipitation": 0.0,
+        "wind_speed_10m": 14.0,
+        "relative_humidity_2m": 67
+      }
+    ],
+    "p_max": 37,
+    "hourly_units": {
+      "time": "iso8601",
+      "temperature_2m": "\u00b0C",
+      "precipitation_probability": "%",
+      "precipitation": "mm",
+      "wind_speed_10m": "km/h",
+      "relative_humidity_2m": "%"
+    }
+  },
+  "markets": {
+    "polymarket": {
+      "event_id": "868800",
+      "slug": "f1-dutch-grand-prix-winner-2026-08-23",
+      "overround": 1.0594999999999999,
+      "by_code": {
+        "GAS": {
+          "raw": {
+            "best_bid": 0.001,
+            "best_ask": 0.004,
+            "outcome_prices": [
+              "0.0025",
+              "0.9975"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.0025,
+            "active": true,
+            "volume": 7572.972
+          },
+          "normalized": 0.002359603586597452
+        },
+        "ALO": {
+          "raw": {
+            "best_bid": 0.001,
+            "best_ask": 0.012,
+            "outcome_prices": [
+              "0.0065",
+              "0.9935"
+            ],
+            "last_trade_price": 0.008,
+            "mid": 0.006500000000000001,
+            "active": true,
+            "volume": 614.909
+          },
+          "normalized": 0.006134969325153375
+        },
+        "ALB": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.003,
+            "outcome_prices": [
+              "0.0015",
+              "0.9985"
+            ],
+            "last_trade_price": 0.002,
+            "mid": 0.0015,
+            "active": true,
+            "volume": 13537.572
+          },
+          "normalized": 0.001415762151958471
+        },
+        "BOR": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.004,
+            "outcome_prices": [
+              "0.002",
+              "0.998"
+            ],
+            "last_trade_price": 0.002,
+            "mid": 0.002,
+            "active": true,
+            "volume": 8536.93
+          },
+          "normalized": 0.0018876828692779616
+        },
+        "PER": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.005,
+            "outcome_prices": [
+              "0.0025",
+              "0.9975"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.0025,
+            "active": true,
+            "volume": 8258.182
+          },
+          "normalized": 0.002359603586597452
+        },
+        "LEC": {
+          "raw": {
+            "best_bid": 0.04,
+            "best_ask": 0.05,
+            "outcome_prices": [
+              "0.045",
+              "0.955"
+            ],
+            "last_trade_price": 0.04,
+            "mid": 0.045,
+            "active": true,
+            "volume": 8963.380873000002
+          },
+          "normalized": 0.04247286455875413
+        },
+        "OCO": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.001,
+            "outcome_prices": [
+              "0.0005",
+              "0.9995"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.0005,
+            "active": true,
+            "volume": 7688.992
+          },
+          "normalized": 0.0004719207173194904
+        },
+        "NOR": {
+          "raw": {
+            "best_bid": 0.37,
+            "best_ask": 0.38,
+            "outcome_prices": [
+              "0.375",
+              "0.625"
+            ],
+            "last_trade_price": 0.38,
+            "mid": 0.375,
+            "active": true,
+            "volume": 20277.883177000003
+          },
+          "normalized": 0.3539405379896178
+        },
+        "ANT": {
+          "raw": {
+            "best_bid": 0.24,
+            "best_ask": 0.25,
+            "outcome_prices": [
+              "0.245",
+              "0.755"
+            ],
+            "last_trade_price": 0.25,
+            "mid": 0.245,
+            "active": true,
+            "volume": 19951.933414
+          },
+          "normalized": 0.23124115148655028
+        },
+        "VER": {
+          "raw": {
+            "best_bid": 0.02,
+            "best_ask": 0.027,
+            "outcome_prices": [
+              "0.0235",
+              "0.9765"
+            ],
+            "last_trade_price": 0.028,
+            "mid": 0.0235,
+            "active": true,
+            "volume": 8832.656047
+          },
+          "normalized": 0.022180273714016048
+        },
+        "COL": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.005,
+            "outcome_prices": [
+              "0.0025",
+              "0.9975"
+            ],
+            "last_trade_price": 0.002,
+            "mid": 0.0025,
+            "active": true,
+            "volume": 8558.382
+          },
+          "normalized": 0.002359603586597452
+        },
+        "SAI": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.002,
+            "outcome_prices": [
+              "0.001",
+              "0.999"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.001,
+            "active": true,
+            "volume": 7687.172
+          },
+          "normalized": 0.0009438414346389808
+        },
+        "HUL": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.002,
+            "outcome_prices": [
+              "0.001",
+              "0.999"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.001,
+            "active": true,
+            "volume": 7688.984
+          },
+          "normalized": 0.0009438414346389808
+        },
+        "BOT": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.004,
+            "outcome_prices": [
+              "0.002",
+              "0.998"
+            ],
+            "last_trade_price": 0.002,
+            "mid": 0.002,
+            "active": true,
+            "volume": 9571.162
+          },
+          "normalized": 0.0018876828692779616
+        },
+        "HAM": {
+          "raw": {
+            "best_bid": 0.041,
+            "best_ask": 0.058,
+            "outcome_prices": [
+              "0.0495",
+              "0.9505"
+            ],
+            "last_trade_price": 0.058,
+            "mid": 0.0495,
+            "active": true,
+            "volume": 3267.990217
+          },
+          "normalized": 0.04672015101462955
+        },
+        "BEA": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.005,
+            "outcome_prices": [
+              "0.0025",
+              "0.9975"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.0025,
+            "active": true,
+            "volume": 9615.282
+          },
+          "normalized": 0.002359603586597452
+        },
+        "PIA": {
+          "raw": {
+            "best_bid": 0.032,
+            "best_ask": 0.04,
+            "outcome_prices": [
+              "0.036",
+              "0.964"
+            ],
+            "last_trade_price": 0.04,
+            "mid": 0.036000000000000004,
+            "active": true,
+            "volume": 10088.322869
+          },
+          "normalized": 0.03397829164700331
+        },
+        "RUS": {
+          "raw": {
+            "best_bid": 0.25,
+            "best_ask": 0.26,
+            "outcome_prices": [
+              "0.255",
+              "0.745"
+            ],
+            "last_trade_price": 0.26,
+            "mid": 0.255,
+            "active": true,
+            "volume": 6585.1607189999995
+          },
+          "normalized": 0.2406795658329401
+        },
+        "LIN": {
+          "raw": {
+            "best_bid": 0.001,
+            "best_ask": 0.002,
+            "outcome_prices": [
+              "0.0015",
+              "0.9985"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.0015,
+            "active": true,
+            "volume": 7600.964
+          },
+          "normalized": 0.001415762151958471
+        },
+        "HAD": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.001,
+            "outcome_prices": [
+              "0.0005",
+              "0.9995"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.0005,
+            "active": true,
+            "volume": 265.996
+          },
+          "normalized": 0.0004719207173194904
+        },
+        "LAW": {
+          "raw": {
+            "best_bid": 0.001,
+            "best_ask": 0.002,
+            "outcome_prices": [
+              "0.0015",
+              "0.9985"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.0015,
+            "active": true,
+            "volume": 175.11199999999997
+          },
+          "normalized": 0.001415762151958471
+        },
+        "STR": {
+          "raw": {
+            "best_bid": null,
+            "best_ask": 0.005,
+            "outcome_prices": [
+              "0.0025",
+              "0.9975"
+            ],
+            "last_trade_price": 0.001,
+            "mid": 0.0025,
+            "active": true,
+            "volume": 8870.37
+          },
+          "normalized": 0.002359603586597452
+        }
+      },
+      "excluded_outcomes": [
+        {
+          "name": "Other",
+          "active": false,
+          "mid": null
+        },
+        {
+          "name": "Driver A",
+          "active": false,
+          "mid": null
+        },
+        {
+          "name": "Driver B",
+          "active": false,
+          "mid": null
+        },
+        {
+          "name": "Driver C",
+          "active": false,
+          "mid": null
+        },
+        {
+          "name": "Driver D",
+          "active": false,
+          "mid": null
+        },
+        {
+          "name": "Driver E",
+          "active": false,
+          "mid": null
+        }
+      ]
+    },
+    "kalshi": {
+      "event_ticker": "KXF1RACE-DUTGP26",
+      "overround": 1.1399999999999988,
+      "by_code": {
+        "ALO": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "1557.70",
+            "open_interest": "1557.70",
+            "no_sub_title": "Fernando Alonso"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "COL": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "2816.43",
+            "open_interest": "2816.43",
+            "no_sub_title": "Franco Colapinto"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "SAI": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "2681.12",
+            "open_interest": "2681.12",
+            "no_sub_title": "Carlos Sainz Jr."
+          },
+          "normalized": 0.004385964912280707
+        },
+        "LAW": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "4231.48",
+            "open_interest": "4231.48",
+            "no_sub_title": "Liam Lawson"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "HAD": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "2522.04",
+            "open_interest": "2522.04",
+            "no_sub_title": "Isack Hadjar"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "NOR": {
+          "raw": {
+            "yes_bid": 0.37,
+            "yes_ask": 0.39,
+            "last_price": 0.39,
+            "mid": 0.38,
+            "volume": "83089.05",
+            "open_interest": "72470.44",
+            "no_sub_title": "Lando Norris"
+          },
+          "normalized": 0.3333333333333337
+        },
+        "LEC": {
+          "raw": {
+            "yes_bid": 0.04,
+            "yes_ask": 0.05,
+            "last_price": 0.05,
+            "mid": 0.045,
+            "volume": "42443.66",
+            "open_interest": "36330.91",
+            "no_sub_title": "Charles Leclerc"
+          },
+          "normalized": 0.039473684210526355
+        },
+        "HAM": {
+          "raw": {
+            "yes_bid": 0.05,
+            "yes_ask": 0.06,
+            "last_price": 0.06,
+            "mid": 0.055,
+            "volume": "59810.67",
+            "open_interest": "47966.27",
+            "no_sub_title": "Lewis Hamilton"
+          },
+          "normalized": 0.04824561403508777
+        },
+        "RUS": {
+          "raw": {
+            "yes_bid": 0.24,
+            "yes_ask": 0.26,
+            "last_price": 0.26,
+            "mid": 0.25,
+            "volume": "51919.90",
+            "open_interest": "41220.98",
+            "no_sub_title": "George Russell"
+          },
+          "normalized": 0.21929824561403533
+        },
+        "ANT": {
+          "raw": {
+            "yes_bid": 0.25,
+            "yes_ask": 0.26,
+            "last_price": 0.26,
+            "mid": 0.255,
+            "volume": "95797.58",
+            "open_interest": "79181.22",
+            "no_sub_title": "Andrea Kimi Antonelli"
+          },
+          "normalized": 0.22368421052631604
+        },
+        "VER": {
+          "raw": {
+            "yes_bid": 0.03,
+            "yes_ask": 0.04,
+            "last_price": 0.04,
+            "mid": 0.035,
+            "volume": "101313.79",
+            "open_interest": "87038.88",
+            "no_sub_title": "Max Verstappen"
+          },
+          "normalized": 0.03070175438596495
+        },
+        "PIA": {
+          "raw": {
+            "yes_bid": 0.04,
+            "yes_ask": 0.05,
+            "last_price": 0.05,
+            "mid": 0.045,
+            "volume": "61959.45",
+            "open_interest": "53644.21",
+            "no_sub_title": "Oscar Piastri"
+          },
+          "normalized": 0.039473684210526355
+        },
+        "LIN": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.0,
+            "mid": 0.005,
+            "volume": "0.00",
+            "open_interest": "0.00",
+            "no_sub_title": "Arvid Lindblad"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "HUL": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "935.18",
+            "open_interest": "935.18",
+            "no_sub_title": "Nico Hulkenberg"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "GAS": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "49.87",
+            "open_interest": "49.87",
+            "no_sub_title": "Pierre Gasly"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "BOR": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "144.26",
+            "open_interest": "144.26",
+            "no_sub_title": "Gabriel Bortoleto"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "PER": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "280.54",
+            "open_interest": "280.54",
+            "no_sub_title": "Sergio Perez"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "BEA": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "93.51",
+            "open_interest": "93.51",
+            "no_sub_title": "Oliver Bearman"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "BOT": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.0,
+            "mid": 0.005,
+            "volume": "0.00",
+            "open_interest": "0.00",
+            "no_sub_title": "Valtteri Bottas"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "ALB": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "738.95",
+            "open_interest": "738.95",
+            "no_sub_title": "Alexander Albon"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "STR": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "142.00",
+            "open_interest": "142.00",
+            "no_sub_title": "Lance Stroll"
+          },
+          "normalized": 0.004385964912280707
+        },
+        "OCO": {
+          "raw": {
+            "yes_bid": 0.0,
+            "yes_ask": 0.01,
+            "last_price": 0.01,
+            "mid": 0.005,
+            "volume": "102.51",
+            "open_interest": "102.51",
+            "no_sub_title": "Esteban Ocon"
+          },
+          "normalized": 0.004385964912280707
+        }
+      }
+    },
+    "market_mean": {
+      "HUL": 0.002664903173459844,
+      "BOR": 0.0031368238907793344,
+      "PER": 0.0033727842494390794,
+      "NOR": 0.34363693566147574,
+      "LEC": 0.04097327438464024,
+      "HAM": 0.04748288252485866,
+      "STR": 0.0033727842494390794,
+      "HAD": 0.0024289428148000984,
+      "BOT": 0.0031368238907793344,
+      "LIN": 0.002900863532119589,
+      "SAI": 0.002664903173459844,
+      "GAS": 0.0033727842494390794,
+      "ALO": 0.005260467118717041,
+      "RUS": 0.2299889057234877,
+      "COL": 0.0033727842494390794,
+      "ALB": 0.002900863532119589,
+      "ANT": 0.22746268100643316,
+      "VER": 0.026441014049990497,
+      "PIA": 0.03672598792876483,
+      "BEA": 0.0033727842494390794,
+      "OCO": 0.0024289428148000984,
+      "LAW": 0.002900863532119589
+    }
+  }
+}
