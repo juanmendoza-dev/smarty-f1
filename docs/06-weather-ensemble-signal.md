@@ -353,23 +353,66 @@ middle of the flat region.
 
 ## 7. How this feeds the rest of the project
 
-- **F7 (weather feature, `02`).** `p_mean`/`p_max` replace the single-model reads `01` §5 currently
-  produces; F7's dormancy gate and wet-branch logic (`02` §5, `01` §5.6) are otherwise unchanged.
-  This is a data-quality upgrade to an existing feature, not a new feature.
-- **A3 (`05`).** F7 stays **train-dormant** per the existing locked decision (`01` §5.6, `05`
-  §3.3) — the archive API still has no precipitation-probability field for historical backfill, so
-  an ensemble forecast at inference time does not change what training data can see. This spec
-  does not reopen that decision.
-- **New signal: `p_spread` as a confidence gate.** This is the part that's actually new relative to
-  today's single-call approach. Proposed use: when `p_spread` is high near a race's lights-out, that
-  is itself information — it means the crowd's pricing (which has to settle on *some* single
-  implied weather assumption) is more likely to be wrong in either direction, i.e. more likely to
-  be exploitable once resolved. This is a Lane A/Lane C signal, not a Lane B one — it operates on
-  the batch pre-race snapshot, same cadence as everything else in `01`.
-- **Lane C (trading, `00-roadmap.md`).** The stated use case — catching a market that's mispriced
-  a rain-driven race the way Zandvoort's was — is a Lane C concern. This spec produces the signal;
-  it does not decide sizing or trade logic, which stays out of scope until Lane C has its own
-  approved spec per the roadmap's standing rule.
+### 7.1 F7 — this changes behaviour, it is not just cleaner data
+
+The first draft called this "a data-quality upgrade to an existing feature, not a new feature."
+That was wrong. Swapping the gate input changes **how often F7's wet branch fires**: 27% of races
+today, 23% under `p_mean`, 36% under `p_max` (§5.2).
+
+That matters more here than it would in most features, because of what sits behind the branch:
+
+- F7's wet branch has **never executed on a real race** (`02` §10.4). Changing the gate input is
+  the act that first fires untested code, so `test_f7_wet_branch.py` is the gate on shipping this,
+  not an afterthought.
+- The Dutch GP is the worked example. It ran with `p_max: 37, weather_dormant: true`. Under
+  §6.2's `p_max` branch it would have scored 88 and gone **active** — on a race that produced
+  0.1 mm. Under `p_mean` it scores 32.5 and stays dormant. One config choice, opposite behaviour,
+  on the only race this pipeline has ever predicted live.
+
+F7's wet-branch *logic* — the per-driver wet rating, the shrinkage, field normalization — is
+untouched (`02` §4). Only the scalar entering the gate changes.
+
+### 7.2 A3 — unchanged, but it inherits a wider out-of-domain window
+
+F7 stays **train-dormant** and stays out of A3's design matrix (`01` §5.6, `05` §3.3). Nothing here
+reopens that: the archive still has no probability field, so a better *forecast* at inference time
+changes nothing about what training rows can see.
+
+The consequence is second-order and worth stating because §5.2 quantifies it. `01` §5.6's standing
+rule is that whenever A1's weather branch goes active, A3 is out-of-domain and both predictors get
+reported. A gate that fires more often makes that reporting path more common — under `p_max`,
+roughly one race in three rather than one in four. That is an argument for `p_mean` that is
+independent of the backtest, and it also means the dual-report path stops being a rare edge case
+someone can leave half-built.
+
+### 7.3 `p_spread` — verified as forecast reliability
+
+§5.3 supports exactly one claim, and it is a Lane A claim: **when the four models disagree by
+≥ 15 pp, our own weather gate is unreliable** — 9 of its 9 errors, versus 0 in 25 agreeing races.
+
+Proposed use, and the minimum this spec should ship: persist `p_spread` and the `agree`/`disagree`
+flag in the snapshot, and mark any prediction made under `disagree` as weather-uncertain in the
+same way `01` §5.6 marks a wet race out-of-domain for A3. That is a data-quality guard, needs no
+market data, and is verified.
+
+### 7.4 Lane C — a plausible trading rationale, explicitly not verified
+
+Keep this separate from §7.3. Nothing in the backtest is evidence about market pricing; neither
+venue exposes historical odds, so the argument below is **unbacktested reasoning, not a result.**
+
+The first draft argued that high spread means the crowd is "more likely to be wrong in either
+direction, i.e. more likely to be exploitable." That doesn't close — direction-free wrongness isn't
+tradable on binary YES/NO shares. The better form of the argument is directional:
+
+> A wet race redistributes win probability away from whoever qualified well (`02` §5.1's grid
+> weight is 0.35, the largest in the model). A market that must settle on a single implied weather
+> assumption will, under genuine forecast uncertainty, tend to price closer to the dry case than
+> the probability-weighted blend of both. If so, the favourite is **over**-priced and the field
+> **under**-priced whenever `disagree` holds — which is a direction, and therefore a trade.
+
+Testing that needs snapshotted odds on high-spread races, which the project accumulates at n≈1 per
+wet weekend. It is a Lane C hypothesis to log and check, not a reason to build anything. Sizing and
+trade logic remain out of scope until Lane C has its own approved spec.
 
 ## 9. What this spec does not do
 
