@@ -147,7 +147,7 @@ def build_race_rows(season, round_, cache_dir):
     # sec4.1: the label. Fetched only here, and only to label -- never fed to a
     # feature. find_full_result asserts exactly one classified P1 using the
     # real is_classified() rule, which has already been wrong once (04 sec10.5).
-    result_rows, _ = postrace.find_full_result(season, round_, cache_dir)
+    result_rows, _ = find_full_result_checked(season, round_, cache_dir)
     result_by_code = {r["code"]: r for r in result_rows}
 
     rows = []
@@ -205,6 +205,23 @@ def build_grid_checked(season, round_, cache_dir):
     abort the whole run rather than skip one race. Convert it."""
     try:
         return snapshot.build_grid(season, round_, cache_dir)
+    except SystemExit as e:
+        raise RuntimeError(str(e))
+
+
+def find_full_result_checked(season, round_, cache_dir):
+    """Same conversion as build_grid_checked, for the same reason -- and it was
+    missed here. find_full_result raises SystemExit on a race with no result,
+    SystemExit derives from BaseException, and main()'s guard catches Exception,
+    so one resultless race killed the entire run instead of skipping one row.
+
+    Confirmed rather than reasoned about: on the current cache 2026/12 reached
+    exactly this path, and 2026/12 is the last race of the corpus -- so a run
+    that had done every other race would have aborted on its final one, and the
+    one race the pipeline predicted live would have been the one race missing.
+    """
+    try:
+        return postrace.find_full_result(season, round_, cache_dir)
     except SystemExit as e:
         raise RuntimeError(str(e))
 
