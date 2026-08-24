@@ -18,6 +18,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import backfill
+import postrace
 import snapshot
 from lib import jolpica
 
@@ -135,6 +136,112 @@ class TestRoundOneIsFeaturePoorButUsable(unittest.TestCase):
         for f in ("grid", "track"):
             with self.subTest(feature=f):
                 self.assertGreater(len({r[f] for r in self.rows}), 1)
+
+
+class TestReproducesTheDutchGPReferenceTable(unittest.TestCase):
+    """sec9 assertion 10: the harness must reproduce 02-winner-prediction-algo.md
+    sec9's reference sub-scores when pointed at the 2026 Dutch GP. It is the
+    cheapest check that sec4.2's shared-code-path rule still holds -- if these
+    drift, every row in the training set is computed by something other than
+    the scorer that runs at inference.
+
+    The assertion is not satisfiable as literally written, and that is a spec
+    defect rather than a code one. 2026 R12 is a SPRINT weekend, and sec4.4
+    item 4 records that a backfilled sprint weekend cannot see that weekend's
+    own sprint points: F6 reads {season}/{round-1}/driverstandings.json, and no
+    round-indexed endpoint answers "after round 11's race plus round 12's
+    sprint". So F6 provably differs on the one race sec9 names as the fixed
+    point. Six of the seven features reproduce sec9 exactly; F6 reproduces it
+    exactly once R12's sprint points are added back, which is what this checks.
+    """
+
+    # 02 sec9, mapped onto score_all's sub_scores names.
+    REFERENCE = {
+        "NOR": {"grid": 1.000, "team": 0.733, "sprint": 0.565, "driver_form": 0.905,
+                "track": 0.450, "teammate": 0.500, "champ": 0.598},
+        "RUS": {"grid": 0.779, "team": 0.931, "sprint": 1.000, "driver_form": 0.943,
+                "track": 0.412, "teammate": 0.375, "champ": 0.750},
+        "ANT": {"grid": 0.607, "team": 0.931, "sprint": 0.424, "driver_form": 0.770,
+                "track": 0.323, "teammate": 0.625, "champ": 1.000},
+        "LEC": {"grid": 0.287, "team": 1.000, "sprint": 0.751, "driver_form": 0.838,
+                "track": 0.248, "teammate": 0.556, "champ": 0.647},
+        "HAM": {"grid": 0.368, "team": 1.000, "sprint": 0.180, "driver_form": 1.000,
+                "track": 0.188, "teammate": 0.444, "champ": 0.763},
+        "PIA": {"grid": 0.472, "team": 0.733, "sprint": 0.319, "driver_form": 0.508,
+                "track": 0.785, "teammate": 0.500, "champ": 0.429},
+        "VER": {"grid": 0.223, "team": 0.802, "sprint": 0.240, "driver_form": 0.916,
+                "track": 1.000, "teammate": 1.000, "champ": 0.500},
+    }
+    STANDINGS_FREE = ["grid", "team", "sprint", "driver_form", "track", "teammate"]
+    SPRINT_POINTS = {1: 8, 2: 7, 3: 6, 4: 5, 5: 4, 6: 3, 7: 2, 8: 1}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows, _ = backfill.build_race_rows(2026, 12, CACHE)
+        cls.by_code = {r["driver_code"]: r for r in cls.rows}
+
+    def test_the_reference_race_is_a_sprint_weekend(self):
+        """Load-bearing for this whole class: it is why F6 is exempted below,
+        and it is what makes sec3.4's zero-the-column rule NOT apply here."""
+        self.assertEqual(self.rows[0]["is_sprint_weekend"], 1)
+
+    def test_six_features_reproduce_the_reference_table_exactly(self):
+        for code, ref in self.REFERENCE.items():
+            for f in self.STANDINGS_FREE:
+                with self.subTest(driver=code, feature=f):
+                    self.assertAlmostEqual(self.by_code[code][f], ref[f], places=3)
+
+    def test_f6_differs_by_exactly_this_weekends_sprint_points(self):
+        """sec4.4 item 4's accepted train-only skew, measured rather than
+        asserted. Note it moves drivers in BOTH directions: the feature is
+        normalised by the leader's points, and the leader scored in the sprint
+        too, so a driver who scored nothing (HAM, 2 points) still shifts."""
+        standings, _ = jolpica.driver_standings(2026, CACHE, round_=11)
+        points = {s["Driver"]["code"]: float(s["points"]) for s in standings}
+        sprint_results, _ = jolpica.sprint(2026, 12, CACHE)
+        gained = {r["Driver"]["code"]: self.SPRINT_POINTS.get(int(r["position"]), 0)
+                  for r in sprint_results}
+
+        after = {c: points.get(c, 0) + gained.get(c, 0) for c in set(points) | set(gained)}
+        leader_after = max(after.values())
+
+        for code, ref in self.REFERENCE.items():
+            with self.subTest(driver=code):
+                self.assertAlmostEqual(after[code] / leader_after, ref["champ"], places=3)
+
+    def test_the_skew_stays_inside_its_documented_bound(self):
+        """sec4.4 bounds this at 8 points on a 0.08-weight feature. On the
+        sub-score itself that is what the bound has to mean in practice."""
+        worst = max(abs(self.by_code[c]["champ"] - r["champ"])
+                    for c, r in self.REFERENCE.items())
+        self.assertLess(worst, 8.0 / 219.0)
+
+    def test_the_winner_label_is_norris(self):
+        self.assertEqual([r["driver_code"] for r in self.rows if r["label"] == 1], ["NOR"])
+
+
+class TestEmptyResultCacheIsNotBelievedBlindly(unittest.TestCase):
+    """A results response fetched before a race ran caches "no result" forever.
+    Seen live: 2026/12/results.json was cached at 04:17Z on race day, nine
+    hours before lights out, so every local run afterwards concluded the Dutch
+    GP had never happened -- including the backfill, which then died rather
+    than skipped (SystemExit is not an Exception).
+
+    sec5.4's staleness rule does not catch this: it compares fetch date against
+    race date at DAY granularity, and here they are the same day.
+    """
+
+    def test_the_dutch_gp_has_a_result(self):
+        rows, _ = postrace.find_full_result(2026, 12, CACHE)
+        self.assertEqual(next(r["code"] for r in rows
+                              if r["classified"] and r["position"] == 1), "NOR")
+
+    def test_a_resultless_race_skips_one_race_instead_of_killing_the_run(self):
+        """backfill.main() guards with `except Exception`, so a BaseException
+        escaping here aborts a multi-hour run on its last race."""
+        with self.assertRaises(Exception) as ctx:
+            backfill.find_full_result_checked(2099, 1, CACHE)
+        self.assertNotIsInstance(ctx.exception, SystemExit)
 
 
 class TestResumability(unittest.TestCase):
