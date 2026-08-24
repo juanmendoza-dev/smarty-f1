@@ -246,7 +246,7 @@ falling to 20% by 17:00. **Dry race forecast, moderate wind, no meaningful rain 
 
 ---
 
-### 5.6 The archive endpoint cannot reproduce F7's input (A3 blocker)
+### 5.6 The archive endpoint cannot reproduce F7's input (decided 2026-08-23)
 
 F7's dormancy gate is `P_max < 40`, a **precipitation probability**. The forecast endpoint serves
 that field; the archive endpoint does not — it serves observed precipitation in mm only (§5.4),
@@ -263,6 +263,21 @@ Both are train/serve skew; there is no third option that isn't one of these two 
 **Whichever is chosen, A3's feature set has to match what inference actually has**, and the choice
 must be recorded here rather than settled implicitly by whoever writes the backfill script.
 `test_phase_a4.py` already stubs `weather = {"p_max": 0}` for its 2023 snapshot for this reason.
+
+**Decided 2026-08-23 (owner): train-dormant.** Recorded here because this section is where the
+decision was required to land; argued in full at `05-trained-model.md` §3.3. The reason for
+dormant over a proxy is that F7's wet branch has never executed on a real race (`02` §10.4), so a
+proxy would model a quantity that has never been validated at inference time, and it carries the
+worse of the two skews — "it rained" at training time against "rain is forecast" at inference,
+under one name.
+
+One consequence is sharper than "score it NEUTRAL" and belongs here rather than only in `05`:
+dormant gives every driver the same value, and in A3's conditional logit a value constant across
+the field cancels out of the likelihood exactly. So `β_weather` is **unidentified** — not merely
+imprecise — and F7 is dropped from A3's design matrix entirely (7 features, not 8) rather than
+carried as a constant column. The standing consequence is that **A3 predicts a wet race as though
+it were dry**, while A1 does have a wet term; on any race where A1's weather branch goes active,
+both predictors get run and A3's number is reported as out-of-domain.
 
 ---
 
