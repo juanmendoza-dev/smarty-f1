@@ -311,23 +311,45 @@ def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
 
     editions_weather = {}
     for season_yr, (date_str, time_str) in edition_datetime.items():
-        start_utc = datetime.fromisoformat(f"{date_str}T{time_str.replace('Z', '+00:00')}")
-        start_local = start_utc.astimezone(tz)
-        window_start = start_local - timedelta(hours=2)
-        window_end = start_local + timedelta(hours=2)
+        # Jolpica carries no start time for races older than roughly 2005 --
+        # verified live, the A1-Ring editions of the Austrian GP (2000-2003)
+        # all have time=None. This is not an edge case in a backfill: any
+        # circuit whose three most recent prior editions reach back before that
+        # cutoff hits it, which is every venue with a long hiatus (Austria,
+        # Mexico, France, Turkey, Portugal...). It used to crash the whole race.
+        #
+        # With no start time there is no race window, so fall back to the whole
+        # day's maximum. That over-detects wet -- a rainy morning before a dry
+        # race now counts -- so it is recorded rather than hidden: anything
+        # reading `wet` can see that this edition was decided on a day-wide
+        # figure. Nothing in A3 reads it (F7 is dormant in every backfilled row
+        # and dropped from the model entirely, 05 sec3.3), but F5's wet flag
+        # feeds A1's live wet branch, so the degradation has to stay visible.
         body, meta = openmeteo.archive(lat, lon, date_str, date_str, tz_name, cache_dir)
         provenance.append(meta)
         hourly = body["hourly"]
-        window_vals = []
-        for t_str, precip in zip(hourly["time"], hourly["precipitation"]):
-            t = datetime.fromisoformat(t_str).replace(tzinfo=tz)
-            if window_start <= t <= window_end:
-                window_vals.append(precip)
+
+        if time_str is None:
+            window_vals = list(hourly["precipitation"])
+        else:
+            start_utc = datetime.fromisoformat(f"{date_str}T{time_str.replace('Z', '+00:00')}")
+            start_local = start_utc.astimezone(tz)
+            window_start = start_local - timedelta(hours=2)
+            window_end = start_local + timedelta(hours=2)
+            window_vals = []
+            for t_str, precip in zip(hourly["time"], hourly["precipitation"]):
+                t = datetime.fromisoformat(t_str).replace(tzinfo=tz)
+                if window_start <= t <= window_end:
+                    window_vals.append(precip)
+
+        window_vals = [v for v in window_vals if v is not None]
         max_precip = max(window_vals) if window_vals else 0.0
         editions_weather[str(season_yr)] = {
             "date": date_str,
             "race_window_precip_max_mm": max_precip,
             "wet": max_precip > 0.0,
+            # False means the figure above is a whole-day max, not a race window
+            "race_time_known": time_str is not None,
         }
 
     recency_weights = [1.0, 0.7, 0.5]

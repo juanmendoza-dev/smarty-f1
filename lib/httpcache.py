@@ -111,6 +111,20 @@ def cached_get_json(url, cache_dir, timeout=15, force_refresh=False):
             status = e.code
             raw = e.read()
             retry_after = e.headers.get("Retry-After")
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            # A dropped handshake or a read timeout is not a data problem and
+            # must not become one: an unretried blip leaves a hole in the
+            # training set that looks exactly like a race with no data. Seen
+            # live -- the 2015 Abu Dhabi GP died on an SSL handshake timeout
+            # while every race around it succeeded.
+            if attempt >= RETRY_ON_429:
+                raise
+            backoff = 5 * (attempt + 1)
+            print(f"  [network] {type(e).__name__} on {url}\n"
+                  f"        retrying in {backoff}s (attempt {attempt + 1}/{RETRY_ON_429})",
+                  flush=True)
+            time.sleep(backoff)
+            continue
 
         # A 429 means the throttle's estimate of the budget was wrong -- the
         # limits are documented as subject to decrease, and the quota is shared
