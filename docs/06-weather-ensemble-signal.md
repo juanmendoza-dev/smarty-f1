@@ -77,21 +77,68 @@ were considered:
 ## 3. Data source
 
 Same base URL as `01-data-pipeline.md` §5.2 (`https://api.open-meteo.com/v1/forecast`), no new
-auth, no new rate-limit exposure — this is still one HTTPS call. The only change is the
-`models=` parameter, which Open-Meteo supports today and which the current pipeline does not set
-(so it currently receives the provider's own best-blended default, not a named model list).
+auth. The only change is the `models=` parameter, which the current pipeline does not set — so it
+receives the provider's own blended default rather than a named model list (`lib/openmeteo.py`
+builds the call without it).
 
 Proposed models to request explicitly:
 
 | Model | Provider | Why included |
 |---|---|---|
-| `ecmwf_ifs025` | ECMWF | Strongest general-purpose model for Europe; already the de facto standard this project benefits from even unnamed |
-| `gfs_seamless` | NOAA | Independent modeling group and physics, US-run, different bias profile than ECMWF |
-| `icon_seamless` | DWD (Germany) | Independent European model, historically competitive with ECMWF at short range over Europe specifically |
-| `gem_seamless` | ECCC (Canada) | Third independent center, adds a model not built on shared European NWP lineage |
+| `ecmwf_ifs025` | ECMWF | Strongest general-purpose global deterministic model |
+| `gfs_seamless` | NOAA | Independent modeling group and physics, US-run, different bias profile |
+| `icon_seamless` | DWD (Germany) | Independent European centre, competitive with ECMWF at short range |
+| `gem_seamless` | ECCC (Canada) | Third independent centre, not built on shared European NWP lineage |
 
-Four models, one call, all free, all already exposed by Open-Meteo's `models` parameter — this is
-a config change to the existing call, not a new integration.
+### 3.1 Verified live (2026-08-24)
+
+Everything below was called before being written down, per this project's own bar (`01` opens by
+stating every source was verified against production).
+
+```
+GET api.open-meteo.com/v1/forecast
+    ?latitude=52.3888&longitude=4.54092
+    &hourly=precipitation_probability,precipitation
+    &models=ecmwf_ifs025,gfs_seamless,icon_seamless,gem_seamless
+→ 200, 8 hourly series, 48/48 non-null on every model
+```
+
+- **The response shape changes.** With `models=` set, Open-Meteo suffixes every field with the
+  model name — `precipitation_probability_ecmwf_ifs025`, not `precipitation_probability`. Existing
+  parsing in `build_weather` (`snapshot.py:320`) reads the unsuffixed keys and would find nothing.
+  This is the one place the "config change, not an integration" framing understates the work.
+- **All four models are global.** Verified non-null at Zandvoort, Interlagos and Singapore. This
+  closes the first draft's open item about non-European circuits: no coverage gap, and no need to
+  vary the model list by venue.
+- **The models genuinely disagree.** At Interlagos, one forecast hour returned ECMWF 4, GFS 16,
+  ICON 0, GEM 22. Four independent centres, not four dressings of the same run — which is the
+  premise the whole spread signal rests on.
+
+### 3.2 Race window
+
+**No new rule needed** — the first draft listed this as open, but it is already decided in code.
+`snapshot.py:320` takes lights-out in circuit-local time ± 2h inclusive, and the wet-history path
+at `snapshot.py:288` uses the same window against the archive. Every number in §5 uses it. Reuse
+it; do not invent a second definition.
+
+### 3.3 Gotchas
+
+In the style of `01` §5.4, and additional to it:
+
+- **Per-model probability history starts around 2024-05.** The historical-forecast endpoint
+  (`historical-forecast-api.open-meteo.com`) serves archived past runs and accepts `models=`, but
+  for earlier dates it returns the per-model keys with **every value null and HTTP 200** — a
+  silent gap, not an error. 82 of 126 races 2021–2026 drop out this way. Anything that backtests
+  this signal has to check for nulls rather than trusting the status code.
+- **The blended default is not one of the four.** Calling without `models=` returns a provider
+  blend that tracks none of the named models exactly, so "what we get today" has to be replayed
+  separately rather than approximated by ECMWF alone. §5 does this.
+- **Rate limit: unverified.** This is one HTTP request either way, but Open-Meteo's free tier
+  counts *weighted* calls, and whether four models × five variables counts as one call or twenty
+  against the 10,000/day allowance is not something the response reveals — no quota headers come
+  back. The first draft asserted "no new rate-limit exposure"; that assertion is withdrawn pending
+  a check. Lane A makes one snapshot call per race, so even a 20× weighting is immaterial; a Phase
+  A3 backfill over hundreds of races is where it could bite.
 
 ## 4. What the ensemble produces
 

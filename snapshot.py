@@ -40,6 +40,13 @@ DEFAULT_OUT_DIR = os.path.join(REPO_ROOT, "data", "snapshots")
 # Kept in sync with lib/circuits.OVERTAKING_MULTIPLIER: a circuit you can score
 # but can't resolve a timezone for is a snapshot that dies partway through, so
 # every circuit listed there is listed here (test_config.py asserts it).
+# Indexed as a bare dict lookup in build_track_history and build_weather, so a
+# missing circuit is a KeyError, not a degraded feature. That is deliberate --
+# guessing a timezone silently shifts the race window and corrupts F5's wet
+# lookup and F7's forecast alike -- but it means this table has to cover every
+# circuit a run will touch. The 2014-2026 A3 backfill corpus is 33 circuits
+# (05-trained-model.md sec5.2); all 33 are below, verified to resolve under
+# ZoneInfo on 2026-08-24.
 CIRCUIT_TIMEZONE = {
     "zandvoort": "Europe/Amsterdam",
     "monza": "Europe/Rome",
@@ -56,6 +63,29 @@ CIRCUIT_TIMEZONE = {
     "jeddah": "Asia/Riyadh",
     "spa": "Europe/Brussels",
     "interlagos": "America/Sao_Paulo",
+
+    # Added 2026-08-24 for the A3 backfill window. Everything below appears in
+    # 2014-2026 but not on the 2026 calendar, except miami/vegas/shanghai/
+    # bahrain/yas_marina/red_bull_ring, which are current races that simply had
+    # never been snapshotted before.
+    "bahrain": "Asia/Bahrain",
+    "hockenheimring": "Europe/Berlin",
+    "istanbul": "Europe/Istanbul",
+    "losail": "Asia/Qatar",
+    "madring": "Europe/Madrid",        # Madrid, new for 2026
+    "miami": "America/New_York",
+    "mugello": "Europe/Rome",
+    "nurburgring": "Europe/Berlin",
+    "portimao": "Europe/Lisbon",
+    "red_bull_ring": "Europe/Vienna",
+    "ricard": "Europe/Paris",          # Paul Ricard
+    "rodriguez": "America/Mexico_City",
+    "sepang": "Asia/Kuala_Lumpur",
+    "shanghai": "Asia/Shanghai",
+    "sochi": "Europe/Moscow",          # no separate IANA zone for Sochi
+    "vegas": "America/Los_Angeles",
+    "villeneuve": "America/Toronto",   # Montreal; America/Montreal is a link
+    "yas_marina": "Asia/Dubai",
 }
 
 
