@@ -8,23 +8,45 @@ without an approved spec" rule. Read `welcome.md` and `01-data-pipeline.md` §5 
 
 ## 1. Use case — why this exists
 
-At the 2026 Dutch GP, Polymarket/Kalshi's winner pricing implicitly assumed a dry race (§5.5 of
-`01-data-pipeline.md`: 37% precip probability, falling to 20%, called "no meaningful rain signal"
-the night before). It rained. A wet race scrambles the grid-position-driven winner market far more
-than a dry one, so a market that has under-priced rain risk is a market whose winner odds are
-wrong in a specific, exploitable direction — not just noisy.
+**This section was wrong in the first draft and is rewritten (2026-08-24).** It said the 2026
+Dutch GP was priced dry by Polymarket/Kalshi and that "it rained." Neither half was sourced, and
+checking them changed what this spec is for.
 
-This is not a "will it rain" market — F1 has no such market on either venue. The exploit is
-indirect: **weather is an input to the winner/podium/points/fastest-lap markets** (`01` §5, `02`'s
-F7 feature), and if our forecast of rain risk is measurably better-calibrated than what the crowd's
-pricing implies, that gap is an edge on the *outcome* markets, surfaced before the crowd reprices
-on race morning. The single Open-Meteo forecast call currently in the pipeline (`01` §5) answers
-"what does one model say," not "how confident should we be" — and confidence is exactly what
-distinguishes an exploitable mispricing from noise.
+### 1.1 What the record actually says about Zandvoort
 
-This spec proposes replacing that single call with a **multi-model ensemble read**, still through
-Open-Meteo (zero-budget, no new dependency), to produce both a better point estimate and an
-explicit uncertainty/agreement signal.
+`00-roadmap.md`'s open items and `02` §10.4 both call the Dutch GP **dry** — F7's wet branch has
+still never executed on a real race. The race ran its full 72 laps with the top seven on the lead
+lap. Open-Meteo's observation archive returns **0.0–0.1 mm** across the race window. (Provisional:
+that was pulled one day post-race and `01` §5.4 warns the archive lags several days. The pattern
+holds on races well past the lag, so the reading is believable, but treat the exact figure as
+unconfirmed.) In racing terms, it did not rain.
+
+And yet `snapshot.py:288` defines a wet race as `max mm > 0.0` over the race window — so 0.1 mm
+clears the bar. **The same race is wet in the code and dry in the prose.** That gap is not a
+footnote; §5.4 below shows it decides which aggregate this spec should feed F7, so it is the first
+thing an owner has to rule on.
+
+The claim that the market under-priced rain is **withdrawn**. Neither venue exposes historical
+odds, the one snapshot that exists (`p_max: 37`, `weather_dormant: true`) records our own forecast
+rather than the market's implied one, and on the evidence above there was no meaningful rain to
+under-price. Nothing in this document rests on it any more.
+
+### 1.2 What does motivate this spec
+
+Replayed across 44 races (§5), the single blended call the pipeline makes today has two measurable
+weaknesses:
+
+1. **It misses wet races.** At the racing-relevant threshold — observed ≥ 0.5 mm — today's call
+   fires F7's gate on 5 of 8 wet races, at 45% precision. A four-model mean gets 6 of 8 at 60%.
+   Modest, but it is a real gain on the exact quantity F7 keys off.
+2. **It cannot tell you when to distrust it.** This is the bigger one. A single number carries no
+   indication of its own reliability. Across those 44 races, every one of the blended gate's nine
+   errors fell in the 43% of races where the four models disagreed by ≥ 15 pp — and in the 25
+   races where they agreed, it was **never** wrong (§5.3).
+
+That second finding is what this document is now built on. The value of querying several models is
+less that their average is a better forecast, and more that their **disagreement marks the races
+where any single forecast — ours or the crowd's — is unreliable.**
 
 ## 2. What "super advanced" means here — and what it doesn't
 
