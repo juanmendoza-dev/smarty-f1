@@ -193,6 +193,124 @@ aggregate — matching the raw+normalized pattern `01` §8.4 mandates for market
 snapshot's `weather` key gains a `per_model` block and the three aggregates; its top-level shape
 (`01` §8.3) does not change.
 
+## 5. Backtest — 44 races (verified 2026-08-24)
+
+The first draft decided nothing and admitted it had verified nothing. This section is the evidence
+that was missing. It is reproducible: `weather_backtest.py` at the repo root prints every table
+below, and imports nothing from the snapshot path.
+
+### 5.1 Method
+
+For every race from 2021 on that publishes a start time, over the §3.2 window:
+
+| | source | quantity |
+|---|---|---|
+| **observed** | archive API | `precipitation` mm → wet |
+| **blended** | historical-forecast API, no `models=` | what the pipeline asks for today, replayed |
+| **ensemble** | historical-forecast API, `models=` × 4 | `p_mean`, `p_max`, `p_spread` per §4.2 |
+
+126 races had a start time and a result; **44 had four-model coverage** (2024-05-05 → 2026-08-23),
+the rest lost to the null-before-2024-05 gap in §3.3.
+
+Three caveats, all of which cut against over-reading what follows:
+
+- **n = 44, with 8–17 wet races depending on the rule.** Every rate below rests on single-digit
+  event counts. This is enough to reject a claim, not enough to tune one finely.
+- **The replay is optimistic on lead time.** The historical-forecast endpoint serves the most
+  recent archived run for a date. A real snapshot is taken race morning (the Dutch GP's was 10h
+  before lights-out), so live forecasts will be somewhat worse than these.
+- **"Wet" is measured, not observed at the track.** It is Open-Meteo's own archive over a ~9 km
+  grid cell, which is not the same as a race being run on wet tyres.
+
+### 5.2 Which number should feed F7's gate
+
+Gate is F7's existing `P >= 40` (`02` §4). Wet is evaluated three ways, because §1.1 showed the
+project's own definition is doing more work than anyone intended.
+
+**Wet = observed > 0.0 mm — `snapshot.py:288`'s actual rule (17/44 wet)**
+
+| gate input | TP | FP | FN | TN | recall | precision |
+|---|---|---|---|---|---|---|
+| blended default (today) | 11 | 0 | 6 | 27 | 65% | 100% |
+| `p_mean` | 10 | 0 | 7 | 27 | **59%** | 100% |
+| `p_max` | 14 | 2 | 3 | 25 | **82%** | 88% |
+
+**Wet = observed ≥ 0.5 mm (8/44 wet)**
+
+| gate input | TP | FP | FN | TN | recall | precision |
+|---|---|---|---|---|---|---|
+| blended default (today) | 5 | 6 | 3 | 30 | 62% | 45% |
+| `p_mean` | 6 | 4 | 2 | 32 | **75%** | **60%** |
+| `p_max` | 6 | 10 | 2 | 26 | 75% | **38%** |
+
+**Wet = observed ≥ 1.0 mm (6/44 wet)**: all three reach 83% recall; precision is 45% blended, 50%
+`p_mean`, 31% `p_max`.
+
+**The two tables disagree, and the disagreement is the finding.** Under the project's `> 0.0 mm`
+rule `p_max` is clearly best and `p_mean` is *worse than what already runs*. Under a
+racing-relevant rule `p_mean` is best on both axes and `p_max` is the worst thing on the table.
+
+Why: every wet race `p_max` catches that the blended call misses is a **trace** — Mexico City 2024
+(0.1 mm), Singapore 2025 (0.1 mm), Spa 2026 (0.2 mm), Zandvoort 2026 (0.1 mm) — with Miami 2025
+(0.9 mm) the sole exception. Taking a max over four models finds the one model that saw a shower,
+which is exactly right if 0.1 mm counts as wet and exactly wrong if it doesn't. Its two false
+positives are stark: Singapore 2024 with `p_max` 100 against 0.0 mm observed, and Montreal 2026
+with 55 against 0.0 mm.
+
+**Activation rate**, which is what actually lands on the rest of the project: blended 27% of
+races, `p_mean` 23%, `p_max` 36%.
+
+### 5.3 `p_spread` — the result that justifies this spec
+
+Take today's blended gate as the thing being judged, score it against observed ≥ 0.5 mm, and split
+the 44 races by whether the four models agreed:
+
+| | races | blended gate wrong |
+|---|---|---|
+| `p_spread` < 15 pp (agree) | 25 | **0 (0%)** |
+| `p_spread` ≥ 15 pp (disagree) | 19 | **9 (47%)** |
+
+All nine of the gate's errors fall in the 43% of races where the models disagreed. Median spread
+was 35 pp on the races it got wrong versus 2 pp on the races it got right.
+
+Sensitivity, because a single threshold that looks clean is usually fitted:
+
+| agree threshold | n agree | errors | n disagree | errors |
+|---|---|---|---|---|
+| < 10 pp | 24 | 0 (0%) | 20 | 9 (45%) |
+| < 15 pp | 25 | 0 (0%) | 19 | 9 (47%) |
+| < 20 pp | 26 | 1 (4%) | 18 | 8 (44%) |
+| < 25 pp | 28 | 2 (7%) | 16 | 7 (44%) |
+| < 30 pp | 31 | 3 (10%) | 13 | 6 (46%) |
+
+Anywhere in 10–18 pp gives a clean split; 15 sits mid-plateau rather than on an edge. Two honesty
+notes: **15 pp was the first draft's guessed value** and it survived contact with the data, but the
+*statistic* it applies to was changed after seeing the distribution (§4.2), so the threshold is
+inherited and the statistic is fitted. And the low-spread bucket is dominated by obviously-dry
+races, so 0/25 is partly "easy cases are easy." The defensible claim is the narrower one: **a
+≥ 15 pp spread captured 9 of 9 of the gate's errors while flagging only 43% of races.**
+
+### 5.4 Every wet race in the corpus
+
+| date | race | obs mm | blended | `p_mean` | `p_max` | `p_spread` |
+|---|---|---|---|---|---|---|
+| 2025-04-06 | Japanese GP | 4.9 | 95 | 71.0 | 95 | 68 |
+| 2025-07-06 | British GP | 4.7 | 97 | 96.2 | 100 | 26 |
+| 2025-03-16 | Australian GP | 2.9 | 100 | 98.8 | 100 | 70 |
+| 2024-11-03 | São Paulo GP | 2.5 | 100 | 93.5 | 100 | 28 |
+| 2025-05-18 | Emilia Romagna GP | 1.0 | **0** | 15.0 | 32 | 25 |
+| 2026-05-03 | Miami GP | 1.0 | 43 | 81.0 | 100 | 63 |
+| 2025-05-04 | Miami GP | 0.9 | **37** | 59.5 | 96 | 61 |
+| 2024-09-01 | Italian GP | 0.7 | **18** | 7.8 | 31 | 18 |
+
+Worth seeing directly: the four genuinely wet races at the top were called by **everything**,
+including the single blended call the pipeline already makes. Nobody needed an ensemble for
+Silverstone 2025. The misses are all at the 0.7–1.0 mm margin, and Imola 2025 (blended 0, ensemble
+15–32, observed 1.0 mm) is a race no configuration in this document would have caught.
+
+That is the honest ceiling on §5.2's gains: **a better point estimate buys one marginal race in
+44.** The spread result in §5.3 is where the value is.
+
 ## 5. How this feeds the rest of the project
 
 - **F7 (weather feature, `02`).** `p_mean`/`p_max` replace the single-model reads `01` §5 currently
