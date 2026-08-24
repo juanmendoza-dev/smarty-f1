@@ -414,6 +414,60 @@ Testing that needs snapshotted odds on high-spread races, which the project accu
 wet weekend. It is a Lane C hypothesis to log and check, not a reason to build anything. Sizing and
 trade logic remain out of scope until Lane C has its own approved spec.
 
+## 8. The real Ensemble API — considered, deferred
+
+The first draft called itself an ensemble spec without mentioning that Open-Meteo runs an actual
+ensemble API. That was a gap, so it goes on the record here.
+
+### 8.1 What it is (verified 2026-08-24)
+
+```
+GET ensemble-api.open-meteo.com/v1/ensemble?...&models=ecmwf_ifs025
+→ 200, precipitation + precipitation_member01..50
+```
+
+Free, keyless, same provider, no new dependency. `ecmwf_ifs025` returns the control run plus **50
+perturbed members**; it also serves `precipitation_probability` per member. Other centres' ensembles
+are exposed too (`ncep_gefs025`, `icon_eu_eps`) — note `icon_eu_eps` is the regional ICON, which
+§2 already rules out for a global calendar.
+
+### 8.2 Why it is the better instrument in principle
+
+This spec's `p_spread` is `max − min` over four numbers. **A range statistic on n = 4 is about the
+noisiest uncertainty estimator available** — it is defined entirely by two extreme values, has no
+notion of how the middle is distributed, and moves whenever any single centre has an outlier run.
+§5.3 shows it works anyway, which is a statement about how large real disagreement is, not a
+defence of the estimator.
+
+Fifty members give a distribution instead: quantiles, an interquartile spread, and a probability of
+exceedance computed directly rather than inherited from a provider.
+
+There is a second, sharper reason. Members return **precipitation in mm**, so probability of rain
+can be derived as *the fraction of members exceeding a threshold* — say, members over 0.5 mm. That
+quantity is defined on mm, which is exactly what the archive serves (`01` §5.4). It does **not**
+dissolve the train/serve skew behind the train-dormant decision (`01` §5.6) — a single archived
+observation is still not a distribution, and that decision stands — but "fraction of members over
+0.5 mm" at inference against "observed over 0.5 mm" at training is far closer in kind than a
+provider probability against observed mm. If F7's wet handling is ever revisited, this is the
+version worth revisiting it with.
+
+### 8.3 Why it is not proposed now
+
+**It cannot be backtested, so locking it would violate this project's own bar.** The ensemble
+endpoint's past window is roughly 93 days (it rejected 2026-05-03 with *"out of allowed range from
+2026-05-23"*), and it is sparse inside that window — 2026-07-19 returned all 50 members null.
+§5's 44-race replay is simply not runnable against it, and `welcome.md` plus `01`'s
+verified-before-written standard both say an unverifiable design doesn't get locked in.
+
+Recommended disposition: **start collecting it forward now, decide later.** Adding the ensemble
+call to the snapshot alongside the four-model read costs nothing but response size, is pure data
+capture with no consumer, and after a season there is enough to run §5's comparison properly. That
+is a smaller ask than adopting it as F7's input today, and it is the only path to the evidence
+that would justify adopting it.
+
+One cost to weigh: 51 series versus 4, against a weighted call quota this document could not
+verify (§3.3).
+
 ## 9. What this spec does not do
 
 - Does not add a new API, key, or paid tier. Same Open-Meteo endpoint, one added query parameter.
