@@ -73,9 +73,16 @@ def sprint(season, round_, cache_dir):
     return results, meta
 
 
-def race_results(season, round_, cache_dir):
-    """Returns (results, meta). results == [] means the race hasn't happened yet."""
-    body, meta = _get(f"{season}/{round_}/results.json?limit=30", cache_dir)
+def race_results(season, round_, cache_dir, force_refresh=False):
+    """Returns (results, meta). results == [] means the race hasn't happened yet.
+
+    force_refresh exists for the stale-empty case: a response fetched before a
+    race finished caches "no result" forever, and for a race that has since run
+    that cached answer is simply wrong. Callers that can tell the race is over
+    use it to re-ask rather than believe the cache. See find_full_result.
+    """
+    body, meta = _get(f"{season}/{round_}/results.json?limit=30", cache_dir,
+                      force_refresh=force_refresh)
     races = body["MRData"]["RaceTable"]["Races"]
     if not races:
         return [], meta

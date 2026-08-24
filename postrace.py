@@ -55,6 +55,22 @@ def find_full_result(season, round_, cache_dir):
     even to retirees, so position alone was never actually sufficient).
     """
     results, meta = jolpica.race_results(season, round_, cache_dir)
+    if not results and meta.get("cached"):
+        # The cache can hold an empty result fetched BEFORE the race ran, and
+        # that entry never expires -- "no result" is exactly the answer that
+        # goes stale. Seen live: 2026/12/results.json was cached at 04:17Z on
+        # race day, nine hours before lights out, so every local run since has
+        # concluded the Dutch GP was never run. 05-trained-model.md sec5.4's
+        # staleness rule doesn't catch it, because it compares at day
+        # granularity and the fetch and the race share a date.
+        #
+        # Re-ask once before believing it. This costs a request only on the
+        # path that was about to fail anyway, so it can't be the thing that
+        # burns the rate-limit budget -- which rules out the tempting general
+        # version of this rule: an empty sprint response for 2014-2018 is
+        # correct and permanent (sprints start in 2021), and refetching every
+        # empty response would re-fetch ~93 of them on every backfill.
+        results, meta = jolpica.race_results(season, round_, cache_dir, force_refresh=True)
     if not results:
         raise SystemExit(
             f"no race result for {season}/{round_} yet -- Jolpica hasn't ingested it, nothing to score"
