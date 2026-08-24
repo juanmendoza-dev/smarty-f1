@@ -10,11 +10,35 @@ trail for free).
 import hashlib
 import json
 import os
+import threading
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
 USER_AGENT = "f1-prediction-model/0.1 (personal research project)"
+
+# 01-data-pipeline.md sec4.3: Jolpica allows 4 requests/second burst, and the
+# documented limits are "subject to change, and will decrease in the future".
+# A single snapshot needs ~30 requests and never came close, but the A3
+# backfill fires ~25 per race back-to-back across hundreds of races
+# (05-trained-model.md sec5.3), which would blow the burst cap immediately.
+#
+# Throttling here rather than in the callers means every source gets it for
+# free and no caller can forget. Only real network fetches are spaced; cache
+# hits are not delayed, so a warm re-run stays as fast as it was.
+MIN_FETCH_INTERVAL = 0.25
+
+_throttle_lock = threading.Lock()
+_last_fetch = [0.0]
+
+
+def _throttle():
+    with _throttle_lock:
+        wait = MIN_FETCH_INTERVAL - (time.monotonic() - _last_fetch[0])
+        if wait > 0:
+            time.sleep(wait)
+        _last_fetch[0] = time.monotonic()
 
 
 class HttpError(Exception):
@@ -43,6 +67,7 @@ def cached_get_json(url, cache_dir, timeout=15, force_refresh=False):
         meta["cached"] = True
         return entry["body"], meta
 
+    _throttle()
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     timestamp = datetime.now(timezone.utc).isoformat()
     try:
