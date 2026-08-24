@@ -364,6 +364,17 @@ reuses that code is what keeps them fixed. The harness must additionally guarant
    It is *train-only* skew — a live snapshot does capture those points — so it belongs in this
    spec's ledger even though it is not worth working around.
 
+   **Measured 2026-08-24** on the 2026 Dutch GP, the one race where both sides exist (see §9's
+   assertion 10). Largest sub-score shift is RUS, 0.750 → 0.731; the leader's own total moved
+   219 → 224. One subtlety this entry originally missed and which is worth stating, because it
+   changes what the skew *does* rather than just its size: because F6 is normalised by the leader's
+   points and **the leader scored in that sprint too**, the skew moves drivers in *both*
+   directions. HAM took 2 sprint points and his backfilled `champ` is *higher* than the live one
+   (0.772 vs. 0.763), since losing 5 points from the denominator outweighs losing 2 from his own
+   numerator. So this is not uniformly "backfilled drivers look slightly worse" — it is a mild
+   rescaling of the whole column, which is a gentler failure for a conditional logit than a
+   directional bias would be.
+
 A leakage check belongs in the harness rather than in a reviewer's head: assert that every result
 row feeding any feature has `date < race_date`, per race, at build time.
 
@@ -471,6 +482,36 @@ cache *hit* returns that original stamp with `cached: True` rather than overwrit
 read time, which is exactly the semantics the rule needs. Compare `meta["timestamp"][:10]` against
 `race_date`. No change to `httpcache.py` is required.
 
+**Implementation note (2026-08-24):** `backfill.build_race_rows` *detects and warns* on a stale
+entry rather than refetching it. That is a deliberate divergence from this section's "refetch"
+wording and the code is the better of the two: for a backfill of past races every entry is written
+today, so the rule is satisfied trivially and a refetch would spend rate-limit budget for nothing.
+The warning is what earns its place — it says "this run could not prove completeness" without
+paying to prove it. Treat the wording above as describing the *rule*, and the warning as the
+chosen enforcement.
+
+### 5.5 The same staleness class, on results — and why §5.4's rule misses it
+
+Found by running §9's assertion 10 on 2026-08-24. `2026/12/results.json` was cached at
+**04:17Z on race day, nine hours before lights out**, holding an empty result. That entry never
+expires, so every local run afterwards concluded the Dutch GP had never been run — including the
+backfill, and including `postrace.py`.
+
+**§5.4's rule does not catch this**, and the reason is worth recording: it compares
+`meta["timestamp"][:10] < race_date`, at **day granularity**. Here the fetch and the race share a
+date, so `"2026-08-23" < "2026-08-23"` is false and the entry reads as fresh. Day granularity is
+adequate for `driver_track_history` (whose editions are whole races on earlier days) and is exactly
+wrong for a same-day pre-race fetch.
+
+The fix chosen is narrower than a timestamp comparison and does not need one: **an empty result
+is re-asked once before it is believed** (`postrace.find_full_result`). It costs a request only on
+the path that was about to fail anyway.
+
+The tempting general version — refetch *any* empty response — is wrong and was rejected on
+measurement: an empty `sprint` response for a 2014–2018 round is **correct and permanent** (sprints
+begin in 2021), and the cache currently holds **93** of them. A blanket rule would refetch all 93
+on every backfill, converting a correct cache into a per-run rate-limit cost.
+
 ---
 
 ## 6. Validation protocol
@@ -538,13 +579,26 @@ whether any advantage is stable, not to let a good season be quoted on its own.
 
 ---
 
-## 7. Fitting environment — flagged, not resolved
+## 7. Fitting environment — decided 2026-08-24: hand-roll in pure Python
+
+**Decision: hand-roll the fit in pure Python 3.9.** The interpreter upgrade stays open as its own
+roadmap item and is *not* forced by this phase.
+
+The discriminating argument is not "which is nicer to write" but that the second option smuggles in
+an unresolved decision: the interpreter upgrade has its own undecided fork (`brew python@3.12` vs.
+`uv`), and choosing scipy here would settle it silently and couple A3's timeline to an infra change.
+Hand-rolling keeps the two decoupled. `welcome.md`'s framing of this project as the owner's learning
+path into applied ML points the same way, and §7's original text already leaned there.
+
+This is a decision about the **optimizer only**. Data loading, the negative log-likelihood, the
+analytic gradient, the §6.1 splits, the §6.2 metrics and the §6.3 baselines are identical under
+either path, so a later move to scipy changes roughly twenty lines and no results.
 
 The project machine has **Python 3.9.6 with no numpy, scipy, pandas, scikit-learn, or statsmodels**
 (verified 2026-08-23; consistent with `01` §2, which notes FastF1 needs ≥3.10 and that Tier 1 uses
 `urllib` alone).
 
-Two paths, and this spec deliberately does not pick one:
+The two paths as originally stated, for the record:
 
 - **Hand-roll the fit in pure Python 3.9.** The conditional-logit negative log-likelihood is convex
   with 7 parameters over ~5,300 rows; gradient descent or Newton–Raphson on it is a page of code
@@ -557,7 +611,7 @@ Two paths, and this spec deliberately does not pick one:
 Both are zero-budget compliant. The decision is forced eventually regardless: the roadmap's
 gradient-boosted-tree step needs the upgrade, since neither XGBoost nor LightGBM runs on 3.9
 without one. It is not forced *now*, which is why v1 is specified as a model that either path can
-fit.
+fit — and that property is what makes the decision above cheap to revisit.
 
 ---
 
@@ -589,9 +643,27 @@ Fail loudly rather than emit a plausible wrong number (`02` §8's principle, and
 7. No market field appears anywhere in the training matrix or the fitting path (§1, §4.5).
 8. Train and test groups share no `(season, round)` key.
 9. Fitted probabilities sum to 1.0 (±1e-6) within each race.
-10. The harness reproduces `02` §9's reference sub-scores exactly when pointed at the 2026 Dutch
-    GP — the same fixed point `test_phase_a4.py` already uses, and the cheapest possible check
-    that §4.2's shared-code-path rule has not been quietly violated.
+10. The harness reproduces `02` §9's reference sub-scores when pointed at the 2026 Dutch GP — the
+    same fixed point `test_phase_a4.py` already uses, and the cheapest possible check that §4.2's
+    shared-code-path rule has not been quietly violated.
+
+    **Amended 2026-08-24, after running it.** As first written this assertion said "exactly", and
+    it is not satisfiable that way — it contradicts §4.4 item 4. 2026 R12 is a **sprint weekend**,
+    and a backfilled sprint weekend provably cannot see its own sprint points, so F6 must differ on
+    the one race this assertion names as its fixed point. The correct form:
+
+    - **Six features reproduce `02` §9 exactly**: `grid`, `team`, `sprint`, `driver_form`, `track`,
+      `teammate`, plus `track_n` and the winner label. Verified to the three decimal places §9
+      prints.
+    - **F6 `champ` differs, and by exactly R12's sprint points.** Adding them back reproduces §9's
+      column for all seven drivers to the same precision. This is §4.4 item 4's accepted train-only
+      skew, now *measured* rather than bounded.
+    - `p_a1` therefore differs slightly too (36.1% vs. §9's 36.2% for NOR), entirely as a
+      consequence of F6.
+
+    Encoded as `test_backfill.TestReproducesTheDutchGPReferenceTable`. Note that §3.4's
+    zero-the-sprint-column rule does **not** apply to this race, precisely because it is a sprint
+    weekend — the `sprint` column is compared directly.
 
 ---
 
