@@ -9,8 +9,18 @@ sense `02` did for A1: every decision this phase needs is either stated here as 
 in §10 as genuinely still open with the reason it could not be settled from the data available.
 
 **Verification note:** every count in §4.3 and §5.3 was computed live against Jolpica production on
-**2026-08-23**. The package availability in §7 was checked on the project machine the same day.
-Anything not verified is marked `UNVERIFIED`.
+**2026-08-23**, and the round-1 behaviour in §4.3 was executed end to end on **2026-08-24**. The
+package availability in §7 was checked on the project machine on 2026-08-23. Anything not verified
+is marked `UNVERIFIED`.
+
+**Counting caveat, learned the hard way while writing this spec.** The sprint-weekend count in
+§4.3 was first recorded as 26 and is actually **29**. The first query passed `sprint.json?limit=100`
+and counted races in the response — but Jolpica pages by *result row*, not by race, so at ~20 rows
+per sprint a 100-row page caps at 5 races. Three consecutive seasons reporting exactly 5 was the
+truncation signature, and each response's own `total: 120` said a second page existed. This is the
+same failure `ee45ecc` fixed inside `jolpica.season_results`, rediscovered from outside it. Any
+count taken from a paginated Jolpica endpoint must page to `total` or divide `total` by field size
+— never trust `len(RaceTable.Races)` from a single request.
 
 ---
 
@@ -201,8 +211,8 @@ rather than confusable with a real neutral score.
 gets `pos_score(sprint_position, K_SPRINT)`, a DNF gets 0.0, and a driver with no sprint entry
 gets `NEUTRAL`. Only the whole-field case is redefined.
 
-Sprint weekends are **26 of the 264 label races** (§4.3) — about 10%, all from 2021 onward. `β_3`
-is therefore estimated from a tenth of the corpus and should be expected to have a wide interval.
+Sprint weekends are **29 of the 264 label races** (§4.3) — about 11%, all from 2021 onward. `β_3`
+is therefore estimated from a ninth of the corpus and should be expected to have a wide interval.
 Report it with one.
 
 ### 3.5 The track multiplier `m` — dropped in v1 (D4, locked)
@@ -287,7 +297,7 @@ of `s_track` is shrinkage rather than evidence).
 | Rounds scheduled, 2014–2026 | 275 |
 | Rounds with a result (2014–2025 complete, 2026 through R12) | **264** |
 | Distinct circuits in that window | 33 |
-| Sprint weekends (2021–2026) | 26 |
+| Sprint weekends (2021–2026) | 29 |
 | Approximate driver-race rows at ~20 cars | **~5,300** |
 
 **Era boundary: 2014**, the first year of the hybrid power-unit regulations. A regulation boundary
@@ -308,6 +318,31 @@ those 13 races inform only `s_grid` and `s_track` and cannot corrupt the other c
 **Keep them.** Dropping them would discard genuine grid/track-history evidence to avoid a problem
 the model does not have. The same reasoning applies with diminishing force to rounds 2–5, where
 the five-race windows are partially filled.
+
+**Verified by execution, 2026-08-24**, because "it will be field-constant" and "it will build at
+all" are different claims and only the first follows from §3.2. A full round-1 backfill of the 2015
+Australian GP through `build_grid` → `build_form(race_has_run=True)` → `build_track_history` →
+`score_all` completes without error and yields exactly one distinct value across the field for each
+of the four features:
+
+| Feature | Round-1 value | |
+|---|---|---|
+| F2 team | 0.0 | constant |
+| F4 driver form | 1.0 | constant (NEUTRAL for everyone, then field-normalized to 1.0) |
+| F6 championship | 0.0 | constant |
+| F8 teammate H2H | 0.5 | constant |
+
+Probabilities sum to 1.0 and the ranking is driven by grid and track history alone, as expected.
+The constant differs per feature; by §3.2 the value is irrelevant, only the constancy matters.
+
+Two guards make this work and both should be left alone: `build_form` short-circuits on
+`prior_round < 1` and never calls `driver_standings`, and `compute_champ` (`score.py:177`) falls
+back to `leader_points = 0.0` on an empty standings list rather than raising. The first guard is
+load-bearing in a way worth naming — `jolpica.driver_standings` branches on `if round_`, and **0 is
+falsy in Python**, so a round-0 request that reached it would silently take the "latest standings"
+path and hand a finished season's final table to F6. That is precisely the leak `8dcc18d` fixed,
+and the only thing preventing it here is that `build_form` never makes the call. Do not "simplify"
+that guard.
 
 ### 4.4 Leakage rules
 
@@ -423,15 +458,18 @@ leakage filter at `snapshot.py:244` drops anything on or after the target date �
 yields silently fewer prior editions rather than an error**, which lands as an F5 shrunk further
 toward NEUTRAL for no stated reason.
 
-Rule: **refetch `driver_track_history` when the cached entry's `fetched_at` is earlier than the
-target `race_date`.** If `fetched_at >= race_date` then every edition strictly before `race_date`
+Rule: **refetch `driver_track_history` when the cached entry's fetch timestamp is earlier than the
+target `race_date`.** If the fetch time is `>= race_date` then every edition strictly before it
 had already happened at fetch time and is present in the response, so the cached copy is complete
 for that target. For a backfill of past races this is satisfied trivially by any cache written
 today, so it costs nothing; it bites only on live pre-race snapshots, which is where the
 correctness matters most.
 
-This requires `fetched_at` on the cache entry. Check whether `lib/httpcache.py` already stamps
-one and add it if not.
+This requires a fetch timestamp on the cache entry. **It already exists** — `cached_get_json`
+(`lib/httpcache.py:57`) writes `meta["timestamp"]` as an ISO-8601 UTC string at fetch time, and a
+cache *hit* returns that original stamp with `cached: True` rather than overwriting it with the
+read time, which is exactly the semantics the rule needs. Compare `meta["timestamp"][:10]` against
+`race_date`. No change to `httpcache.py` is required.
 
 ---
 
@@ -472,9 +510,14 @@ Per race, then averaged, with the per-season breakdown kept:
 
 1. **The A1 scorer**, run over the same backfilled rows via its own unchanged code path. This is
    the comparison the phase exists for.
-2. **Grid-only**, i.e. `pos_score(quali_position, K_GRID)` through a softmax alone. This is the
-   floor. If A3 does not beat grid-only by a clear margin, the other six features are not earning
-   their place and that is the finding to report.
+2. **Grid-only**: a conditional logit with `s_grid` as its single feature, its one coefficient
+   fitted on the same training splits. This is the floor. If A3 does not beat grid-only by a clear
+   margin, the other six features are not earning their place and that is the finding to report.
+
+   Fit the coefficient rather than pushing `s_grid` through a softmax at some temperature — a
+   fixed temperature would smuggle `T` back in as an arbitrary constant in the one place it is
+   least defensible, and a baseline handicapped by an unfitted scale is not a floor, it is a
+   strawman.
 
 Report the market as a fourth column **only** for races this pipeline actually snapshotted live —
 currently one, the 2026 Dutch GP. Do not backfill historical market prices to fill that column;
@@ -575,9 +618,7 @@ Fail loudly rather than emit a plausible wrong number (`02` §8's principle, and
    A3 calibration data," but A3 is market-blind, so nothing here produces evidence about it. It
    needs live-snapshotted races with realized outcomes — the same scarce resource §6.3 constrains
    the market baseline to — and should be re-filed against that, not against this phase.
-7. **`fetched_at` on cache entries** (§5.4) may or may not already exist in `lib/httpcache.py`.
-   Confirm before relying on the staleness rule.
-8. **Nothing here addresses whether the features are the right features.** A3 fits coefficients on
+7. **Nothing here addresses whether the features are the right features.** A3 fits coefficients on
    `02`'s eight-feature design; it cannot discover a feature that was never built. Pit-stop
    strategy, tyre allocation, car upgrades, and reliability (which `04` §5.1 builds for DNF but
    the winner model does not use) are all absent. That is a Phase A5 question, not an A3 one, but
