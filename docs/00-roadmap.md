@@ -15,17 +15,17 @@ Lanes A and B remain the prediction engine, unchanged in scope. **Lane C** (new,
 | **What** | Race winner, podium, points, DNF probability | Overtake prediction, corner-level, real-time |
 | **Data pattern** | Pull once before a session, compute, done | Continuous stream during a session, react in real time |
 | **Complexity driver** | Feature quality, market comparison | Latency, broadcast delay-sync, event detection |
-| **Status** | Active — current focus | Deferred — design only, not building yet |
+| **Status** | Active — current focus (Phase A3) | Deferred — design only, not building yet |
 
 Lane C (trading, see below) sits downstream of both: it can trade Lane A's settled-market predictions (winner, podium) without waiting on Lane B, but in-race overtake markets need Lane B's live feed to exist first. It's tracked as its own lane rather than a sub-phase of either.
 
 ## Lane A phases
 
-**Phase A0 — Data pipeline (current)**
+**Phase A0 — Data pipeline**
 Lock down sources for historical results, weather, and market odds. See `01-data-pipeline.md`.
 Status: **locked and written** (2026-08-22). All sources verified live against production; every Phase A1 input (grid, sprint, standings, weather, both markets) confirmed available. Blocker noted: FastF1 needs Python >= 3.10, machine has 3.9.6 — A1/A2 deliberately do not depend on FastF1.
 
-**Phase A1 — Rule-based winner predictor (current focus)**
+**Phase A1 — Rule-based winner predictor**
 Hand-weighted scoring function using grid position, season/team form, track history, weather. No training — the owner picks the weights. Output compared against Polymarket + Kalshi odds for the same race.
 Status: **implemented and verified** (2026-08-22 night). See `02-winner-prediction-algo.md`. Eight features (grid 0.35, team form 0.15, sprint 0.13, driver form 0.11, track history 0.08, championship 0.08, weather 0.05, teammate H2H 0.05), softmax T=0.1168, market-blind. Design was dry-run against real Dutch GP data before locking, which added the championship feature and small-sample shrinkage on track history. `snapshot.py` pulls grid/form/track history/weather/both markets into an immutable snapshot JSON; `score.py` reads a snapshot with no network calls and computes the scorer plus market comparison; a `lib/` package holds the source clients. Scorer output reproduces `02-winner-prediction-algo.md` §9's reference table exactly — every sub-score, effective weight, raw score, and probability matches to the stated precision. `test_f7_wet_branch.py` exercises F7's wet-weather path (never run before, tonight's forecast is dry) against the archive-verified 2023 Dutch GP. Committed and pushed to main.
 
@@ -37,15 +37,20 @@ Actual result: **NOR won**. Algo's top pick was correct. Brier score: algo 0.549
 
 Both the pre-lights-out re-snapshot and the post-race score ran via scheduled Anthropic cloud routines (`dutch-gp-lights-out-resnapshot`, `dutch-gp-postrace-score`) rather than manual triggering — first real test of that automation path. The lights-out routine actually failed this race (its cloud environment's network access was Trusted-only and blocked `api.jolpi.ca`/market/weather hosts outright, so no fresh pre-lights-out snapshot was taken — the committed snapshot is from the earlier manual run); the postrace routine hit the same block on its first scheduled fire and succeeded only after being repointed at a new `smarty-f1` cloud environment with Full network access. Whether scheduled routines become the standing mechanism for future races (vs. staying manually triggered) is open — see Open decisions.
 
-**Phase A3 — Trained model**
-Train logistic regression as a first real model and compare its calibration against the Phase A1 rule-based baseline. Move to gradient-boosted trees (XGBoost/LightGBM) once the data pipeline is trusted.
-Status: not started, but **no longer blocked on waiting for races** (revised 2026-08-23). This previously read "depends on accumulating real historical prediction data from A1/A2 runs," which would have meant ~5 rows by the end of 2026. That was wrong: every A1 feature except market odds is reconstructible for any past race from Jolpica, and `test_phase_a4.py` already rebuilds a full 2023 Dutch GP snapshot from `snapshot.py`'s own functions. The realistic training set is ~200+ historical races, available now. You don't need market odds to *train* — only to *evaluate against the market*, which stays limited to races this pipeline actually snapshotted live.
+**Phase A3 — Trained model (current focus)**
+Train a conditional logit as a first real model and compare its calibration against the Phase A1 rule-based baseline. Move to gradient-boosted trees (XGBoost/LightGBM) once the data pipeline is trusted.
+Status: **specced 2026-08-23, not yet implemented.** See `05-trained-model.md`. It is **not blocked on waiting for races** (revised 2026-08-23). This previously read "depends on accumulating real historical prediction data from A1/A2 runs," which would have meant ~5 rows by the end of 2026. That was wrong: every A1 feature except market odds is reconstructible for any past race from Jolpica, and `test_phase_a4.py` already rebuilds a full 2023 Dutch GP snapshot from `snapshot.py`'s own functions. Verified live 2026-08-23: **264 races with a result across 2014–2026** (33 distinct circuits, 26 of them sprint weekends), ~5,300 driver-race rows. You don't need market odds to *train* — only to *evaluate against the market*, which stays limited to races this pipeline actually snapshotted live.
+
+The spec's central claim, which reshapes the phase: **`02`'s scorer is already a conditional logit with hand-set coefficients.** Dividing the weighted sum by `T` inside the softmax distributes, so `β_f = w_f_eff / T` — A1 is this model with the coefficients filled in by hand rather than fitted. Consequences: `T` is not a separate parameter and needs no recalibration step (it is the scale of `β`); the 0.42 pole-conversion anchor becomes unnecessary; and the weights-sum-to-1.0 constraint, which existed only to give `T` its meaning, is dropped. A3 fits what A1 guessed.
+
+The immediate next build step is `backfill.py` (`05` §5), which has one **hard prerequisite**: `CIRCUIT_TIMEZONE` (`snapshot.py:43`) covers 15 of the corpus's 33 circuits and is indexed as a bare dict lookup at `snapshot.py:261`/`:321`, so 18 circuits are an immediate `KeyError` rather than a degraded feature. Fill them in first.
 
 What genuinely gates it:
 - ~~Two future-data leaks in the backfill path~~ **fixed 2026-08-23**: `build_track_history` took `race_date` and never used it (a backfill picked up later editions *and the target race itself* — the label, inside F5), and F6's standings came from the "latest" endpoint, which on a finished season is the final table. Both now have leakage guards; see `01-data-pipeline.md` §4.6.
 - ~~**Jolpica request volume, not compute.**~~ **fixed 2026-08-23**: `build_form` looped `race_results` once per prior round — up to ~21 calls per season, not reused across the different target races in a backfill until each round happened to get touched individually. §4.3's own advice — one filtered query over N per-entity queries — wasn't followed here. Replaced with `jolpica.season_results`, one paginated bulk pull per season (100-row page cap, verified live — a 22-round season is 5 pages), cached per `(season, offset)` and reused by every race in that season for the life of the cache: ~4x fewer calls per season, and the repeat-race cost drops to zero instead of being merely smaller. Two real bugs found and fixed in the same pass, both verified live: pagination is by result row not by race, so a round can straddle a page boundary and arrive split across two pages (2016 round 5: 12+10) — fixed by merging rows per round instead of overwriting; and a season's row `total` lives inside a cached page, so a warm cache from an earlier week would silently keep answering with a stale, truncated total for a season still in progress — fixed by force-refreshing page 0 and re-validating every other page's row count against the fresh total, refetching on mismatch. A position-contiguity check per round now catches either failure mode loudly if it recurs. 33/33 tests pass, including the real-network `test_phase_a4.py` backfill path.
-- **F7 cannot be backfilled as specced** (`01` §5.6): the archive endpoint has no precipitation *probability*, only observed mm, so historical rows have no `p_max`. Train-dormant or define a wet proxy — either is train/serve skew, and the choice has to be made explicitly.
-- **Model shape.** The scorer is already a softmax over the field, so the matching model is a conditional logit over driver-races (~4,000 rows at 200 races), not a per-driver binary logistic regression on ~200 winner events.
+- ~~**F7 cannot be backfilled as specced**~~ **decided 2026-08-23: train-dormant** (`01` §5.6, `05` §3.3). The archive endpoint has no precipitation *probability*, only observed mm, so historical rows have no `p_max`. Dormant beats a wet proxy because F7's wet branch has never executed on a real race, so a proxy would model something never validated at inference. Sharper than it first looks: a dormant feature is constant across the field, and a within-race constant cancels exactly out of a conditional logit's likelihood — so `β_weather` is *unidentified*, and F7 is dropped from the design matrix entirely (7 features, not 8). Standing consequence: **A3 predicts a wet race as though it were dry**; on a wet weekend both predictors run and A3's number is reported out-of-domain.
+- ~~**Model shape.**~~ **decided** — conditional logit over driver-races (~5,300 rows at 264 races), not a per-driver binary logistic regression on ~264 winner events. Moved to Locked decisions.
+- **Fitting environment, not yet decided** (`05` §7): the machine has Python 3.9.6 and *no* numpy/scipy/pandas/sklearn/statsmodels (verified 2026-08-23). Either hand-roll the fit in pure Python — the likelihood is convex with 7 parameters over ~5,300 rows, and per `welcome.md` this project is also the owner's ML learning path, which argues for writing the gradient by hand — or resolve the interpreter upgrade already open below and use scipy. Both are zero-budget. Forced eventually regardless: GBTs don't run on 3.9.
 
 **Phase A4 — Expand outcome types**
 Podium, points finishers, DNF probability, fastest lap — same batch pattern, new labels.
@@ -132,17 +137,24 @@ Status: not started.
   per-race DNF market — do not use it as one)
 - Market data access: Polymarket **Gamma** API only (not CLOB/Data); Kalshi `GET /markets` on `external-api.kalshi.com`. This was a *read-only* scoping decision for Lane A/B. Lane C's order execution needs Polymarket's CLOB (or equivalent) for placing trades — reopened, not yet decided, see Phase C2
 - Canonical driver key across all sources: **FIA three-letter code** (`ANT`, `NOR`), sourced from Jolpica `Driver.code`
+- Phase A3 model shape: **conditional logit over driver-races**, race as the choice set (`05` §3.1). Follows from `02` being one already with hand-set coefficients — not a free choice
+- Phase A3 F7: **train-dormant**, F7 excluded from the design matrix (`01` §5.6, `05` §3.3)
+- Phase A3 label window: **2014 onward** (hybrid-era regulation boundary). Features look back freely across it — `driver_track_history` has no season filter, only a date guard — so 2014 rows are not F5-cold (`05` §4.3)
+- Phase A3 training rows are built by calling `snapshot.build_*` and `score.compute_*` **unchanged**, never a reimplementation (`05` §4.2). Train/serve skew here would be invisible: a re-typed `pos_score` with a different `K` produces plausible numbers that simply aren't the feature the scorer computes
+- Phase A3 validation is **season-forward, never random k-fold** (`05` §6.1) — random folds leak the future through every season-long feature
 - Odds normalization for A1: proportional de-vig; raw + normalized both persisted
 - Live data (when needed): **FastF1's free live module**, not OpenF1's paid live tier (€9.90/month) — avoided per the zero-budget constraint. Note this is the same constraint blocking Lane C's live in-race trading (Phase C1) — revisit together if the owner decides to approve the paid tier
 - No paid capture hardware for Lane B — Apple TV app runs natively on Mac, so screen capture of the app window is the plan, not an HDMI capture card
 
 ## Open decisions
 
-- Track overtaking multipliers (`02` §5.1) are hand-set judgements, not measurements — replace with real overtake data in A3
-- `T=0.1168` is calibrated on a grid-only synthetic field, and the real field is **flatter** than that field, not sharper — averaging eight partly-disagreeing features compresses top-of-field gaps (0.0774 synthetic vs. 0.0032 real P1−P2). Corrected 2026-08-23; this entry previously stated the sign backwards. See `02` §10.2. Recalibrate against outcomes in A3
+- Track overtaking multipliers (`02` §5.1) are hand-set judgements, not measurements. A3 **drops `m` entirely in v1** and tests the claim instead of assuming it: a fitted `s_grid` × circuit-tier interaction on `02`'s existing three tiers costs two parameters, not 33 (a per-circuit term would fit noise at ~8 races per circuit). Ordered as predicted → replace the hand-set numbers with the fitted ones; flat or inverted → drop the multiplier. Either result closes this (`05` §3.5)
+- ~~`T=0.1168` needs recalibrating against outcomes in A3~~ **Resolved 2026-08-23: `T` dissolves.** It existed only because `02` constrains the weights to sum to 1.0, which fixes their ratios but discards their scale — `T` put the scale back. A fitted `β` carries both, so there is no `T` left to recalibrate and no separate calibration step (`05` §3.1). The observation this entry recorded stands and is still the reason A1 alone runs flat: averaging eight partly-disagreeing features compresses top-of-field gaps (0.0774 synthetic vs. 0.0032 real P1−P2, `02` §10.2), which is precisely the compression a fit absorbs into coefficient scale
+- The 0.42 pole-conversion anchor (`02` §10.3) is a rounded historical figure — **no longer needs recomputing**, A3 doesn't use it at all (`05` §3.1)
+- `K_GRID`/`K_SPRINT`/`K_FIN` stay unfitted after A3 — they live *inside* the sub-scores, which A3 treats as fixed inputs, so a linear-in-`β` model can't tune them. Would need a grid search wrapping the whole fit, or a model over raw positions (`05` §10.3)
 - Weather feature's wet branch has never executed (Dutch GP was dry) — untested before a wet weekend
 - Polymarket driver-name → FIA code mapping table (no code exposed by that API; must be maintained)
-- De-vig method beyond A1 (proportional vs. longshot-aware) — defer to A3 calibration data
+- De-vig method beyond A1 (proportional vs. longshot-aware) — **re-filed 2026-08-23.** This was "defer to A3 calibration data," but A3 is market-blind by construction, so nothing in that phase produces evidence about de-vigging. It needs live-snapshotted races with realized outcomes (currently n=1) — the same scarce resource that limits the market baseline — so it's gated on race count, not on A3
 - ~~Snapshot retention: are `data/snapshots/*.json` committed to git?~~ Resolved: yes, three commits deep now (`data/snapshots/2026-12-race-*.json`, `-score.json`, `-postrace.json`)
 - FastF1 interpreter upgrade path: `brew install python@3.12` + venv vs. `uv`
 - Lane B: FastF1's live module does **not** parse in real time (records raw for post-session parsing, ~2h connection cap) — the B0 premise needs revisiting. See `01-data-pipeline.md` §9.5
@@ -178,8 +190,15 @@ Status: not started.
   round-indexed endpoint answers "after round N−1's race plus round N's sprint" (`01` §4.6).
   Bounded at 8 points on a leader-normalised 0.08-weight feature — revisit only if A3 shows F6
   mattering more than that
-- A3 backfill: F7's train/serve skew (`01` §5.6) needs a decision — train-dormant, or an
-  archive-derived wet proxy that means something different at train and inference time
+- ~~A3 backfill: F7's train/serve skew (`01` §5.6) needs a decision~~ Resolved 2026-08-23:
+  train-dormant, see the A3 phase entry above. What remains open is the *consequence* — A3 has no
+  wet term at all, so a wet race is out-of-domain for it. Fixing that needs either a weather
+  feature the archive can also produce, or enough live-snapshotted wet races to fit a term on
+  forecast probabilities directly (`05` §10.4)
+- A3: the regularization prior — shrink `β` toward zero, or toward A1's implied `β`? The latter is
+  more informative and makes "how far did the data move the weights?" readable straight off the
+  fit, but it is also a thumb on the scale for the baseline A3 is being tested against. Decide on
+  a validation split, not by argument (`05` §10.1)
 - Lane C: the illiquidity found at Monza (podium priced ~0.5 on $0–300 volume vs. the winner
   market's $1,400–$14,000) is filed under Phase A4 as a snapshot-*timing* problem. For Lane C it
   is also a **capacity** problem: a market priced at 0.5 on no volume is not mispriced, it is
