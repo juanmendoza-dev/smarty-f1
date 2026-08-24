@@ -41,8 +41,10 @@ The project is split into independent tracks. Don't conflate them — most confu
 
 - `docs/00-roadmap.md` — phased plan, current status, what's locked vs. still open
 - `docs/01-data-pipeline.md` — data sources, access methods, redundancy strategy (Lane A)
-- `docs/02-winner-prediction-algo.md` — the rule-based scoring spec (written once features/weights are defined)
-- `docs/03-live-telemetry-overtakes.md` — Lane B spec (stub for now, future phase)
+- `docs/02-winner-prediction-algo.md` — the rule-based scoring spec (Phase A1, weights locked)
+- `docs/04-outcome-expansion-algo.md` — podium, points, DNF, fastest lap (Phase A4)
+- `docs/05-trained-model.md` — the trained winner model (Phase A3, **current focus**). Read `02` first; A3's whole design turns on the fact that `02`'s scorer is already a conditional logit with hand-set coefficients
+- `docs/03-live-telemetry-overtakes.md` — Lane B spec. **Not written yet** — the file does not exist; Lane B is conceptual only, see the roadmap's Lane B phases
 - Lane C (trading bot) has no spec file yet — see the roadmap's Lane C phases for what's decided and what's still open
 
 If a decision you need isn't documented, don't assume — it means it hasn't been locked in yet. Ask.
