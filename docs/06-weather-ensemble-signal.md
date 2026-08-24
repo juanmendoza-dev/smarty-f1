@@ -1,8 +1,19 @@
 # 06 — Multi-Model Weather Ensemble Signal
 
-Status: **drafted 2026-08-23, not approved, not implemented.** This is a spec only — no code
-should be written against it until the owner locks it in, per `welcome.md`'s "no implementation
-without an approved spec" rule. Read `welcome.md` and `01-data-pipeline.md` §5 first.
+Status: **drafted 2026-08-23; revised and verified live 2026-08-24; not approved, not
+implemented.** Still a spec only — no code gets written against it until the owner locks it in,
+per `welcome.md`'s "no implementation without an approved spec" rule. Read `welcome.md` and
+`01-data-pipeline.md` §5 first.
+
+**Blocked on one decision that is not this document's to make:** the wet-race definition
+(§6.1). `snapshot.py:288` counts a 0.1 mm trace as a wet race, and §5.2 shows that rule decides
+which aggregate should feed F7's gate — the answer flips depending on it. Everything else here is
+settled and verified.
+
+The first draft's factual errors are corrected in place rather than quietly deleted, since the
+project's specs are also its decision record: §1 (the Zandvoort premise was invented), §2 (the
+calendar is not European), §3.3 (the rate-limit claim was unfounded), §4.1 (F7 does not read what
+the draft said it reads), §7.1 (this changes behaviour, it is not just cleaner data).
 
 ---
 
