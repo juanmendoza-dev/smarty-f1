@@ -311,7 +311,47 @@ Silverstone 2025. The misses are all at the 0.7–1.0 mm margin, and Imola 2025 
 That is the honest ceiling on §5.2's gains: **a better point estimate buys one marginal race in
 44.** The spread result in §5.3 is where the value is.
 
-## 5. How this feeds the rest of the project
+## 6. Decisions this spec proposes
+
+Three, in dependency order. The first is not this document's to make.
+
+### 6.1 The wet definition is the blocking question — owner's call
+
+`snapshot.py:288` calls a race wet at `max mm > 0.0`, and `02` §4's F7 builds each driver's
+wet-weather rating from races meeting that rule. A 0.1 mm trace therefore counts as a wet race,
+both for the historical feature and, by §5.2, for anything we tune a gate against.
+
+**This spec does not change it.** That rule lives in `01`, `02` and `snapshot.py`; changing it
+would silently redefine F7's active-branch feature for every driver, and `welcome.md` is explicit
+that undocumented decisions get asked about rather than assumed. What §5.2 establishes is that the
+rule is now load-bearing in a way it wasn't when it was written, and that it has to be settled
+before the rest of this spec can be locked.
+
+The recommendation, offered for that decision and not acted on here: **tighten to ≥ 0.5 mm.**
+A trace that leaves the track dry is not the phenomenon F7 exists to model, and §5.4 shows the
+races that actually matter clear 0.5 mm by a wide margin.
+
+### 6.2 Gate input — conditional on §6.1
+
+| if the wet rule is… | then F7's gate reads… | because |
+|---|---|---|
+| `> 0.0 mm` (today) | **`p_max`** | 82% vs 65% recall against today's blended call; `p_mean` at 59% would be a regression on what already runs |
+| `≥ 0.5 mm` (recommended) | **`p_mean`** | 75%/60% recall/precision, beating today's 62%/45%; `p_max` collapses to 38% precision |
+
+**These have to move together.** Adopting `p_mean` while the code still calls 0.1 mm wet ships a
+gate tuned for material rain against a history feature built on traces — the same "different
+quantities wearing the same name" failure `01` §5.6 spends a page rejecting for the backfill.
+
+`p_max`, `p_mean` and `p_spread` are all persisted either way (§4.4); this decides only which one
+is compared against 40.
+
+### 6.3 Agreement threshold — `p_spread < 15 pp`
+
+Resolved by §5.3, with the fitted-statistic caveat recorded there. Anywhere in 10–18 pp works;
+15 pp is proposed because it was the value guessed before the data was seen and it sits in the
+middle of the flat region.
+
+## 7. How this feeds the rest of the project
 
 - **F7 (weather feature, `02`).** `p_mean`/`p_max` replace the single-model reads `01` §5 currently
   produces; F7's dormancy gate and wet-branch logic (`02` §5, `01` §5.6) are otherwise unchanged.
@@ -331,7 +371,7 @@ That is the honest ceiling on §5.2's gains: **a better point estimate buys one 
   it does not decide sizing or trade logic, which stays out of scope until Lane C has its own
   approved spec per the roadmap's standing rule.
 
-## 6. What this spec does not do
+## 9. What this spec does not do
 
 - Does not add a new API, key, or paid tier. Same Open-Meteo endpoint, one added query parameter.
 - Does not self-host GraphCast, Pangu-Weather, or any other ML weather model.
@@ -340,7 +380,7 @@ That is the honest ceiling on §5.2's gains: **a better point estimate buys one 
 - Does not change the snapshot schema's top-level shape (`01` §8.3) — `weather` gains richer
   per-model content, it doesn't become a new top-level key.
 
-## 7. Open items
+## 10. Open items
 
 1. **Agreement threshold for the `agree`/`disagree` flag (§4).** Needs a value before this is
    buildable — e.g. spread < 15pp = agree — but that number should be picked by looking at how
@@ -364,7 +404,7 @@ That is the honest ceiling on §5.2's gains: **a better point estimate buys one 
 
 ---
 
-## 8. Sources
+## 11. Sources
 
 - [Open-Meteo](https://open-meteo.com/) · [forecast API docs / `models` parameter](https://open-meteo.com/en/docs)
 - [GraphCast (Google DeepMind, GitHub)](https://github.com/google-deepmind/graphcast)
