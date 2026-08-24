@@ -158,10 +158,10 @@ Status: not started.
     asserted the race was wet; the roadmap's own open items and `02` §10.4 both say it was dry, it
     ran full distance, and the observation archive shows 0.0–0.1mm. Neither venue exposes
     historical odds, so the market half was never checkable either.
-  - What replaced it is a measured result (`06` §5.3): across 44 races, **all nine of today's
-    weather-gate errors fell in the 43% of races where the four models disagreed by ≥15pp, and it
-    was never wrong on the 25 races where they agreed.** The value of querying several models is
-    the disagreement, not the average. Reproduce with `weather_backtest.py`.
+  - What replaced it is a measured result (`06` §5.3): across 44 races, today's weather-gate errors
+    concentrate in the 43% of races where the four models disagreed by ≥15pp — **5 of 6 under the
+    wet rule in force, 9 of 9 under a ≥0.5mm rule.** The value of querying several models is the
+    disagreement, not the average. Reproduce with `weather_backtest.py`.
   - The agreement threshold (15pp) and race window (`snapshot.py:320`, lights-out local ±2h) are
     both settled. **One blocking item is left, and it's the owner's:** `snapshot.py:288` calls a
     0.1mm trace a wet race, and which aggregate feeds F7's gate flips on that definition —
