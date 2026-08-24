@@ -6,9 +6,10 @@ per `welcome.md`'s "no implementation without an approved spec" rule. Read `welc
 `01-data-pipeline.md` §5 first.
 
 **Blocked on one decision that is not this document's to make:** the wet-race definition
-(§6.1). `snapshot.py:288` counts a 0.1 mm trace as a wet race, and §5.2 shows that rule decides
-which aggregate should feed F7's gate — the answer flips depending on it. Everything else here is
-settled and verified.
+(§6.1). `snapshot.py:288` counts a 0.1 mm trace as a wet race, and that rule turns out to gate the
+whole document — not just §6.2's choice of aggregate, which flips on it, but the strength of §5.3's
+central result too. Everything here is verified; what it recommends is conditional on that one
+call.
 
 The first draft's factual errors are corrected in place rather than quietly deleted, since the
 project's specs are also its decision record: §1 (the Zandvoort premise was invented), §2 (the
@@ -47,13 +48,13 @@ under-price. Nothing in this document rests on it any more.
 Replayed across 44 races (§5), the single blended call the pipeline makes today has two measurable
 weaknesses:
 
-1. **It misses wet races.** At the racing-relevant threshold — observed ≥ 0.5 mm — today's call
-   fires F7's gate on 5 of 8 wet races, at 45% precision. A four-model mean gets 6 of 8 at 60%.
-   Modest, but it is a real gain on the exact quantity F7 keys off.
-2. **It cannot tell you when to distrust it.** This is the bigger one. A single number carries no
-   indication of its own reliability. Across those 44 races, every one of the blended gate's nine
-   errors fell in the 43% of races where the four models disagreed by ≥ 15 pp — and in the 25
-   races where they agreed, it was **never** wrong (§5.3).
+1. **It misses wet races** — under the ≥ 0.5 mm rule §6.1 recommends. Today's call fires F7's gate
+   on 5 of 8 wet races at 45% precision; a four-model mean gets 6 of 8 at 60%. Modest, and it does
+   not hold under the `> 0.0 mm` rule currently in force, where the mean is a regression (§6.2).
+2. **It cannot tell you when to distrust it.** This is the bigger one, and unlike #1 it holds under
+   every wet rule. A single number carries no indication of its own reliability. Across those 44
+   races, the blended gate's errors concentrate in the 43% of races where the four models disagreed
+   by ≥ 15 pp — 5 of 6 under today's rule, 9 of 9 under ≥ 0.5 mm (§5.3).
 
 That second finding is what this document is now built on. The value of querying several models is
 less that their average is a better forecast, and more that their **disagreement marks the races
@@ -275,33 +276,46 @@ races, `p_mean` 23%, `p_max` 36%.
 
 ### 5.3 `p_spread` — the result that justifies this spec
 
-Take today's blended gate as the thing being judged, score it against observed ≥ 0.5 mm, and split
-the 44 races by whether the four models agreed:
+Take today's blended gate as the thing being judged, and split the 44 races by whether the four
+models agreed (`p_spread < 15 pp`). Scored under all three wet rules, because §6.1 leaves that rule
+open and a single-definition answer would be quoting a rule this spec doesn't adopt:
 
-| | races | blended gate wrong |
-|---|---|---|
-| `p_spread` < 15 pp (agree) | 25 | **0 (0%)** |
-| `p_spread` ≥ 15 pp (disagree) | 19 | **9 (47%)** |
-
-All nine of the gate's errors fall in the 43% of races where the models disagreed. Median spread
-was 35 pp on the races it got wrong versus 2 pp on the races it got right.
-
-Sensitivity, because a single threshold that looks clean is usually fitted:
-
-| agree threshold | n agree | errors | n disagree | errors |
+| wet rule | agree bucket | errors | disagree bucket | errors |
 |---|---|---|---|---|
-| < 10 pp | 24 | 0 (0%) | 20 | 9 (45%) |
-| < 15 pp | 25 | 0 (0%) | 19 | 9 (47%) |
-| < 20 pp | 26 | 1 (4%) | 18 | 8 (44%) |
-| < 25 pp | 28 | 2 (7%) | 16 | 7 (44%) |
-| < 30 pp | 31 | 3 (10%) | 13 | 6 (46%) |
+| **> 0.0 mm — in force today** | 25 | **1 (4%)** | 19 | **5 (26%)** |
+| ≥ 0.5 mm | 25 | **0 (0%)** | 19 | **9 (47%)** |
+| ≥ 1.0 mm | 25 | 0 (0%) | 19 | 7 (37%) |
 
-Anywhere in 10–18 pp gives a clean split; 15 sits mid-plateau rather than on an edge. Two honesty
-notes: **15 pp was the first draft's guessed value** and it survived contact with the data, but the
-*statistic* it applies to was changed after seeing the distribution (§4.2), so the threshold is
-inherited and the statistic is fitted. And the low-spread bucket is dominated by obviously-dry
-races, so 0/25 is partly "easy cases are easy." The defensible claim is the narrower one: **a
-≥ 15 pp spread captured 9 of 9 of the gate's errors while flagging only 43% of races.**
+**The direction holds under every rule; the strength does not.** Model disagreement concentrates
+the gate's errors in all three — but "never wrong when the models agree" is true only at ≥ 0.5 mm
+and above. Under the rule actually in force, one error lands in the agree bucket.
+
+That one error is worth naming, because it argues §6.1's case rather than against it: **Mexico City
+2024** — 0.1 mm observed, blended forecast 8, `p_spread` 5.0. Four models agreed there would be no
+rain, the gate stayed dormant, and a 0.1 mm trace fell. Under any definition of wet that means
+*wet racing conditions*, the forecast and the gate were both right. It counts as an error only
+because `> 0.0 mm` says it does.
+
+Sensitivity, because a threshold that looks clean is usually fitted:
+
+| agree threshold | > 0.0 mm: errors in agree / disagree | ≥ 0.5 mm: errors in agree / disagree |
+|---|---|---|
+| < 10 pp | 1 of 24 / 5 of 20 | 0 of 24 / 9 of 20 |
+| < 15 pp | 1 of 25 / 5 of 19 | 0 of 25 / 9 of 19 |
+| < 20 pp | 2 of 26 / 4 of 18 | 1 of 26 / 8 of 18 |
+| < 25 pp | 2 of 28 / 4 of 16 | 2 of 28 / 7 of 16 |
+| < 30 pp | 3 of 31 / 3 of 13 | 3 of 31 / 6 of 13 |
+
+Anywhere in 10–18 pp behaves the same; 15 sits mid-plateau rather than on an edge. Three honesty
+notes:
+
+- **15 pp was the first draft's guessed value** and survived contact with the data — but the
+  *statistic* it applies to was changed after seeing the distribution (§4.2). The threshold is
+  inherited; the statistic is fitted.
+- **The low-spread bucket is dominated by obviously-dry races**, so a near-zero error rate there is
+  partly "easy cases are easy."
+- The defensible claim is the narrow one: **a ≥ 15 pp spread captured 5 of 6 of the gate's errors
+  under today's rule, and 9 of 9 under a ≥ 0.5 mm rule, while flagging only 43% of races.**
 
 ### 5.4 Every wet race in the corpus
 

@@ -201,16 +201,26 @@ def report(rows, skipped):
             print(f"{label:<26}{tp:>4}{fp:>4}{fn:>4}{tn:>4}{rec:>8.0%}{pre:>11.0%}")
         print()
 
-    print("--- p_spread: does model disagreement flag the gate's own errors? ---")
-    print("(error = today's blended gate disagreeing with observed >= 0.5mm)")
-    print(f"{'agree threshold':<18}{'n agree':>9}{'errors':>9}{'n disagree':>13}{'errors':>9}")
-    for thr in (10, 15, 20, 25, 30):
-        agree = [r for r in rows if r["p_spread"] < thr]
-        disagree = [r for r in rows if r["p_spread"] >= thr]
-        ea = sum(1 for r in agree if (r["blend"] >= P_GATE) != r["wet_0.5"])
-        ed = sum(1 for r in disagree if (r["blend"] >= P_GATE) != r["wet_0.5"])
-        print(f"{'< ' + str(thr) + 'pp':<18}{len(agree):>9}{ea:>4} ({ea/len(agree) if agree else 0:>3.0%})"
-              f"{len(disagree):>13}{ed:>4} ({ed/len(disagree) if disagree else 0:>3.0%})")
+    # Scored under every wet rule, not just one. Which rule is in force is exactly
+    # what sec6.1 leaves open, so a spread result quoted under a single definition
+    # would be quoting the rule this spec doesn't adopt.
+    for t in WET_THRESHOLDS:
+        wet_key = f"wet_{t}"
+        rule = "> 0.0mm (in force today)" if t == 0.0 else f">= {t}mm"
+        print(f"--- p_spread vs the blended gate's own errors, wet = {rule} ---")
+        print(f"{'agree threshold':<18}{'n agree':>9}{'errors':>9}{'n disagree':>13}{'errors':>9}")
+        for thr in (10, 15, 20, 25, 30):
+            agree = [r for r in rows if r["p_spread"] < thr]
+            disagree = [r for r in rows if r["p_spread"] >= thr]
+            ea = sum(1 for r in agree if (r["blend"] >= P_GATE) != r[wet_key])
+            ed = sum(1 for r in disagree if (r["blend"] >= P_GATE) != r[wet_key])
+            print(f"{'< ' + str(thr) + 'pp':<18}{len(agree):>9}{ea:>4} ({ea/len(agree) if agree else 0:>3.0%})"
+                  f"{len(disagree):>13}{ed:>4} ({ed/len(disagree) if disagree else 0:>3.0%})")
+        misses = [r for r in rows if (r["blend"] >= P_GATE) != r[wet_key] and r["p_spread"] < 15]
+        for r in misses:
+            print(f"    error inside the agree bucket: {r['date']} {r['name'][:24]:<24}"
+                  f" obs {r['obs_mm']:>4.1f}mm  blend {r['blend']:>3}  p_spread {r['p_spread']:>4.1f}")
+        print()
 
     print("\n--- every race with observed >= 0.5mm ---")
     print(f"{'date':<12}{'race':<30}{'obs mm':>7}{'blend':>7}{'p_mean':>8}{'p_max':>7}{'p_spread':>10}")
