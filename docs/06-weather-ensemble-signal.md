@@ -142,26 +142,56 @@ In the style of `01` §5.4, and additional to it:
 
 ## 4. What the ensemble produces
 
-For each hourly step in the race window, per model: `precipitation_probability`,
-`precipitation` (mm), and whichever other Tier-1 fields `01` §5.2 already pulls
-(`temperature_2m`, `wind_speed_10m`, `relative_humidity_2m`).
+Per model, for each hour in the race window (§3.2): `precipitation_probability`, `precipitation`
+(mm), and the other Tier-1 fields `01` §5.2 already pulls (`temperature_2m`, `wind_speed_10m`,
+`relative_humidity_2m`).
 
-From the four models' values at each hour, compute:
+### 4.1 What F7 actually consumes — a correction
 
-- **`p_mean`** — mean precipitation probability across models. Proposed replacement for the single
-  provider-blended value F7 currently reads.
-- **`p_spread`** — max − min precipitation probability across models. Low spread means the models
-  agree (high-confidence read, whichever direction); high spread means genuine forecast
-  uncertainty at that lead time.
-- **`p_max`** — the maximum across models. `02`'s F7 gate already keys off a `P_max < 40` dormancy
-  threshold (`01` §5.6) — this is a fully compatible drop-in resolution of what "max" means, since
-  today `p_max` is read off a single blended source, not a true max over independent models.
-- **Agreement flag** — `agree` (spread below some threshold, TBD — see §7) vs. `disagree`, recorded
-  alongside the numeric spread so a downstream consumer doesn't have to re-derive a threshold
-  decision Lane A already made.
+The first draft called `p_mean` a "replacement for the single provider-blended value F7 currently
+reads." **There is no such value.** `02` §4's F7 consumes exactly one scalar: `P_max`, the maximum
+`precipitation_probability` across the race-window hours, compared against 40. That is the entire
+weather interface.
+
+So the question is not which of these aggregates replaces which existing field. It is: **which
+single number goes into that one slot.** §6 answers it with the backtest rather than by preference.
+
+### 4.2 The three aggregates
+
+Written as expressions because the order of collapse changes the answer, and prose hides that.
+Let `p[m][h]` be model `m`'s probability at window hour `h`, over `M` = the four models.
+
+```
+p_mean   = max over h of ( mean over m of p[m][h] )
+p_max    = max over h of ( max  over m of p[m][h] )
+p_spread = median over h of ( max over m of p[m][h] − min over m of p[m][h] )
+```
+
+Three things this pins down that the first draft left loose:
+
+- **`p_mean` collapses models first, then hours.** `mean(max(...))` is a different and larger
+  number; taking the max of already-averaged hours is the one that answers "what does the ensemble
+  as a whole say at its wettest point."
+- **`p_max` is a max over both axes**, so it composes cleanly with F7's existing max-over-hours —
+  but it is a genuinely different quantity from today's blended `P_max`, not a drop-in. §5 shows
+  it fires roughly a third more often.
+- **`p_spread` uses the median hour, not the max hour.** The max-over-window spread distribution
+  is badly skewed — across 44 races its quartiles are 0 / 11 / 50 / 98 pp — so one volatile hour
+  would set the flag for an entire race. The median hour is stable: quartiles 0 / 5 / 33 pp.
+  *(The first draft proposed max − min without saying over what; this is a change, and it was made
+  after looking at the distribution, so it is a fitted choice rather than a principled one.)*
+
+### 4.3 Agreement flag
+
+`agree` when `p_spread < 15pp`, else `disagree`, persisted next to the numeric spread so a
+downstream consumer isn't left re-deriving a threshold decision. The value is justified in §5.3.
+
+### 4.4 Persistence
 
 All four raw per-model series are persisted alongside the derived fields — never only the
-aggregate — matching the snapshot's existing raw+normalized pattern for market odds (`01` §8.4).
+aggregate — matching the raw+normalized pattern `01` §8.4 mandates for market odds. Concretely the
+snapshot's `weather` key gains a `per_model` block and the three aggregates; its top-level shape
+(`01` §8.3) does not change.
 
 ## 5. How this feeds the rest of the project
 
