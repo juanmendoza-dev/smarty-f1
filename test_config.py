@@ -39,6 +39,28 @@ class TestCircuitTables(unittest.TestCase):
             with self.subTest(circuit=circuit_id):
                 ZoneInfo(tz)
 
+    # Every circuitId Jolpica returns for 2014-2026, enumerated live on
+    # 2026-08-24 (05-trained-model.md sec4.3/sec5.2). Hardcoded rather than
+    # re-fetched so this stays an offline test; a new circuit joining the
+    # calendar shows up as a race-config failure in TestRaceConfigs, which
+    # does hit the network.
+    A3_BACKFILL_CORPUS = {
+        "albert_park", "americas", "bahrain", "baku", "catalunya", "hockenheimring",
+        "hungaroring", "imola", "interlagos", "istanbul", "jeddah", "losail",
+        "madring", "marina_bay", "miami", "monaco", "monza", "mugello",
+        "nurburgring", "portimao", "red_bull_ring", "ricard", "rodriguez",
+        "sepang", "shanghai", "silverstone", "sochi", "spa", "suzuka",
+        "vegas", "villeneuve", "yas_marina", "zandvoort",
+    }
+
+    def test_timezone_table_covers_the_whole_a3_backfill_corpus(self):
+        """CIRCUIT_TIMEZONE is indexed as a bare dict lookup in
+        build_track_history and build_weather, so a circuit missing here is a
+        KeyError that kills the backfill mid-run rather than degrading. It was
+        15 of these 33 before 2026-08-24."""
+        missing = self.A3_BACKFILL_CORPUS - set(snapshot.CIRCUIT_TIMEZONE)
+        self.assertEqual(missing, set(), f"backfill would KeyError on: {sorted(missing)}")
+
 
 class TestRaceConfigs(unittest.TestCase):
     def test_there_is_at_least_one(self):
