@@ -470,39 +470,60 @@ verify (§3.3).
 
 ## 9. What this spec does not do
 
-- Does not add a new API, key, or paid tier. Same Open-Meteo endpoint, one added query parameter.
+- Does not add a key, a paid tier, or a new provider. Everything here is Open-Meteo's free keyless
+  tier. §8.3's forward-collection suggestion does use a second Open-Meteo endpoint, and is a
+  suggestion, not part of what this spec proposes locking.
 - Does not self-host GraphCast, Pangu-Weather, or any other ML weather model.
-- Does not change F7's train-dormant status or A3's design matrix.
-- Does not implement trade logic. No Lane C code is authorized by this document.
-- Does not change the snapshot schema's top-level shape (`01` §8.3) — `weather` gains richer
-  per-model content, it doesn't become a new top-level key.
+- Does not change F7's train-dormant status or A3's design matrix (`01` §5.6, `05` §3.3).
+- **Does not change the wet-race definition** (`snapshot.py:288`, `02` §4). §6.1 argues it should
+  change and hands the decision to the owner; nothing here acts on it.
+- Does not change F7's wet-branch logic — only the scalar that enters its gate (§7.1).
+- Does not implement trade logic. §7.4 is a labelled hypothesis. No Lane C code is authorized here.
+- Does not change the snapshot schema's top-level shape (`01` §8.3) — `weather` gains a `per_model`
+  block and three aggregates, it doesn't become a new top-level key.
 
 ## 10. Open items
 
-1. **Agreement threshold for the `agree`/`disagree` flag (§4).** Needs a value before this is
-   buildable — e.g. spread < 15pp = agree — but that number should be picked by looking at how
-   much these four models actually disagree in practice over a few real forecast windows, not
-   guessed. Owner's call, or defer to whoever implements this and record the reasoning here.
-2. **Model list (§3).** Four is proposed as "enough independent centers without diminishing
-   returns," not verified against Open-Meteo's full model catalogue. Worth a quick live check of
-   which named models Open-Meteo actually serves for these circuits' coordinates before locking
-   the list — some regional models may not cover, e.g., a circuit outside Europe.
-3. **Race window definition.** "The race window" needs a concrete rule (e.g. lights-out time ± 2h,
-   local) applied consistently to which hourly rows get aggregated — not specified yet, should
-   reuse whatever `01`'s existing weather pull already does for hour selection if that's already
-   decided there.
-4. **How `p_spread` actually gets used downstream (§5).** Flagged as a signal, not specced as a
-   feature — whether it becomes a literal input to a future F7 variant, a Lane C confidence gate,
-   or just a human-readable flag in the snapshot for now is undecided.
-5. **Verification.** Nothing in this document has been verified live against Open-Meteo yet
-   (contrast with `01-data-pipeline.md`, which states everything was called live before being
-   written down). This spec should not be treated as build-ready until that verification pass
-   happens, matching this project's own stated bar for its specs.
+Resolved since the first draft, kept visible so the trail is readable:
+
+- ~~**Agreement threshold**~~ — **15 pp** on `p_spread`, §5.3/§6.3. Sensitivity checked; 10–18 pp
+  all give a clean split.
+- ~~**Model list unverified**~~ — all four verified live and global (§3.1). No coverage gap at
+  non-European circuits, no per-venue model list needed.
+- ~~**Race window undefined**~~ — already fixed in code at `snapshot.py:320`, lights-out local
+  ± 2h inclusive (§3.2). Reuse it.
+- ~~**Nothing verified live**~~ — the call, the response shape, coverage at three circuits, the
+  pre-2024 null gap, and a 44-race backtest are all verified (§3.1, §5). Reproduce with
+  `weather_backtest.py`.
+
+Still open:
+
+1. **The wet-race definition — blocking, owner's call (§6.1).** `> 0.0 mm` counts a 0.1 mm trace
+   as a wet race. Recommend tightening to `≥ 0.5 mm`. **§6.2's gate choice cannot be locked until
+   this is settled**, because the two answers point at different aggregates. This is the one item
+   holding up the whole document.
+2. **Rate-limit weighting (§3.3).** Whether four models counts as one weighted call or twenty
+   against the 10,000/day free allowance is unverified — no quota headers are returned. Immaterial
+   for Lane A's one call per race; worth knowing before an A3 backfill.
+3. **`p_spread`'s downstream consumer (§7.3).** The proposed minimum is a snapshot flag plus a
+   weather-uncertain marker on predictions. Whether it ever becomes a feature in its own right, or
+   a Lane C gate, is not decided.
+4. **The Lane C hypothesis (§7.4) is untested** and needs snapshotted odds on high-spread races,
+   which accrue at roughly one per wet weekend. Log the data; don't build on it.
+5. **`test_f7_wet_branch.py` is the shipping gate (§7.1).** Changing the gate input is what first
+   fires a branch that has never run on a real race. That test existing is not the same as it
+   having been exercised against the ensemble path.
+6. **Backtest scale.** n = 44, with 8 wet races at the ≥ 0.5 mm rule, and the replay is optimistic
+   on lead time (§5.1). Re-run `weather_backtest.py` as seasons accumulate; the per-model history
+   only began in 2024-05, so the corpus grows on its own.
 
 ---
 
 ## 11. Sources
 
 - [Open-Meteo](https://open-meteo.com/) · [forecast API docs / `models` parameter](https://open-meteo.com/en/docs)
+- [Open-Meteo historical forecast API](https://open-meteo.com/en/docs/historical-forecast-api) — archived past runs, the basis for §5
+- [Open-Meteo ensemble API](https://open-meteo.com/en/docs/ensemble-api) — §8
 - [GraphCast (Google DeepMind, GitHub)](https://github.com/google-deepmind/graphcast)
 - [Pangu-Weather (Huawei, GitHub)](https://github.com/198808xc/Pangu-Weather)
+- `weather_backtest.py` (this repo) — reproduces every figure in §5
