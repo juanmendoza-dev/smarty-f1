@@ -233,10 +233,22 @@ def build_form(season, round_, grid, cache_dir, race_has_run=False):
         )
         provenance.append(ds_meta)
         standings_after_round = ds_meta.get("standings_round")
+    # "position" is genuinely absent -- not empty, absent -- for every driver
+    # tied on zero points, who get positionText "-" instead. Jolpica declines
+    # to rank a block of drivers it can't separate, which is most of the field
+    # after round 1 of any season: verified live on 2015 R1, where 7 of 18
+    # drivers have no position key. Nothing scores off this field (F6 divides
+    # points by leader points, score.compute_champ:179), so it stays as
+    # diagnostic metadata and goes None rather than inventing a rank.
+    #
+    # This is not backfill-specific and predates A3 -- a live snapshot taken at
+    # round 2 of a season would have hit it just the same. It had never fired
+    # because every prior run was mid-season 2026 or the 2023 Dutch GP (R13).
     standings = [
         {
             "code": s["Driver"]["code"],
-            "position": int(s["position"]),
+            "position": int(s["position"]) if "position" in s else None,
+            "position_text": s.get("positionText"),
             "points": float(s["points"]),
             "constructor_id": s["Constructors"][0]["constructorId"] if s.get("Constructors") else None,
         }
