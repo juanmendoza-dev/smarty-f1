@@ -62,9 +62,15 @@ were considered:
 - **Query multiple existing operational models through one free API and treat their spread as the
   signal.** This is what's specced below. Open-Meteo is not itself a model — it's a free,
   keyless aggregator in front of several state-of-the-art operational models, including ECMWF's
-  IFS/AIFS (widely regarded as the strongest global model for Europe, where every 2026 circuit
-  used by this project sits). The "advanced model" the project actually gets access to, for free,
-  is ECMWF — the ensemble adds cross-model agreement as a second signal on top of it.
+  IFS, generally the strongest of the global deterministic models. The "advanced model" the
+  project gets access to for free is ECMWF; the ensemble adds cross-model agreement on top of it.
+
+  The first draft justified this by saying ECMWF is strongest over Europe, "where every 2026
+  circuit used by this project sits." **That is false** — `02` §5.1's own multiplier table lists
+  Singapore, Suzuka, Austin, Melbourne, Baku, Jeddah and Interlagos. The calendar is global, so a
+  Europe-specific argument doesn't carry, and the reason to prefer ECMWF has to be its
+  general-purpose skill rather than a regional one. This matters practically: it rules out picking
+  regional models (ICON-EU, HRRR) that would go blind for half the season.
 
 **Decision this spec proposes:** no self-hosted model. Multi-model ensemble via Open-Meteo only.
 
