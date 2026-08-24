@@ -45,7 +45,7 @@ The project is split into independent tracks. Don't conflate them — most confu
 - `docs/04-outcome-expansion-algo.md` — podium, points, DNF, fastest lap (Phase A4)
 - `docs/05-trained-model.md` — the trained winner model (Phase A3, **current focus**). Read `02` first; A3's whole design turns on the fact that `02`'s scorer is already a conditional logit with hand-set coefficients
 - `docs/03-live-telemetry-overtakes.md` — Lane B spec. **Not written yet** — the file does not exist; Lane B is conceptual only, see the roadmap's Lane B phases
-- `docs/06-weather-ensemble-signal.md` — multi-model weather ensemble spec. **Drafted, not approved, not implemented** — a proposal to strengthen F7's weather input and surface cross-model forecast disagreement as a trading signal
+- `docs/06-weather-ensemble-signal.md` — multi-model weather ensemble spec. **Verified against 44 races, not approved, not implemented** — queries four named weather models instead of one blend, and uses their disagreement to flag when our own forecast can't be trusted. Blocked on one owner decision: whether a 0.1mm trace should keep counting as a wet race (§6.1)
 - Lane C (trading bot) has no spec file yet — see the roadmap's Lane C phases for what's decided and what's still open
 
 If a decision you need isn't documented, don't assume — it means it hasn't been locked in yet. Ask.

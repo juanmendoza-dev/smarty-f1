@@ -222,8 +222,9 @@ def report(rows, skipped):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--from-season", type=int, default=2024,
-                    help="first season to consider (per-model history starts ~2024-05)")
+    ap.add_argument("--from-season", type=int, default=2021,
+                    help="first season to consider. Defaults back past the ~2024-05 start of "
+                         "per-model history so the skipped count stays visible")
     ap.add_argument("--to-season", type=int, default=datetime.now(timezone.utc).year)
     ap.add_argument("--today", default=datetime.now(timezone.utc).date().isoformat(),
                     help="ignore races after this date")

@@ -34,7 +34,7 @@ unconfirmed.) In racing terms, it did not rain.
 
 And yet `snapshot.py:288` defines a wet race as `max mm > 0.0` over the race window — so 0.1 mm
 clears the bar. **The same race is wet in the code and dry in the prose.** That gap is not a
-footnote; §5.4 below shows it decides which aggregate this spec should feed F7, so it is the first
+footnote; §5.2 below shows it decides which aggregate this spec should feed F7, so it is the first
 thing an owner has to rule on.
 
 The claim that the market under-priced rain is **withdrawn**. Neither venue exposes historical
@@ -57,7 +57,8 @@ weaknesses:
 
 That second finding is what this document is now built on. The value of querying several models is
 less that their average is a better forecast, and more that their **disagreement marks the races
-where any single forecast — ours or the crowd's — is unreliable.**
+where our own forecast is unreliable.** (Whether the same holds for the crowd's implied forecast is
+a separate and untested claim — §7.4.)
 
 ## 2. What "super advanced" means here — and what it doesn't
 
@@ -212,7 +213,8 @@ below, and imports nothing from the snapshot path.
 
 ### 5.1 Method
 
-For every race from 2021 on that publishes a start time, over the §3.2 window:
+For every race from 2021 on that publishes a start time, over the §3.2 window (the script's
+default range, so a bare `python3 weather_backtest.py` reproduces the counts below):
 
 | | source | quantity |
 |---|---|---|
