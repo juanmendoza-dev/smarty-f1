@@ -148,14 +148,25 @@ Status: not started.
 
 ## Open decisions
 
-- **New 2026-08-24:** multi-model weather ensemble spec drafted (`06-weather-ensemble-signal.md`)
-  — proposes querying Open-Meteo with an explicit `models=` list (ECMWF IFS, GFS, ICON, GEM)
-  instead of the provider's single blended default, to strengthen F7's input and surface
-  cross-model forecast disagreement as a Lane A/Lane C confidence signal (motivated by Zandvoort's
-  market under-pricing rain risk). **Drafted only — not approved, not implemented, not verified
-  live.** No self-hosted ML weather model (GraphCast/Pangu-Weather considered and rejected as
-  out of scope/zero-budget-incompatible). Needs an agreement-threshold value and a locked race-window
-  definition before it's buildable — see its own §7.
+- **New 2026-08-24:** multi-model weather ensemble spec drafted, then revised and verified against
+  44 races the same day (`06-weather-ensemble-signal.md`) — queries Open-Meteo with an explicit
+  `models=` list (ECMWF IFS, GFS, ICON, GEM) instead of the provider's blended default. **Not
+  approved, not implemented.** No self-hosted ML weather model (GraphCast/Pangu-Weather rejected as
+  out of scope/zero-budget-incompatible); Open-Meteo's real 50-member ensemble API considered and
+  deferred, since its ~93-day past window can't be backtested (`06` §8).
+  - The draft's motivation — Zandvoort's market under-pricing rain risk — is **withdrawn**. It
+    asserted the race was wet; the roadmap's own open items and `02` §10.4 both say it was dry, it
+    ran full distance, and the observation archive shows 0.0–0.1mm. Neither venue exposes
+    historical odds, so the market half was never checkable either.
+  - What replaced it is a measured result (`06` §5.3): across 44 races, **all nine of today's
+    weather-gate errors fell in the 43% of races where the four models disagreed by ≥15pp, and it
+    was never wrong on the 25 races where they agreed.** The value of querying several models is
+    the disagreement, not the average. Reproduce with `weather_backtest.py`.
+  - The agreement threshold (15pp) and race window (`snapshot.py:320`, lights-out local ±2h) are
+    both settled. **One blocking item is left, and it's the owner's:** `snapshot.py:288` calls a
+    0.1mm trace a wet race, and which aggregate feeds F7's gate flips on that definition —
+    `p_max` if `>0.0mm` stays, `p_mean` if it tightens to `≥0.5mm`. `06` §6.1 recommends
+    tightening and deliberately does not act on it.
 - Track overtaking multipliers (`02` §5.1) are hand-set judgements, not measurements. A3 **drops `m` entirely in v1** and tests the claim instead of assuming it: a fitted `s_grid` × circuit-tier interaction on `02`'s existing three tiers costs two parameters, not 33 (a per-circuit term would fit noise at ~8 races per circuit). Ordered as predicted → replace the hand-set numbers with the fitted ones; flat or inverted → drop the multiplier. Either result closes this (`05` §3.5)
 - ~~`T=0.1168` needs recalibrating against outcomes in A3~~ **Resolved 2026-08-23: `T` dissolves.** It existed only because `02` constrains the weights to sum to 1.0, which fixes their ratios but discards their scale — `T` put the scale back. A fitted `β` carries both, so there is no `T` left to recalibrate and no separate calibration step (`05` §3.1). The observation this entry recorded stands and is still the reason A1 alone runs flat: averaging eight partly-disagreeing features compresses top-of-field gaps (0.0774 synthetic vs. 0.0032 real P1−P2, `02` §10.2), which is precisely the compression a fit absorbs into coefficient scale
 - The 0.42 pole-conversion anchor (`02` §10.3) is a rounded historical figure — **no longer needs recomputing**, A3 doesn't use it at all (`05` §3.1)
