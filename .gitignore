@@ -2,6 +2,7 @@
 data/cache/
 __pycache__/
 *.pyc
+.venv312/
 # data/training/ is deliberately NOT ignored: 05-trained-model.md sec5.1 picks
 # CSV partly so the training set stays diffable in git, and for a portfolio
 # project the matrix being inspectable is the point. The cache below is a
