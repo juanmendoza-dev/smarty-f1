@@ -144,7 +144,7 @@ class Race:
     """One choice set: every driver on the grid for one (season, round)."""
 
     __slots__ = ("season", "round", "date", "circuit_id", "codes", "x",
-                 "win_index", "p_a1")
+                 "win_index", "n_wins", "p_a1")
 
     def __init__(self, season, round_, date, circuit_id):
         self.season = season
@@ -154,6 +154,7 @@ class Race:
         self.codes = []
         self.x = []
         self.win_index = None
+        self.n_wins = 0
         self.p_a1 = []
 
     @property
@@ -203,7 +204,10 @@ def load_matrix(path, quiet=False):
         is_last = i == len(rows) - 1
         try:
             parsed = _parse_row(row)
-        except (TypeError, ValueError, KeyError) as e:
+        except (TypeError, ValueError, KeyError, AssertionError) as e:
+            # AssertionError is in the list because InvariantError subclasses it,
+            # and a truncated line reaches _parse_row as a row of None cells --
+            # which trips require() before it ever reaches float().
             if is_last:
                 dropped.append(("torn final line", repr(e)))
                 break
@@ -221,6 +225,7 @@ def load_matrix(path, quiet=False):
         race.p_a1.append(parsed["p_a1"])
         if parsed["label"] == 1:
             race.win_index = len(race.codes) - 1
+            race.n_wins += 1
 
     # sec9 assertion 1, and the sum-to-1 half of assertion 9 for the A1 column.
     ok = []
@@ -232,7 +237,7 @@ def load_matrix(path, quiet=False):
         elif is_last:
             dropped.append((f"{race.season} R{race.round}", problem))
         else:
-            raise AssertionError(f"{race.season} R{race.round}: {problem}")
+            require(False, f"{race.season} R{race.round}: {problem}")
 
     if dropped and not quiet:
         for what, why in dropped:
@@ -269,8 +274,10 @@ def _parse_row(row):
 def _race_problem(race):
     if len(race) < 2:
         return f"choice set has {len(race)} driver(s)"
-    if race.win_index is None:
-        return "no label-1 row"
+    # sec9 assertion 1. Two label-1 rows in one group means the race was written
+    # twice by a resumed backfill, which would double-count it in every metric.
+    if race.n_wins != 1:
+        return f"{race.n_wins} label-1 rows, expected exactly 1"
     total = sum(race.p_a1)
     if abs(total - 1.0) > 1e-6:
         return f"p_a1 sums to {total:.9f}, not 1.0 (05 sec9 assertion 9)"
@@ -289,6 +296,7 @@ def project(races, feature_indices):
         c.codes = list(r.codes)
         c.x = [[row[i] for i in feature_indices] for row in r.x]
         c.win_index = r.win_index
+        c.n_wins = r.n_wins
         c.p_a1 = list(r.p_a1)
         out.append(c)
     return out
