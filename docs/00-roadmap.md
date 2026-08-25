@@ -39,9 +39,19 @@ Both the pre-lights-out re-snapshot and the post-race score ran via scheduled An
 
 **Phase A3 — Trained model (current focus)**
 Train a conditional logit as a first real model and compare its calibration against the Phase A1 rule-based baseline. Move to gradient-boosted trees (XGBoost/LightGBM) once the data pipeline is trusted.
-Status: **backfill implemented and running; fitter not yet written** (2026-08-24). See `05-trained-model.md`.
+Status: **backfill running; fitter written and tested, real evaluation pending** (2026-08-24). See `05-trained-model.md`.
 
-`backfill.py` is built (`b9c21bb`) and the full `--seasons 2014-2026` run is in progress — **92 of 264 races** written (2014 R1 through 2018 R13, 1,894 rows), no races skipped, contiguous rounds, exactly one label-1 row per race. Pace is set by `httpcache`'s 450 fetches/hour sustained cap, so the run spends most of its wall-clock parked in a rate-limit pause; expect the remainder to take hours, not minutes, and expect re-runs to be near-free (`05` §5.3 — track history is cached per circuit-driver, so later editions of an already-touched circuit cost nothing).
+`backfill.py` is built (`b9c21bb`) and the full `--seasons 2014-2026` run is in progress — **205 of 264 races** written (4,150 rows, 2014 through 2024 R12), no races skipped, exactly one label-1 row per race. Pace is set by `httpcache`'s 450 fetches/hour sustained cap, so the run spends most of its wall-clock parked in a rate-limit pause; expect the remainder to take hours, not minutes, and expect re-runs to be near-free (`05` §5.3 — track history is cached per circuit-driver, so later editions of an already-touched circuit cost nothing).
+
+**`fit.py` and `test_fit.py` are written and passing (2026-08-24), and the Phase A3 result is *not* in yet.** The fitter implements `05` §6/§7 in full: the conditional-logit NLL, its analytic gradient and Hessian, Newton–Raphson with a backtracking line search on the penalized objective, the season-forward splits, all four §6.2 metrics, and both §6.3 baselines. Hand-rolled in pure Python against the system 3.9.6 per §7 — no numpy, no scipy, and the `.venv312/` that now exists for FastF1 is deliberately not used here. 66 tests pass in 4s, including the gradient and Hessian against central finite differences (the check scipy would otherwise have done for us, and the one nothing else would catch — a wrong gradient still converges, just to the wrong place) and the optimizer against the closed-form MLE `log(k/(n−k))` of a one-feature logit over two-driver races.
+
+**What is deliberately *not* done: the §6.4 evaluation.** `fit.py` has two modes. `--mode dev` runs season-forward folds over the pre-holdout seasons only and structurally cannot read a holdout season; `--mode final` is the one run that touches `HOLDOUT_SEASONS = (2024, 2025, 2026)`, and it refuses to start unless the corpus is complete — 264 races with contiguous rounds. Making the held-out period a fixed season set rather than "the last N seasons" is what keeps §6.1's *touched exactly once* an enforceable property while rows are still arriving: a count-based rule would name a different experiment on every run. As of now `--mode final` correctly refuses. Still missing: **2024 R13–24, all of 2025, 2026 R1–12**, plus the **~11 bug-hole races** (2021 R1/R8/R9/R10, 2022 R1/R10/R11, 2023 R1/R9/R10, 2024 R11) that need the second `backfill.py` pass described above. A finished process is not a finished corpus, which is why the guard checks round contiguity rather than trusting `ps`.
+
+**Preliminary dev-fold numbers, which are not the A3 result and must not be quoted as one.** On 205 of 264 races, 7 folds (2017–2023): A3 pooled Brier 0.5874 / log-loss 1.3056, A1 0.5929 / 1.3143, grid-only floor 0.6977 / 1.5913. Two things in that are worth carrying forward rather than re-deriving:
+- Validation selected the **A1-implied prior at the top of the λ grid**, and the sweep is flat across its last four rows — β has collapsed onto A1's hand-set coefficients (max |Δ| < 0.001). So on this partial corpus the dev folds prefer A1's ratios to anything the data fitted, and the small A3-vs-A1 gap is attributable to the two structural differences that survive maximal shrinkage — no per-circuit `m` (D4) and no sprint-weekend renormalization (D3) — not to estimation. The zero-prior arm's own best (λ=0.01, Brier 0.59158) also edges A1, so this is not simply "fitting doesn't work."
+- The unregularized fit puts **β_sprint at 2.48 and β_champ above its hand-set value**, and β_sprint collapses to 0.34 under mild shrinkage — exactly the wide interval `05` §3.4 predicted for a coefficient estimated off a ninth of the corpus.
+
+The separation check (§3.6) ran and is clean: no feature is the winner's strict argmax in every race (`grid` in 102 of 194), so no coefficient is being driven to infinity.
 
 **A third bug, found mid-run by diffing the CSV's round numbers (2026-08-24).** `build_track_history` selected the 3 most recent *seasons* but weighted them off a 3-slot list, which is only safe if a season holds one race per circuit — COVID's 2020 calendar put two at each of `bahrain`, `silverstone` and `red_bull_ring`, and 2021 two more at `red_bull_ring`. Affected drivers got 4–5 rows for 3 slots and the race died on a bare `IndexError`. Because that surfaces as a *skip* rather than a crash, the only symptom was races quietly missing: 2021 R1/R8/R9/R10 and 2022 R1 were already gone, with six more due in 2022–2024 — **~11 races, ~4% of the corpus, and not randomly distributed** (it removes three specific circuits across 2021–2024). Fixed by ranking editions by date and capping at 3, which is identical to the old behaviour on every single-race season; `02` §F5 records the clarified semantics and §9's reference run is verified unchanged. The holes get refilled by a second `backfill.py` pass once the current run ends — `already_done()` means it attempts only the missing races, off a warm cache.
 
@@ -225,7 +235,21 @@ Status: not started.
 - A3: the regularization prior — shrink `β` toward zero, or toward A1's implied `β`? The latter is
   more informative and makes "how far did the data move the weights?" readable straight off the
   fit, but it is also a thumb on the scale for the baseline A3 is being tested against. Decide on
-  a validation split, not by argument (`05` §10.1)
+  a validation split, not by argument (`05` §10.1). **Mechanism built, answer not final
+  (2026-08-24):** `fit.py` implements both arms and selects between them on the dev folds, so this
+  no longer needs deciding by hand — but the only run so far is on 205 of 264 races, and it
+  selected the A1 prior at a strength that pins `β` to it exactly. That is the outcome §10.1
+  warned about (the informative prior *is* the baseline, so the comparison stops measuring
+  fitting), and it should not be read as settled off a partial, non-randomly-holed corpus. Re-read
+  the sweep after `--mode final` runs. One thing the prior choice does *not* affect: the two arms
+  are identical at λ=0 by construction, so a λ=0 win would carry no content either way — the code
+  says so explicitly rather than leaving it to be noticed
+- A3: the pooled model **drops the per-circuit `m`** (`05` §3.5, D4), and the preliminary dev folds
+  hint that dropping it slightly *helps* — the λ→∞ A1-prior fit is A1's own coefficients with no
+  `m` and no sprint renormalization, and it beat A1's `p_a1` on pooled Brier. That is one of the
+  two candidate explanations for the whole A3-vs-A1 gap seen so far, and it bears directly on
+  `02` §10.1's hand-set multipliers. Not a finding yet — n is small, the corpus is partial, and
+  §3.5's fitted tier interaction is the test that actually settles it
 - Lane C: the illiquidity found at Monza (podium priced ~0.5 on $0–300 volume vs. the winner
   market's $1,400–$14,000) is filed under Phase A4 as a snapshot-*timing* problem. For Lane C it
   is also a **capacity** problem: a market priced at 0.5 on no volume is not mispriced, it is
