@@ -155,6 +155,29 @@ Look back at the **3 most recent editions** of this circuit. Per appearance comp
 `pos_score(finish_position, K_FIN)` (DNF → 0.0). Recency-weight them: most recent ×1.0, next ×0.7,
 oldest ×0.5. Take the weighted mean, normalize by the field maximum (§3.3).
 
+**"Edition" means a race, not a season** (clarified 2026-08-24 — see below). The candidate pool is
+still the 3 most recent *seasons* in which anyone on the grid raced here; within that pool, a
+driver's appearances are ranked **by date** and capped at 3.
+
+The distinction is silent in a normal season and load-bearing in an abnormal one. COVID put two
+races at the same circuit in a single season — `bahrain` (Bahrain GP + Sakhir GP), `silverstone`
+(British + 70th Anniversary) and `red_bull_ring` (Austrian + Styrian) in 2020, plus `red_bull_ring`
+again in 2021 (Styrian + Austrian). A driver in that window has **4 or 5 appearances inside a
+3-season pool**, and the original implementation indexed a 3-slot weight list by position and died
+with a bare `IndexError`.
+
+It surfaced as a *skipped race*, not a crash, so the damage was invisible: 11 races across
+2021–2024 were being dropped from the A3 training set before anyone diffed the round numbers. Fixed
+in `snapshot.py`; regression-tested in `test_backfill.TestDoubleHeaderSeasons`.
+
+Ranking by date is identical to ranking by season for every season that ran one race here, so no
+other race in the corpus moves — including §9's reference run, which is verified unchanged.
+
+A related consequence, same cause: **each edition's weather is keyed by date, not season.** On a
+season key the two 2020 Bahrain races collapse into whichever was seen first, and the survivor
+donates its `wet` flag to the other — so a dry race could inherit its twin's rain. F7's live wet
+branch reads that flag.
+
 **Then shrink toward neutral by sample size** — mandatory:
 
 | Appearances `n` | Blend |
