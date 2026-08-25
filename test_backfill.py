@@ -244,6 +244,69 @@ class TestEmptyResultCacheIsNotBelievedBlindly(unittest.TestCase):
         self.assertNotIsInstance(ctx.exception, SystemExit)
 
 
+class TestDoubleHeaderSeasons(unittest.TestCase):
+    """Regression: build_track_history selected the 3 most recent SEASONS but
+    handed out weights from a 3-slot list, which is only safe if a season holds
+    at most one race per circuit. COVID broke that -- 2020 ran two races at
+    each of bahrain, silverstone and red_bull_ring, and 2021 two more at
+    red_bull_ring -- so an affected driver got 4-5 rows for 3 slots and the
+    race died with a bare IndexError.
+
+    It failed as a *skip*, not a crash, so the only visible symptom was races
+    quietly missing from the training set: 2021 R1/R8/R9/R10 and 2022 R1 had
+    already been dropped before anyone diffed the round numbers, with six more
+    to come in 2022-2024.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        # 2021 Bahrain: the lookback window is 2020 (TWO races), 2019, 2018.
+        race, _ = jolpica.race_info(2021, 1, CACHE)
+        grid, _, _ = snapshot.build_grid(2021, 1, CACHE)
+        cls.th, _ = snapshot.build_track_history(
+            race["Circuit"]["circuitId"],
+            float(race["Circuit"]["Location"]["lat"]),
+            float(race["Circuit"]["Location"]["long"]),
+            grid, race["date"], CACHE,
+        )
+
+    def test_it_builds_at_all(self):
+        self.assertTrue(self.th["by_driver"])
+
+    def test_no_driver_exceeds_the_three_weight_slots(self):
+        for code, rows in self.th["by_driver"].items():
+            with self.subTest(driver=code):
+                self.assertLessEqual(len(rows), 3)
+
+    def test_weights_are_assigned_in_date_order(self):
+        expected = [1.0, 0.7, 0.5]
+        for code, rows in self.th["by_driver"].items():
+            with self.subTest(driver=code):
+                dates = [r["date"] for r in rows]
+                self.assertEqual(dates, sorted(dates, reverse=True))
+                self.assertEqual([r["recency_weight"] for r in rows],
+                                 expected[:len(rows)])
+
+    def test_both_2020_editions_are_kept_as_separate_editions(self):
+        """The whole point: keyed by season, the Sakhir GP and the Bahrain GP
+        collapse into one entry and one of them silently vanishes."""
+        dates_2020 = sorted(d for d in self.th["editions_weather"] if d.startswith("2020"))
+        self.assertEqual(len(dates_2020), 2, f"expected both 2020 editions, got {dates_2020}")
+
+    def test_each_edition_carries_its_own_weather(self):
+        """Keyed by season, whichever edition was seen first donated its `wet`
+        flag to the other. F7's wet branch reads that flag."""
+        for date, entry in self.th["editions_weather"].items():
+            with self.subTest(date=date):
+                self.assertEqual(entry["date"], date)
+
+    def test_a_drivers_wet_flag_matches_his_own_editions_date(self):
+        for code, rows in self.th["by_driver"].items():
+            for r in rows:
+                with self.subTest(driver=code, date=r["date"]):
+                    self.assertEqual(r["wet"], self.th["editions_weather"][r["date"]]["wet"])
+
+
 class TestResumability(unittest.TestCase):
     """sec5.3: a rate-limit stall should cost the remaining races, not the
     finished ones."""

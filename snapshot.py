@@ -303,14 +303,21 @@ def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
     tz_name = CIRCUIT_TIMEZONE[circuit_id]
     tz = ZoneInfo(tz_name)
 
+    # Keyed by DATE, not season. 2020 ran two races at each of bahrain,
+    # silverstone and red_bull_ring, and 2021 two more at red_bull_ring -- a
+    # season key collapses each pair into whichever one was seen first, so the
+    # other edition's weather is never fetched and both races inherit a single
+    # `wet` flag. Nothing in A3 reads this (F7 is dormant in every backfilled
+    # row), but F5's wet flag feeds A1's live wet branch, so a race that was
+    # dry must not inherit its twin's rain.
     edition_datetime = {}
     for rows in per_driver_all.values():
         for row in rows:
-            if row["season"] in target_seasons and row["season"] not in edition_datetime:
-                edition_datetime[row["season"]] = (row["date"], row["time"])
+            if row["season"] in target_seasons:
+                edition_datetime.setdefault(row["date"], row["time"])
 
     editions_weather = {}
-    for season_yr, (date_str, time_str) in edition_datetime.items():
+    for date_str, time_str in edition_datetime.items():
         # Jolpica carries no start time for races older than roughly 2005 --
         # verified live, the A1-Ring editions of the Austrian GP (2000-2003)
         # all have time=None. This is not an edge case in a backfill: any
@@ -344,7 +351,7 @@ def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
 
         window_vals = [v for v in window_vals if v is not None]
         max_precip = max(window_vals) if window_vals else 0.0
-        editions_weather[str(season_yr)] = {
+        editions_weather[date_str] = {
             "date": date_str,
             "race_window_precip_max_mm": max_precip,
             "wet": max_precip > 0.0,
@@ -356,9 +363,20 @@ def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
     by_driver = {}
     for code, rows in per_driver_all.items():
         filtered = [r for r in rows if r["season"] in target_seasons]
-        filtered.sort(key=lambda r: r["season"], reverse=True)
+        # Rank by DATE and cap at 3. The season window can hand a driver four
+        # or five rows when a season ran two races here, which used to index
+        # off the end of recency_weights and take the entire race down with a
+        # bare IndexError -- 11 races in 2021-2024 were being dropped from the
+        # training set that way, all at bahrain, silverstone or red_bull_ring.
+        #
+        # Sorting by date is identical to sorting by season whenever a season
+        # holds one race, so every other race in the corpus is unaffected; it
+        # only decides the order within a double-header, where season alone is
+        # a tie.
+        filtered.sort(key=lambda r: r["date"], reverse=True)
+        filtered = filtered[:len(recency_weights)]
         for i, r in enumerate(filtered):
-            r["wet"] = editions_weather[str(r["season"])]["wet"]
+            r["wet"] = editions_weather[r["date"]]["wet"]
             # Baked in now, by rank among this driver's *own* up-to-3 appearances,
             # so a later filter (e.g. F7's wet-only subset) can't silently
             # re-rank an older edition into a newer one's weight slot.
