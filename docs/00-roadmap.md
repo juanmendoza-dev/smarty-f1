@@ -48,7 +48,7 @@ Status: **backfill running; fitter written and tested, real evaluation pending**
 **What is deliberately *not* done: the §6.4 evaluation.** `fit.py` has two modes. `--mode dev` runs season-forward folds over the pre-holdout seasons only and structurally cannot read a holdout season; `--mode final` is the one run that touches `HOLDOUT_SEASONS = (2024, 2025, 2026)`, and it refuses to start unless the corpus is complete — 264 races with contiguous rounds. Making the held-out period a fixed season set rather than "the last N seasons" is what keeps §6.1's *touched exactly once* an enforceable property while rows are still arriving: a count-based rule would name a different experiment on every run. As of now `--mode final` correctly refuses. Still missing: **2024 R13–24, all of 2025, 2026 R1–12**, plus the **~11 bug-hole races** (2021 R1/R8/R9/R10, 2022 R1/R10/R11, 2023 R1/R9/R10, 2024 R11) that need the second `backfill.py` pass described above. A finished process is not a finished corpus, which is why the guard checks round contiguity rather than trusting `ps`.
 
 **Preliminary dev-fold numbers, which are not the A3 result and must not be quoted as one.** On 205 of 264 races, 7 folds (2017–2023): A3 pooled Brier 0.5874 / log-loss 1.3056, A1 0.5929 / 1.3143, grid-only floor 0.6977 / 1.5913. Two things in that are worth carrying forward rather than re-deriving:
-- Validation selected the **A1-implied prior at the top of the λ grid**, and the sweep is flat across its last four rows — β has collapsed onto A1's hand-set coefficients (max |Δ| < 0.001). So on this partial corpus the dev folds prefer A1's ratios to anything the data fitted, and the small A3-vs-A1 gap is attributable to the two structural differences that survive maximal shrinkage — no per-circuit `m` (D4) and no sprint-weekend renormalization (D3) — not to estimation. The zero-prior arm's own best (λ=0.01, Brier 0.59158) also edges A1, so this is not simply "fitting doesn't work."
+- Validation selected the **A1-implied prior at the top of the λ grid**, and the sweep is flat across its last four rows — β has collapsed onto A1's hand-set coefficients (max |Δ| < 0.001). So on this partial corpus the dev folds prefer A1's ratios to anything the data fitted, and the A3-vs-A1 gap cannot be a fitting effect: it has to come from a structural difference that survives maximal shrinkage. **Attributed, not guessed:** of the two candidates, D3 (no sprint-weekend renormalization) is *inert* on the 2017–2020 folds, because sprints did not exist before 2021 — and that is precisely where the whole gap lives. Pooled Brier over 2017–2020 is A3 0.64477 vs A1 0.65731 (gap +0.0125, 79 races); over 2021–2023 it is A3 0.50644 vs A1 0.50206, i.e. **the gap reverses** (−0.0044, 56 races). So D3 explains none of it, D4 (dropping the per-circuit `m`) is the only difference left standing, and its sign is not stable across eras. The zero-prior arm's own best (λ=0.01, Brier 0.59158) also edges A1, so this is not simply "fitting doesn't work."
 - The unregularized fit puts **β_sprint at 2.48 and β_champ above its hand-set value**, and β_sprint collapses to 0.34 under mild shrinkage — exactly the wide interval `05` §3.4 predicted for a coefficient estimated off a ninth of the corpus.
 
 The separation check (§3.6) ran and is clean: no feature is the winner's strict argmax in every race (`grid` in 102 of 194), so no coefficient is being driven to infinity.
@@ -244,12 +244,14 @@ Status: not started.
   the sweep after `--mode final` runs. One thing the prior choice does *not* affect: the two arms
   are identical at λ=0 by construction, so a λ=0 win would carry no content either way — the code
   says so explicitly rather than leaving it to be noticed
-- A3: the pooled model **drops the per-circuit `m`** (`05` §3.5, D4), and the preliminary dev folds
-  hint that dropping it slightly *helps* — the λ→∞ A1-prior fit is A1's own coefficients with no
-  `m` and no sprint renormalization, and it beat A1's `p_a1` on pooled Brier. That is one of the
-  two candidate explanations for the whole A3-vs-A1 gap seen so far, and it bears directly on
-  `02` §10.1's hand-set multipliers. Not a finding yet — n is small, the corpus is partial, and
-  §3.5's fitted tier interaction is the test that actually settles it
+- A3: the pooled model **drops the per-circuit `m`** (`05` §3.5, D4), and on the preliminary dev
+  folds that is the *only* structural difference that can explain the A3-vs-A1 gap — D3 is
+  provably inert on 2017–2020 and that is where the entire gap sits (see the Phase A3 entry).
+  What it does **not** support is "dropping `m` helps": the gap is +0.0125 on 2017–2020 and
+  −0.0044 on 2021–2023, so the sign flips by era on a partial, non-randomly-holed corpus. That is
+  a reason to run `05` §3.5's fitted tier interaction, which measures the multiplier directly
+  instead of inferring it from a difference of differences — not a reason to touch `02` §5.1's
+  numbers yet
 - Lane C: the illiquidity found at Monza (podium priced ~0.5 on $0–300 volume vs. the winner
   market's $1,400–$14,000) is filed under Phase A4 as a snapshot-*timing* problem. For Lane C it
   is also a **capacity** problem: a market priced at 0.5 on no volume is not mispriced, it is
