@@ -587,13 +587,14 @@ flagged in §9.
    argues for committing them; owner's call.
 4. **FastF1 interpreter upgrade.** `brew install python@3.12` + venv, vs. installing `uv`. Owner's
    preference; not on A2's critical path (§2).
-5. **Lane B assumption to re-examine — flagged, not resolved here.** The roadmap locks "FastF1's
-   free live module" for live data. FastF1's own documentation states its live timing client
-   **"does not and will never parse data in real time"** — it records the raw SignalR stream to a
-   file for parsing *after* the session ends, and the connection drops after ~2 hours. This does
-   not affect Lane A at all, but it means Lane B's corner-level real-time premise is not satisfied
-   by FastF1 as-is. Raised here because the decision is recorded in `00-roadmap.md` as locked;
-   resolving it belongs to Phase B0.
+5. ~~**Lane B assumption to re-examine — flagged, not resolved here.**~~ **Superseded
+   2026-08-26 by `03-live-telemetry-overtakes.md`.** That document confirms FastF1's live module
+   cannot parse in real time (permanent, not a version gap) and goes further: OpenF1's free tier
+   turns out to exclude *all* live-window access, not just some of it, and the only remaining
+   zero-budget option — a direct, unofficial connection to F1's own live timing feed — carries a
+   real Terms of Service risk and a documented history of F1 actively IP-blocking third-party
+   clients that use it. This does not affect Lane A. See `03` §2 for the full comparison and §5
+   for the open owner decision.
 
 ---
 

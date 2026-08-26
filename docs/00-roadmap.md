@@ -119,12 +119,14 @@ enough to its lights-out to have priced markets — not guaranteed to be Monza s
 ## Lane B phases
 
 **Phase B0 — Design only (current)**
-Conceptual design of the streaming/event-driven pipeline: tick-based state per car (position, speed, gap, brake/throttle/DRS), trigger conditions (approaching a known corner/braking zone), scoring logic for overtake probability. See `03-live-telemetry-overtakes.md` (stub).
-Status: conceptual, not specced in detail.
+Conceptual design of the streaming/event-driven pipeline: tick-based state per car (position, speed, gap, brake/throttle/DRS), trigger conditions (approaching a known corner/braking zone), scoring logic for overtake probability. See `03-live-telemetry-overtakes.md`.
+Status: **premise researched 2026-08-26, not resolved — see below.** The design work described above (tick-based state, trigger conditions) is still not started; what changed is that the *data source* question underneath it turned out to be harder than "FastF1's live module isn't quite ready."
+
+`03`'s research settles the question `01` §9.5 raised, and it's worse than that entry implied. FastF1's live module cannot parse in real time — confirmed permanent, not a version gap. OpenF1's free tier turns out to exclude *all* access during a live session (REST included, not just push/streaming) — historical-only, full stop; the €9.90/mo paid tier is the only OpenF1 path to anything live. The remaining zero-budget option is a direct, unofficial connection to F1's own live timing feed (the same one FastF1 taps but chooses not to parse live) — technically proven by several hobbyist open-source clients, but F1's site terms restrict use of this data to personal, non-commercial use and prohibit reverse-engineering the service, and one of those hobbyist projects has already had its hosted deployment IP-blocked by F1. This project's stated endpoint is a commercial automated trading bot, which is a worse fit for "personal, non-commercial" than a hobbyist dashboard already is. No candidate is simultaneously zero-budget, genuinely live, ToS-clean, and stable — see `03` §2.4's table. This is now an owner decision (approve the paid tier, accept the reverse-engineered client's risk, or leave Lane B blocked), not something to guess at.
 
 **Phase B1 — Delay/sync investigation**
 Determine the real gap between live data feed timing and broadcast timing for the owner's actual watching setup (Apple TV app, either on Mac directly or the physical Apple TV box). Approach: auto-record the broadcast + auto-log the data feed in parallel, compare after the fact — not manual real-time comparison.
-Status: deferred. Originally planned to test during the 2026-08-23 Dutch GP, but deprioritized in favor of Phase A2 (higher ROI for a single day's build).
+Status: **blocked on B0's data-source decision, plus one cheap check that doesn't need to wait.** `03` §3 found that one existing hobbyist project solves broadcast sync manually — the viewer sets a delay buffer (up to three minutes) from their own experience, not from measurement — which isn't rigorous enough to reuse but is a useful sanity check that real delay can run into the low minutes on some setups. Recommended before investing in either a paid subscription or a legally risky client: a single manual side-by-side observation (start a live source and the Apple TV broadcast together, compare one clearly-timestamped event like lights-out) to see whether the gap is roughly seconds or roughly minutes. A multi-minute gap would close B0 outright, independent of which data source gets chosen, since Lane B's whole premise needs the gap to be workable for a real-time trade. Not run yet.
 
 **Phase B2 — Automated trigger recognition**
 Computer vision on screen-captured broadcast frames, targeting broadcast graphic overlays (pit boards, safety car flags, lights-out gantry) rather than raw scene content — a more tractable detection target. Requires reference footage of Apple's actual broadcast graphics first (their first season broadcasting F1 in the US, so no existing reference material).
@@ -175,11 +177,23 @@ Status: not started.
 - Phase A3 `--mode final` invocation: **`--holdout 2024,2025 --dev-exclude 2026`**. 2026 is still in progress (12 rounds in as of 2026-08-26); `--holdout` alone keeps it out of scoring but *not* out of dev tuning (see the Open decisions entry for the incident this caused), so `--dev-exclude` is required too. Moot now that the run has actually happened — recorded for the record and in case a future season ever needs the same treatment (decided 2026-08-26)
 - Phase A3 track multiplier `m`: **stays dropped for v1.** The fitted tier interaction (`05` §3.5) was tested on dev folds, per-fold rather than on one fold: `grid_x_hard` is negative in all 7 folds (a stable inversion of `02` §5.1's predicted ordering), `grid_x_easy` flips sign three times (not identified from this corpus either direction). Not a permanent close the way F7 or `T` are — revisit the easy-tier side if more seasons accumulate at its five circuits (decided 2026-08-26)
 - Odds normalization for A1: proportional de-vig; raw + normalized both persisted
-- Live data (when needed): **FastF1's free live module**, not OpenF1's paid live tier (€9.90/month) — avoided per the zero-budget constraint. Note this is the same constraint blocking Lane C's live in-race trading (Phase C1) — revisit together if the owner decides to approve the paid tier
+- ~~Live data (when needed): **FastF1's free live module**, not OpenF1's paid live tier (€9.90/month) — avoided per the zero-budget constraint.~~ **Superseded 2026-08-26 — this was never a real choice.** FastF1's live module doesn't provide live data at any budget; it can't parse in real time, full stop. It was never the zero-budget alternative to OpenF1's paid tier, because it doesn't do the thing the paid tier does. See `03-live-telemetry-overtakes.md` §2.4 for what the real options are and the new Open decision below. Still true: this is the same constraint blocking Lane C's live in-race trading (Phase C1) — revisit together if the owner decides to approve a paid tier
 - No paid capture hardware for Lane B — Apple TV app runs natively on Mac, so screen capture of the app window is the plan, not an HDMI capture card
 
 ## Open decisions
 
+- **New 2026-08-26:** Lane B's live data source (`03-live-telemetry-overtakes.md` §2.4). Three
+  candidates, none clean: FastF1's live module is zero-budget and ToS-clean but not actually live
+  (permanent limitation); OpenF1's free tier is the same — zero-budget, ToS-clean, not live — and
+  its paid tier (€9.90/mo) is live but costs money and needs explicit approval per `welcome.md`;
+  a direct connection to F1's own live timing feed is zero-budget and genuinely live but likely
+  violates F1's Terms of Service (personal-non-commercial-use-only, no reverse engineering) —
+  worse for this project specifically, since Lane C's end goal is commercial trading — and has a
+  documented history of F1 IP-blocking third-party clients that do this. Owner's call: approve
+  the paid tier, accept the ToS/stability risk of the direct connection, or leave Lane B blocked.
+  One cheap, source-independent check can run first regardless: a single manual side-by-side
+  observation of broadcast vs. any live source, to see whether the delay is seconds (workable) or
+  minutes (kills B0 outright, no matter which source gets chosen) — see `03` §3 and §5.
 - ~~**New 2026-08-26:** `--mode final`'s holdout (`HOLDOUT_SEASONS = (2024, 2025, 2026)`) includes
   a season still in progress~~ **Resolved and closed 2026-08-26.** `--holdout 2024,2025` correctly
   keeps 2026 out of the *scored* seasons — `season_forward_folds` only evaluates the seasons named
