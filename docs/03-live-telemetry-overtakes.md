@@ -1,13 +1,64 @@
 # 03 — Live Telemetry & Overtakes (Lane B)
 
-Status: **B0 source decided and specced 2026-08-26. Implementation authorized for personal
-research/development only, and gated on the B1 delay check (§4.4).** This document was a research
+Status: **§6's endpoint is WRONG and under revision — corrected 2026-08-26, same day, see the
+banner below. Do not build against §6/§13 until it is rewritten.** The rest of the spec (§§4–5,
+7–12) stands.
+
+Previously: B0 source decided and specced 2026-08-26, implementation authorized for personal
+research/development only and gated on the B1 delay check (§4.4). This document was a research
 memo; it is now a build spec. §§1–3 are the original research, preserved unchanged — the four-way
 source comparison, F1's own ToS text, and the IP-blocking precedent are the evidence the decision
 rests on, not background to be deleted once the decision is made. §§4 onward are the spec.
 
 Read `welcome.md`, `00-roadmap.md`, and `01-data-pipeline.md` §9.5 first. This document supersedes
 `01` §9.5's flag.
+
+---
+
+> ## ⚠ CORRECTION 2026-08-26 — the unauthenticated endpoint is dead
+>
+> **§6.1 says B0 connects to the legacy `/signalr` endpoint without authentication. That endpoint
+> has been returning HTTP 401 since approximately 2026-06-06 and is no longer usable.**
+>
+> **How the error was made.** §6.1's evidence was that `matteocelani/f1-telemetry` still had
+> `F1_SERVER_URL = https://livetiming.formula1.com/signalr` on `main` and had been pushed
+> 2026-08-07. That inference was wrong: the repo's `main` simply has not merged the fix. Its
+> issue [#24](https://github.com/matteocelani/f1-telemetry/issues/24) ("SignalR endpoint returns
+> 401 — F1 switched to SignalR Core with account auth", 2026-06-06) is open with two independent
+> reporters confirming it, and the migration [PR #25](https://github.com/matteocelani/f1-telemetry/pull/25)
+> is open and unmerged. The recent pushes were **replay-mode** work — which is what you build when
+> you cannot connect live. Recency of commits was read as evidence of a working live path; it was
+> not.
+>
+> **What is actually true.** F1 introduced `/signalrcore` in May 2025 (FastF1 issue #753) and
+> appears to have shut the legacy endpoint off around June 2026 — roughly a year of overlap. The
+> only live path now requires a **Bearer JWT tied to an F1 account**, sent both as an
+> `Authorization` header and an `access_token` query parameter, over the SignalR **Core** text
+> protocol (`\x1e` record separators, explicit handshake frame, type-1/type-3 messages,
+> `negotiateVersion=1`) — a different wire protocol from §6.1's, not a URL swap.
+>
+> **The one thing that decides whether this stays zero-budget.** A commenter on #24 reports that a
+> **free F1 account is sufficient — no F1 TV subscription needed**, with a working deployment.
+> FastF1's own code says the opposite, printing "This feature requires an active F1TV
+> Access/Pro/Premium subscription" and carrying `SubscriptionStatus` / `SubscribedProduct` claims
+> in the token. Both cannot be right. **`UNVERIFIED` and unresolved** — it is a single community
+> report against a maintainer's in-code assertion, and it is the difference between this lane
+> costing nothing and costing a subscription.
+>
+> **Why this is not a quiet fix.** §16's open item 1 asked what to do *if* the unauthenticated
+> endpoint closed, and called that a decision the owner had to take separately — because any
+> authenticated route binds a named account holder to F1's terms directly and removes the
+> "separate host, different agreement" caveat that §5's risk acceptance leans on. That item has
+> now fired. §6 is not rewritten unilaterally; the route is the owner's call, and it is a
+> different question from the one answered in §5.
+>
+> **Also unresolved:** #25's thread reports a reconnect loop against `/signalrcore` — WebSocket
+> close code 1006 immediately after each subscribe snapshot, repeating every 5s — for one reporter
+> while working for another. Unexplained. If it is general rather than environmental it is a
+> second, independent problem with the authenticated path, and §9's backoff design would need to
+> account for a connection that dies on a timer rather than after ~2h.
+
+---
 
 **Verification note — documentary, deliberately not live.** Every other spec in `/docs` opens by
 saying its endpoints were called live against production. This one does not, and the difference is
@@ -303,6 +354,11 @@ Two consequences follow and are locked here:
 All of §6 is `UNVERIFIED` per the verification note until §13 runs.
 
 ### 6.1 Endpoint and handshake — the legacy SignalR path
+
+> **SUPERSEDED — see the correction banner at the top of this document. The endpoint described in
+> this subsection returns 401 and the protocol described is no longer the one in use. Everything
+> from here to the end of §6.5 is retained only to show what was specced and why it was wrong;
+> none of it is buildable as written.**
 
 There are **two** live-timing endpoints on this host, and the distinction matters more than
 anything else in this section.
