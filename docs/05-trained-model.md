@@ -237,6 +237,26 @@ Note the tier table itself is defined only for the 15 circuits in `lib/circuits.
 else defaults to 1.00. For the interaction, the 18 circuits added in §5.2 need tier assignments or
 an explicit "default tier" bucket — a small decision, listed in §10.
 
+**Run 2026-08-26, on the dev folds — closed: `m` stays dropped.** `tier_interaction_backtest.py`
+builds `grid_x_hard`/`grid_x_easy` (`s_grid` masked to circuits `lib.circuits.tier_for` calls
+"hard"/"easy"; every circuit missing from `OVERTAKING_MULTIPLIER` — including all 17 the backfill
+added — lands in the same "default" bucket as the explicitly-1.00 circuits, per §10 item 2's own
+resolution, not tiered by hand). Reusing `fit.py`'s likelihood/gradient/evaluation code unchanged,
+on the same 2017–2023 dev folds: validation selects the same top-of-grid A1 prior as the 7-feature
+model and crushes both new coefficients to ≈0 (pooled Brier 0.58517, identical to the baseline to
+5 decimal places — the interaction is invisible at that shrinkage). The informative signal is in
+the **unregularized** fit on the largest fold (trained 2014–2022): `grid_x_hard` = **−0.89**,
+`grid_x_easy` = **−0.52** — both negative, where §5.1 predicts hard positive and easy negative.
+Under mild shrinkage (λ=0.01, zero prior) both collapse toward zero and become unstable
+(`grid_x_hard` flips to −0.05, `grid_x_easy` flips to +0.12) — the sign isn't just wrong, it isn't
+stable, consistent with ~8 races per non-default tier being too little data to pin two extra
+parameters down. Verdict: **flat/inverted, not vindicated.** `02` §5.1's hand-set ordering is not
+supported by the fitted interaction, so `m` stays dropped for v1 and is not coming back — this
+closes the open item without needing the holdout. `test_tier_interaction.py` covers the tier
+lookup and column-append logic (12 tests); `tier_interaction_backtest.py` itself is standalone
+verification tooling in the `weather_backtest.py` mold, not part of the fitting path `fit.py`'s
+tests check.
+
 ### 3.6 Identification and regularization
 
 - **No intercept.** A per-race intercept is a within-race constant and cancels by §3.2. A global
@@ -673,9 +693,10 @@ Fail loudly rather than emit a plausible wrong number (`02` §8's principle, and
    latter is more informative and more readable, but it is also a thumb on the scale in favour of
    the baseline A3 is being tested against. Decide with a validation-set comparison, not by
    argument.
-2. **Tier assignments for the 18 new circuits** (§5.2), needed only if the §3.5 interaction is
-   built. Assigning them by hand re-imports the judgement §3.5 is trying to test — an explicit
-   "unassigned" bucket may be more honest.
+2. ~~**Tier assignments for the 18 new circuits** (§5.2), needed only if the §3.5 interaction is
+   built.~~ **Resolved 2026-08-26**: an explicit "default" bucket, not hand assignment — see §3.5's
+   2026-08-26 entry. Every circuit missing from `OVERTAKING_MULTIPLIER` gets `tier_for() ==
+   "default"`, the same bucket as the explicitly-1.00 circuits.
 3. **`K_GRID`, `K_SPRINT`, `K_FIN` are still unfitted.** They live inside the sub-scores, which
    this phase treats as fixed inputs, so a linear-in-`β` model cannot tune them. Fitting them
    means either a grid search over the three constants wrapping the whole fit, or moving to a
