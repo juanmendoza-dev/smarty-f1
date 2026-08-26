@@ -57,6 +57,12 @@ Usage:
     python3 fit.py                                  # dev folds, preliminary
     python3 fit.py --json out.json                  # ... and record the fit
     python3 fit.py --mode final                     # the once-only holdout run
+
+    # If a season is in progress (neither cleanly pre-holdout nor ready to be
+    # scored), exclude it from dev tuning explicitly rather than letting it
+    # fall through to being an accidental dev fold -- see --dev-exclude's own
+    # help text for the 2026-08-26 incident this guards against.
+    python3 fit.py --mode final --holdout 2024,2025 --dev-exclude 2026
 """
 
 import argparse
@@ -757,15 +763,30 @@ def main():
                     help="dev: season-forward folds before the holdout, hyperparameters "
                          "chosen here. final: the once-only run that touches the holdout.")
     ap.add_argument("--holdout", default=",".join(str(s) for s in HOLDOUT_SEASONS),
-                    help="comma-separated seasons held out of every dev fold")
+                    help="comma-separated seasons held out of every dev fold, and (in "
+                         "--mode final) the seasons actually scored")
+    ap.add_argument("--dev-exclude", default="",
+                    help="comma-separated seasons dropped from the dev pool WITHOUT being "
+                         "scored -- e.g. a season still in progress. Found by the "
+                         "2026-08-26 run: passing --holdout 2024,2025 alone let 2026's "
+                         "partial season quietly become a dev evaluation fold and pick "
+                         "the hyperparameters, since it belongs to neither list. Use this "
+                         "flag for exactly that case instead.")
     ap.add_argument("--json", help="write the full result to this path")
     args = ap.parse_args()
 
     holdout = tuple(int(s) for s in args.holdout.split(",") if s.strip())
+    dev_exclude = tuple(int(s) for s in args.dev_exclude.split(",") if s.strip())
+    require(not (set(holdout) & set(dev_exclude)),
+            "a season cannot be in both --holdout and --dev-exclude")
 
     races = load_matrix(args.matrix)
     require(races, f"{args.matrix} yielded no usable races")
     all_seasons = seasons_of(races)
+    incomplete_seasons = set(dev_exclude)
+    if incomplete_seasons:
+        print(f"\nseasons excluded from dev tuning (in progress, not held out either): "
+              f"{sorted(incomplete_seasons)}")
 
     print(f"\n=== Phase A3 fit ({args.mode} mode) === 05-trained-model.md sec6/sec7")
     print(f"matrix: {os.path.relpath(args.matrix, REPO_ROOT)}")
@@ -783,12 +804,14 @@ def main():
         print(f"  corpus is INCOMPLETE ({sum(c['n_races'] for c in coverage)} of "
               f"{EXPECTED_RACES} races). Every number below is PRELIMINARY.")
 
-    dev_seasons = [s for s in all_seasons if s not in holdout]
+    dev_seasons = [s for s in all_seasons if s not in holdout and s not in dev_exclude]
     require(not (set(dev_seasons) & set(holdout)),
             "dev seasons overlap the holdout -- sec6.1 requires the held-out period be "
             "touched exactly once")
     dev_folds = [y for y in dev_seasons][MIN_TRAIN_SEASONS:]
     print(f"\nholdout seasons (untouched in dev mode): {list(holdout)}")
+    if dev_exclude:
+        print(f"dev-excluded seasons (also untouched -- see --dev-exclude): {list(dev_exclude)}")
     print(f"dev seasons: {dev_seasons}")
     print(f"dev evaluation folds: {dev_folds}")
 
@@ -796,6 +819,8 @@ def main():
     require(dev_races, "no races outside the holdout to develop on")
     require(not any(r.season in holdout for r in dev_races),
             "a holdout season leaked into the dev set")
+    require(not any(r.season in dev_exclude for r in dev_races),
+            "a dev-excluded season leaked into the dev set")
 
     # --- sec10.1: the regularization prior, decided on validation, not argument
     print("\n--- sec10.1: regularization prior and strength, on the dev folds ---")
@@ -924,6 +949,7 @@ def main():
             "corpus": coverage,
             "corpus_complete": not incomplete,
             "holdout_seasons": list(holdout),
+            "dev_exclude_seasons": list(dev_exclude),
             "dev_seasons": dev_seasons,
             "evaluated_seasons": [y for y, _ in per_season],
             "features": FEATURES,
