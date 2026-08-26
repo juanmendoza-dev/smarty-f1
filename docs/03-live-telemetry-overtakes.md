@@ -14,17 +14,26 @@ That means a genuinely live data feed — sub-minute latency at worst, ideally s
 is a different problem than anything Lane A has had to solve, and the zero-budget constraint
 applies to it just as it does everywhere else in this project.
 
-## 2. The three candidate sources, and what's actually true about each (verified 2026-08-26)
+## 2. The four candidate sources, and what's actually true about each (verified 2026-08-26)
 
 ### 2.1 FastF1's live module — confirmed unusable for this, not a maybe
 
 `00-roadmap.md` locks "FastF1's free live module" for live data, and `01` §9.5 already flagged
-this as needing re-examination. Re-verified live against FastF1's current docs: the
-`SignalRClient` records the raw feed to a file as a session happens, but **parsing only happens
-after the session ends**, via `Session.load()`. FastF1's own maintainers are explicit that this
-is permanent, not a version limitation still being worked on. There is no code path in this
-library that produces a probability *during* a session. This closes the question `01` §9.5 left
-open: FastF1 does not satisfy Lane B's premise, full stop, not "not yet."
+this as needing re-examination. Re-verified directly against FastF1's live-timing docs
+(`docs.fastf1.dev/livetiming.html`, fetched 2026-08-26): **"It is not possible to do real-time
+processing of the data."** The `SignalRClient` records the raw feed to a file as a session
+happens; parsing only happens after, via `Session.load()`. The docs describe this as what the
+tool is *for* (recording for later analysis), not a bug being worked toward a fix — `01` §9.5's
+"does not and will never parse data in real time" phrasing is that document's own prior
+characterization, consistent with what's quoted here, and is treated as confirmed rather than
+re-derived independently this session. There is no code path in this library that produces a
+probability *during* a session — this closes the question `01` §9.5 left open.
+
+One more limit worth carrying forward even though it's now moot for this purpose: the docs also
+state **"The SignalR Client seems to get disconnected after 2 hours of recording,"**
+server-terminated, requiring a second recording file for anything longer (FastF1 merges them on
+load). Irrelevant to *whether* FastF1 can go live — it can't, regardless — but relevant if a
+future direct-connection client (§2.3) needs to survive a full race weekend session.
 
 ### 2.2 OpenF1 — free tier is historical-only, no partial live access
 
@@ -65,16 +74,31 @@ is proven by working code, using the exact feed FastF1 already touches. It would
 small SignalR client rather than reusing FastF1 or paying OpenF1. Two real problems make this a
 much worse option than "free and it works," though:
 
-**It is very likely a Terms of Service violation, and the project's own end goal makes that
-worse, not better.** F1's site terms restrict use of "materials on the site" — which live timing
-data is — to personal, non-commercial use, and separately prohibit reverse-engineering or
-deriving source code from the service. A hobbyist dashboard for personal viewing is already in a
-grey area under those terms. This project's stated endpoint is an **automated trading bot** —
-Lane C explicitly commercial, explicitly acting on the data for profit. That is not the "personal,
-non-commercial use" the terms carve out; it is closer to the exact thing they prohibit. This
-should be weighed the same way Lane C's own open item about venue ToS already is
-(`00-roadmap.md`'s Lane C open decisions) — except here it's the *data source's* terms, and it
-gates Lane B before Lane C is even reachable.
+**It conflicts with F1's own legal terms, read directly rather than paraphrased.** Fetched
+`formula1.com/en/information/legal-notices` (2026-08-26) rather than trusting a search summary,
+since this is the clause the owner would actually be relying on. It states plainly: "The material
+and content provided on the Site is for your personal, non-commercial use only," and separately,
+"you agree not to reproduce, distribute, perform, display, modify, adapt, translate, prepare
+derivative works from, decompile, reverse engineer, disassemble or otherwise attempt to derive
+source code from the site." Crucially, it names the data type directly rather than leaving it to
+inference: **"all materials on this Site, including, but not limited to live timing data,
+historical race data..."** is the list of what's covered.
+
+Two caveats on how far that reaches, stated rather than glossed over: these are formula1.com's
+*website* terms, and `livetiming.formula1.com` is a separate host — whether the same terms
+govern that endpoint, or it falls under a different agreement entirely, isn't settled by this
+page alone. And "live timing data" as named here most directly describes the *website's own*
+live timing display, not necessarily the raw SignalR stream a third-party client taps
+independently, even though the underlying data is the same. Read most favorably to a builder,
+there's an argument this specific endpoint isn't squarely what the clause contemplated. Read
+plainly, F1 has named "live timing data" as protected, restricted use to personal/non-commercial,
+and prohibited reverse-engineering "the site" in the same document — and this project's stated
+endpoint is an **automated trading bot**, about as far from "personal, non-commercial use" as a
+use case gets. That combination is enough to treat this as a real legal question needing an
+actual answer, not a hobbyist grey area to route around by self-hosting quietly. It should be
+weighed the same way Lane C's own open item about venue ToS already is (`00-roadmap.md`'s Lane C
+open decisions) — except here it's the *data source's* terms, and it gates Lane B before Lane C
+is even reachable.
 
 **It is being actively enforced, not just theoretically prohibited.** `matteocelani/f1-telemetry`
 states plainly that F1 introduced IP-blocking measures against their hosted deployment, which is

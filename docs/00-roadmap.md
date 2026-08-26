@@ -182,15 +182,21 @@ Status: not started.
 
 ## Open decisions
 
-- **New 2026-08-26:** Lane B's live data source (`03-live-telemetry-overtakes.md` §2.4). Three
+- **New 2026-08-26:** Lane B's live data source (`03-live-telemetry-overtakes.md` §2.4). Four
   candidates, none clean: FastF1's live module is zero-budget and ToS-clean but not actually live
-  (permanent limitation); OpenF1's free tier is the same — zero-budget, ToS-clean, not live — and
-  its paid tier (€9.90/mo) is live but costs money and needs explicit approval per `welcome.md`;
-  a direct connection to F1's own live timing feed is zero-budget and genuinely live but likely
-  violates F1's Terms of Service (personal-non-commercial-use-only, no reverse engineering) —
-  worse for this project specifically, since Lane C's end goal is commercial trading — and has a
-  documented history of F1 IP-blocking third-party clients that do this. Owner's call: approve
-  the paid tier, accept the ToS/stability risk of the direct connection, or leave Lane B blocked.
+  (confirmed permanent limitation, not a version gap); OpenF1's free tier is the same —
+  zero-budget, ToS-clean, not live — and its paid tier (€9.90/mo) is live but costs money and
+  needs explicit approval per `welcome.md`; a direct connection to F1's own live timing feed is
+  zero-budget and genuinely live but sits against F1's own legal notices, read directly rather
+  than paraphrased (`03` §2.3): they name "live timing data" as protected, restrict site
+  materials to personal/non-commercial use, and prohibit reverse-engineering "the site" — with a
+  real caveat that those are the *website's* terms and the live timing feed is a separate host,
+  so how far they reach isn't fully settled by that page alone. What isn't ambiguous: this
+  project's end goal (an automated trading bot) is about as far from "personal, non-commercial
+  use" as a use case gets, and one hobbyist client already had its hosted deployment IP-blocked
+  by F1 for doing exactly this. Owner's call: approve the paid tier, accept the legal/stability
+  risk of the direct connection (worth an actual legal read, not a default), or leave Lane B
+  blocked.
   One cheap, source-independent check can run first regardless: a single manual side-by-side
   observation of broadcast vs. any live source, to see whether the delay is seconds (workable) or
   minutes (kills B0 outright, no matter which source gets chosen) — see `03` §3 and §5.
