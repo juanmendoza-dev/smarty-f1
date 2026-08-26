@@ -20,7 +20,7 @@ The output isn't just a single probability — it's a comparison: does our algo 
 
 ## Hard constraints — do not violate
 
-- **Zero budget.** This project uses free tiers and free/open data sources only. Do not introduce a paid API, paid tier, or paid service without the owner explicitly approving the cost first. (Example: OpenF1's live data tier costs €9.90/month — we deliberately avoid it and use FastF1's free live module instead.)
+- **Zero budget.** This project uses free tiers and free/open data sources only. Do not introduce a paid API, paid tier, or paid service without the owner explicitly approving the cost first. (Example: OpenF1's live data tier costs €9.90/month — we deliberately avoid it. **Corrected 2026-08-26:** this used to say "and use FastF1's free live module instead," which was never true — FastF1 can't parse live data at any budget. Lane B's live source is now decided and specced; see `docs/03-live-telemetry-overtakes.md`.)
 - **No implementation without an approved spec.** Specs live in `/docs` and are written before code. Don't skip ahead to building something that isn't specced yet — flag it and ask instead.
 - **No real-money trading without separate, explicit approval.** This applies on top of the spec rule above, not instead of it: an approved spec for Lane C's trading logic authorizes building it, not placing live trades with real funds. That's a distinct go-ahead from the owner, given only after risk controls (position limits, max loss, kill switch) are decided.
 
@@ -44,7 +44,7 @@ The project is split into independent tracks. Don't conflate them — most confu
 - `docs/02-winner-prediction-algo.md` — the rule-based scoring spec (Phase A1, weights locked)
 - `docs/04-outcome-expansion-algo.md` — podium, points, DNF, fastest lap (Phase A4)
 - `docs/05-trained-model.md` — the trained winner model (Phase A3, **current focus**). Read `02` first; A3's whole design turns on the fact that `02`'s scorer is already a conditional logit with hand-set coefficients
-- `docs/03-live-telemetry-overtakes.md` — Lane B's data-source research (2026-08-26). **Not a build spec yet** — it settles which live data sources are even viable (none cleanly) and leaves the actual streaming design as future work; see the roadmap's Lane B phases
+- `docs/03-live-telemetry-overtakes.md` — Lane B's live data source and tick client (Phase B0). **Now a build spec** (2026-08-26), with the original source research preserved as §§1–3. Read §§4–5 before touching anything in this lane: they set the authorized scope (personal research/development only, no hosted deployment, no Lane C hookup) and record the ToS risk the owner identified and knowingly accepted. The client may be built; the prediction layer on top of it is gated on B1's delay measurement
 - `docs/06-weather-ensemble-signal.md` — multi-model weather ensemble spec. **Verified against 44 races, not approved, not implemented** — queries four named weather models instead of one blend, and uses their disagreement to flag when our own forecast can't be trusted. Blocked on one owner decision: whether a 0.1mm trace should keep counting as a wet race (§6.1)
 - `docs/07-lane-c-trading-feasibility.md` — Lane C (trading bot) feasibility research (2026-08-26). **Not a build spec** — it finds the blocker is the *edge*, not the APIs (no measured edge in any market yet), and lays out a zero-budget path: build an edge-measurement + paper-trading harness first. See also the roadmap's Lane C phases
 
