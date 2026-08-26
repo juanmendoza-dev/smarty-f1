@@ -237,25 +237,46 @@ Note the tier table itself is defined only for the 15 circuits in `lib/circuits.
 else defaults to 1.00. For the interaction, the 18 circuits added in §5.2 need tier assignments or
 an explicit "default tier" bucket — a small decision, listed in §10.
 
-**Run 2026-08-26, on the dev folds — closed: `m` stays dropped.** `tier_interaction_backtest.py`
-builds `grid_x_hard`/`grid_x_easy` (`s_grid` masked to circuits `lib.circuits.tier_for` calls
-"hard"/"easy"; every circuit missing from `OVERTAKING_MULTIPLIER` — including all 17 the backfill
-added — lands in the same "default" bucket as the explicitly-1.00 circuits, per §10 item 2's own
-resolution, not tiered by hand). Reusing `fit.py`'s likelihood/gradient/evaluation code unchanged,
-on the same 2017–2023 dev folds: validation selects the same top-of-grid A1 prior as the 7-feature
-model and crushes both new coefficients to ≈0 (pooled Brier 0.58517, identical to the baseline to
-5 decimal places — the interaction is invisible at that shrinkage). The informative signal is in
-the **unregularized** fit on the largest fold (trained 2014–2022): `grid_x_hard` = **−0.89**,
-`grid_x_easy` = **−0.52** — both negative, where §5.1 predicts hard positive and easy negative.
-Under mild shrinkage (λ=0.01, zero prior) both collapse toward zero and become unstable
-(`grid_x_hard` flips to −0.05, `grid_x_easy` flips to +0.12) — the sign isn't just wrong, it isn't
-stable, consistent with ~8 races per non-default tier being too little data to pin two extra
-parameters down. Verdict: **flat/inverted, not vindicated.** `02` §5.1's hand-set ordering is not
-supported by the fitted interaction, so `m` stays dropped for v1 and is not coming back — this
-closes the open item without needing the holdout. `test_tier_interaction.py` covers the tier
-lookup and column-append logic (12 tests); `tier_interaction_backtest.py` itself is standalone
-verification tooling in the `weather_backtest.py` mold, not part of the fitting path `fit.py`'s
-tests check.
+**Run 2026-08-26, on the dev folds — `m` stays dropped for v1, but not closed for good.**
+`tier_interaction_backtest.py` builds `grid_x_hard`/`grid_x_easy` (`s_grid` masked to circuits
+`lib.circuits.tier_for` calls "hard"/"easy"; every circuit missing from `OVERTAKING_MULTIPLIER` —
+including all 17 the backfill added — lands in the same "default" bucket as the explicitly-1.00
+circuits, per §10 item 2's own resolution, not tiered by hand). The dev set has 33 hard-tier races,
+39 easy-tier, 132 default, over 2014–2023 — roughly 9–10 races per non-default *circuit* at 5
+circuits each, close to §3.5's ~8-per-circuit estimate, but not the same thing as "too little data
+for the coefficient," which the fold-by-fold numbers below don't support as a blanket excuse.
+
+Reusing `fit.py`'s likelihood/gradient/evaluation code unchanged, validation on the regularized fit
+selects the same top-of-grid A1 prior as the 7-feature model and crushes both new coefficients to
+≈0 (pooled Brier 0.58517, identical to the baseline to 5 decimals) — that comparison has no content,
+it just shows the selection procedure shrinking untested parameters away, the same collapse already
+seen on the base 7. The real evidence is the **unregularized fit, per dev fold** (λ=0, trained on
+an expanding window through each fold's season):
+
+| eval season | train races | `grid_x_hard` | `grid_x_easy` |
+|---|---|---|---|
+| 2017 | 59  | −0.83 | +1.26 |
+| 2018 | 79  | −1.09 | −0.32 |
+| 2019 | 100 | −0.05 | −0.14 |
+| 2020 | 121 | −0.15 | +0.80 |
+| 2021 | 138 | −0.12 | +0.13 |
+| 2022 | 160 | −0.73 | −0.25 |
+| 2023 | 182 | −0.89 | −0.52 |
+
+Two different findings live in that table, and they don't get the same verdict. **`grid_x_hard` is
+negative in all 7 folds** — not noise, a consistent inversion of §5.1's prediction that grid should
+matter *more* where position is hard to change. **`grid_x_easy` flips sign three times** (positive
+in 2017/2020/2021, negative in 2018/2019/2022/2023) — that's not identified from this corpus,
+either direction, and reporting a single fold's value (as the first version of this entry did) would
+have overstated what the data supports.
+
+Verdict: **not vindicated — `m` stays dropped for v1.** The hard-tier side is a real, stable finding
+against the hand-set ordering; the easy-tier side is genuinely unresolved rather than confirmed
+wrong. Revisit the easy-tier coefficient specifically if the corpus grows enough (more seasons at
+`baku`/`jeddah`/`monza`/`spa`/`interlagos`) to stabilize its sign — this is not a permanent close the
+way F7 train-dormancy or the `T` dissolution are. `test_tier_interaction.py` covers the tier lookup
+and column-append logic (12 tests); `tier_interaction_backtest.py` itself is standalone verification
+tooling in the `weather_backtest.py` mold, not part of the fitting path `fit.py`'s tests check.
 
 ### 3.6 Identification and regularization
 
