@@ -7,3 +7,10 @@ __pycache__/
 # CSV partly so the training set stays diffable in git, and for a portfolio
 # project the matrix being inspectable is the point. The cache below is a
 # different thing -- it's 18MB of reconstructible HTTP responses.
+# data/live/ is Lane B's live-timing capture (03 sec11.2). Ignored for a
+# stronger reason than data/cache/ above: cache is just reconstructible HTTP,
+# this is F1 live timing data whose terms prohibit redistribution, and this
+# repo is public. Nothing under here gets committed -- not a sample, not a
+# truncated file, not a test fixture. Fixtures use hand-written synthetic
+# payloads instead.
+data/live/
