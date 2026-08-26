@@ -1,0 +1,495 @@
+{
+  "mode": "final",
+  "matrix": "data/training/winner.csv",
+  "corpus": [
+    {
+      "season": 2014,
+      "n_races": 19,
+      "max_round": 19,
+      "missing_rounds": []
+    },
+    {
+      "season": 2015,
+      "n_races": 19,
+      "max_round": 19,
+      "missing_rounds": []
+    },
+    {
+      "season": 2016,
+      "n_races": 21,
+      "max_round": 21,
+      "missing_rounds": []
+    },
+    {
+      "season": 2017,
+      "n_races": 20,
+      "max_round": 20,
+      "missing_rounds": []
+    },
+    {
+      "season": 2018,
+      "n_races": 21,
+      "max_round": 21,
+      "missing_rounds": []
+    },
+    {
+      "season": 2019,
+      "n_races": 21,
+      "max_round": 21,
+      "missing_rounds": []
+    },
+    {
+      "season": 2020,
+      "n_races": 17,
+      "max_round": 17,
+      "missing_rounds": []
+    },
+    {
+      "season": 2021,
+      "n_races": 22,
+      "max_round": 22,
+      "missing_rounds": []
+    },
+    {
+      "season": 2022,
+      "n_races": 22,
+      "max_round": 22,
+      "missing_rounds": []
+    },
+    {
+      "season": 2023,
+      "n_races": 22,
+      "max_round": 22,
+      "missing_rounds": []
+    },
+    {
+      "season": 2024,
+      "n_races": 24,
+      "max_round": 24,
+      "missing_rounds": []
+    },
+    {
+      "season": 2025,
+      "n_races": 24,
+      "max_round": 24,
+      "missing_rounds": []
+    },
+    {
+      "season": 2026,
+      "n_races": 12,
+      "max_round": 12,
+      "missing_rounds": []
+    }
+  ],
+  "corpus_complete": true,
+  "holdout_seasons": [
+    2024,
+    2025
+  ],
+  "dev_seasons": [
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2026
+  ],
+  "evaluated_seasons": [
+    2024,
+    2025
+  ],
+  "features": [
+    "grid",
+    "team",
+    "sprint",
+    "driver_form",
+    "track",
+    "champ",
+    "teammate"
+  ],
+  "a1_implied_beta": [
+    2.996575342465753,
+    1.2842465753424657,
+    1.113013698630137,
+    0.9417808219178082,
+    0.684931506849315,
+    0.684931506849315,
+    0.42808219178082196
+  ],
+  "sweep": [
+    {
+      "prior": "zero",
+      "lam": 0.0,
+      "n_races": 157,
+      "brier": 0.6045133468457267,
+      "logloss": 1.3431241492577248,
+      "top1": 0.554140127388535
+    },
+    {
+      "prior": "zero",
+      "lam": 0.001,
+      "n_races": 157,
+      "brier": 0.5965590855016799,
+      "logloss": 1.3191130522209567,
+      "top1": 0.5605095541401274
+    },
+    {
+      "prior": "zero",
+      "lam": 0.003,
+      "n_races": 157,
+      "brier": 0.5899479994823124,
+      "logloss": 1.302501789805011,
+      "top1": 0.5605095541401274
+    },
+    {
+      "prior": "zero",
+      "lam": 0.01,
+      "n_races": 157,
+      "brier": 0.5848565946814321,
+      "logloss": 1.2938426913922485,
+      "top1": 0.5668789808917197
+    },
+    {
+      "prior": "zero",
+      "lam": 0.03,
+      "n_races": 157,
+      "brier": 0.5902392012951418,
+      "logloss": 1.3182474268652464,
+      "top1": 0.5796178343949044
+    },
+    {
+      "prior": "zero",
+      "lam": 0.1,
+      "n_races": 157,
+      "brier": 0.6232080455967447,
+      "logloss": 1.429630355954685,
+      "top1": 0.5605095541401274
+    },
+    {
+      "prior": "zero",
+      "lam": 0.3,
+      "n_races": 157,
+      "brier": 0.7009941639967098,
+      "logloss": 1.679740410581431,
+      "top1": 0.5477707006369427
+    },
+    {
+      "prior": "zero",
+      "lam": 1.0,
+      "n_races": 157,
+      "brier": 0.828523562325982,
+      "logloss": 2.1783936495072243,
+      "top1": 0.5477707006369427
+    },
+    {
+      "prior": "zero",
+      "lam": 3.0,
+      "n_races": 157,
+      "brier": 0.9059556811736151,
+      "logloss": 2.627215353661918,
+      "top1": 0.5414012738853503
+    },
+    {
+      "prior": "zero",
+      "lam": 10.0,
+      "n_races": 157,
+      "brier": 0.9370148657256485,
+      "logloss": 2.8751984013127356,
+      "top1": 0.5414012738853503
+    },
+    {
+      "prior": "zero",
+      "lam": 30.0,
+      "n_races": 157,
+      "brier": 0.9458458174926686,
+      "logloss": 2.957366320220493,
+      "top1": 0.5414012738853503
+    },
+    {
+      "prior": "a1",
+      "lam": 0.0,
+      "n_races": 157,
+      "brier": 0.6045133468457267,
+      "logloss": 1.3431241492577248,
+      "top1": 0.554140127388535
+    },
+    {
+      "prior": "a1",
+      "lam": 0.001,
+      "n_races": 157,
+      "brier": 0.6009869185201362,
+      "logloss": 1.3233726405192676,
+      "top1": 0.554140127388535
+    },
+    {
+      "prior": "a1",
+      "lam": 0.003,
+      "n_races": 157,
+      "brier": 0.5954282052017715,
+      "logloss": 1.3065421269527615,
+      "top1": 0.554140127388535
+    },
+    {
+      "prior": "a1",
+      "lam": 0.01,
+      "n_races": 157,
+      "brier": 0.5895945363350645,
+      "logloss": 1.2910154186944207,
+      "top1": 0.5605095541401274
+    },
+    {
+      "prior": "a1",
+      "lam": 0.03,
+      "n_races": 157,
+      "brier": 0.5864946474710033,
+      "logloss": 1.28300571115371,
+      "top1": 0.5605095541401274
+    },
+    {
+      "prior": "a1",
+      "lam": 0.1,
+      "n_races": 157,
+      "brier": 0.5854089481058198,
+      "logloss": 1.2800905576905006,
+      "top1": 0.5477707006369427
+    },
+    {
+      "prior": "a1",
+      "lam": 0.3,
+      "n_races": 157,
+      "brier": 0.5852414264724823,
+      "logloss": 1.279881969061044,
+      "top1": 0.5605095541401274
+    },
+    {
+      "prior": "a1",
+      "lam": 1.0,
+      "n_races": 157,
+      "brier": 0.5851907580118211,
+      "logloss": 1.280124683248876,
+      "top1": 0.5668789808917197
+    },
+    {
+      "prior": "a1",
+      "lam": 3.0,
+      "n_races": 157,
+      "brier": 0.5851714798632253,
+      "logloss": 1.280271700791807,
+      "top1": 0.5668789808917197
+    },
+    {
+      "prior": "a1",
+      "lam": 10.0,
+      "n_races": 157,
+      "brier": 0.5851637237179627,
+      "logloss": 1.2803368079179283,
+      "top1": 0.5668789808917197
+    },
+    {
+      "prior": "a1",
+      "lam": 30.0,
+      "n_races": 157,
+      "brier": 0.5851613922925696,
+      "logloss": 1.2803569935357018,
+      "top1": 0.5668789808917197
+    }
+  ],
+  "selected": {
+    "prior": "zero",
+    "lambda": 0.01,
+    "metric": "brier"
+  },
+  "separation": {
+    "grid": {
+      "races_won_by_argmax": 119,
+      "n_races": 216,
+      "separates": false
+    },
+    "team": {
+      "races_won_by_argmax": 0,
+      "n_races": 216,
+      "separates": false
+    },
+    "sprint": {
+      "races_won_by_argmax": 7,
+      "n_races": 216,
+      "separates": false
+    },
+    "driver_form": {
+      "races_won_by_argmax": 86,
+      "n_races": 216,
+      "separates": false
+    },
+    "track": {
+      "races_won_by_argmax": 57,
+      "n_races": 216,
+      "separates": false
+    },
+    "champ": {
+      "races_won_by_argmax": 94,
+      "n_races": 216,
+      "separates": false
+    },
+    "teammate": {
+      "races_won_by_argmax": 8,
+      "n_races": 216,
+      "separates": false
+    }
+  },
+  "per_season": [
+    {
+      "season": 2024,
+      "a3": {
+        "n_races": 24,
+        "brier": 0.7184592805285398,
+        "logloss": 1.6158212362705247,
+        "top1": 0.5416666666666666
+      },
+      "a1": {
+        "n_races": 24,
+        "brier": 0.6980890475560301,
+        "logloss": 1.5783167635893005,
+        "top1": 0.5416666666666666
+      },
+      "grid_only": {
+        "n_races": 24,
+        "brier": 0.6905100500381662,
+        "logloss": 1.5807486289717445,
+        "top1": 0.5
+      },
+      "beta": [
+        2.9175066074515312,
+        1.0653980321842262,
+        0.6448530655654754,
+        0.8107462864576004,
+        0.38816043837345976,
+        1.257677973024646,
+        0.4291245322547613
+      ],
+      "beta_grid_only": [
+        5.2132683030883005
+      ]
+    },
+    {
+      "season": 2025,
+      "a3": {
+        "n_races": 24,
+        "brier": 0.5754846483635687,
+        "logloss": 1.0957724534013635,
+        "top1": 0.5
+      },
+      "a1": {
+        "n_races": 24,
+        "brier": 0.5376350100781617,
+        "logloss": 1.0005073460052267,
+        "top1": 0.5416666666666666
+      },
+      "grid_only": {
+        "n_races": 24,
+        "brier": 0.5202371949676795,
+        "logloss": 1.0881057942307573,
+        "top1": 0.6666666666666666
+      },
+      "beta": [
+        2.9666127444650954,
+        1.0803235647340494,
+        0.02986575523407742,
+        0.8703015238726962,
+        0.4172417446442334,
+        1.087586452203628,
+        0.3865713705942959
+      ],
+      "beta_grid_only": [
+        5.177976410156261
+      ]
+    }
+  ],
+  "pooled": {
+    "a3": {
+      "n_races": 48,
+      "brier": 0.6469719644460543,
+      "logloss": 1.355796844835944,
+      "top1": 0.5208333333333334
+    },
+    "a1": {
+      "n_races": 48,
+      "brier": 0.6178620288170958,
+      "logloss": 1.2894120547972636,
+      "top1": 0.5416666666666666
+    },
+    "grid_only": {
+      "n_races": 48,
+      "brier": 0.6053736225029228,
+      "logloss": 1.3344272116012508,
+      "top1": 0.5833333333333334
+    }
+  },
+  "calibration": [
+    {
+      "lo": 0.0,
+      "hi": 0.01,
+      "n": 624,
+      "mean_predicted": 0.0030662514324721634,
+      "realized": 0.0
+    },
+    {
+      "lo": 0.01,
+      "hi": 0.02,
+      "n": 72,
+      "mean_predicted": 0.015364993366074713,
+      "realized": 0.013888888888888888
+    },
+    {
+      "lo": 0.02,
+      "hi": 0.05,
+      "n": 89,
+      "mean_predicted": 0.03282127820877894,
+      "realized": 0.02247191011235955
+    },
+    {
+      "lo": 0.05,
+      "hi": 0.1,
+      "n": 51,
+      "mean_predicted": 0.06890898035039375,
+      "realized": 0.0784313725490196
+    },
+    {
+      "lo": 0.1,
+      "hi": 0.2,
+      "n": 40,
+      "mean_predicted": 0.13916975975503215,
+      "realized": 0.125
+    },
+    {
+      "lo": 0.2,
+      "hi": 0.35,
+      "n": 40,
+      "mean_predicted": 0.2665745240890613,
+      "realized": 0.375
+    },
+    {
+      "lo": 0.35,
+      "hi": 0.5,
+      "n": 19,
+      "mean_predicted": 0.42154255257261875,
+      "realized": 0.3684210526315789
+    },
+    {
+      "lo": 0.5,
+      "hi": 1.0,
+      "n": 23,
+      "mean_predicted": 0.6219933901167427,
+      "realized": 0.6086956521739131
+    }
+  ],
+  "criterion": {
+    "beats_a1_on_brier": false,
+    "loses_to_a1_on_logloss": true,
+    "beats_grid_only_on_brier": false
+  }
+}
