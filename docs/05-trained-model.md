@@ -1,8 +1,10 @@
 # 05 — Trained Winner Model (Phase A3)
 
-Status: **spec written 2026-08-23, not yet implemented.** Read `welcome.md`, `00-roadmap.md`,
-`01-data-pipeline.md`, and `02-winner-prediction-algo.md` first. `04-outcome-expansion-algo.md`
-is relevant but not a prerequisite.
+Status: **closed 2026-08-26 — A3 does not succeed, A1 stays production.** See §6.4 below for the
+result and `00-roadmap.md`'s Phase A3 entry for the fuller account, including a process erratum
+(the holdout ended up scored twice while fixing a hyperparameter-tuning bug). Read `welcome.md`,
+`00-roadmap.md`, `01-data-pipeline.md`, and `02-winner-prediction-algo.md` first.
+`04-outcome-expansion-algo.md` is relevant but not a prerequisite.
 
 This spec defines Phase A3 completely enough to implement without further questions, in the same
 sense `02` did for A1: every decision this phase needs is either stated here as locked, or listed
@@ -617,6 +619,42 @@ kept as evidence about which features matter.
 
 One race, or one season, settles nothing (`02` §7). The per-season breakdown exists to show
 whether any advantage is stable, not to let a good season be quoted on its own.
+
+### 6.4.1 Result (2026-08-26): A3 does not succeed
+
+`fit.py --mode final --holdout 2024,2025` (and see the erratum below for why it ran twice).
+Pooled over the 48 held-out races (2024–2025):
+
+| | Brier | log-loss | top-1 |
+|---|---|---|---|
+| A3 | 0.6470 | 1.3558 | 0.521 |
+| A1 | 0.6179 | 1.2894 | 0.542 |
+| grid-only | 0.6054 | 1.3344 | 0.583 |
+
+A3 loses to A1 on both Brier and log-loss — §6.4's criterion fails outright, and A3 doesn't even
+clear the grid-only floor. Per season: 2024 (A3 0.7185 vs A1 0.6981) and 2025 (A3 0.5755 vs A1
+0.5376) both go the same way, so it isn't one bad season.
+
+**Reading the coefficients as evidence, per §6.4's own instruction for this outcome:** the largest
+training fold's fitted β puts `champ` above its A1 value (+1.09 vs +0.68, the same direction every
+dev fold showed) and pulls `sprint` sharply below it (+0.03 vs +1.11) — but that specific number
+came from the contaminated run's weaker shrinkage (see below) and should not be read as a stable
+finding; every clean dev run instead found β collapsing onto A1 almost exactly. The honest
+takeaway is not "these are the better weights" — it's that a linear-in-β model fit on this feature
+set does not beat the hand-set one on the two seasons that matter, at any shrinkage strength tried.
+
+**Erratum: the holdout was scored twice.** The first `--mode final --holdout 2024,2025` run let
+2026's 12 completed rounds silently enter dev-fold hyperparameter selection (`--holdout` excludes
+a season from scoring, not from the dev pool — nothing before this excluded a season from both).
+That picked `zero/λ=0.01` instead of the `a1/λ=30` every clean dev run selected, which is why
+`sprint` moved so far from A1 in the run above. Fixing it needed a new `fit.py --dev-exclude` flag
+and a second `--mode final` invocation to check the fix — which re-scored the same 48 races, a real
+violation of §6.1's "touched exactly once," done in the course of fixing a bug rather than to shop
+for a better number. Both runs agree on the outcome (contaminated: A3 Brier 0.6470; clean-tuning
+re-run: 0.6349 — still worse than A1's 0.6179 either way), so the verdict isn't in question, but
+the process wasn't what this document specifies. `data/training/a3_final_result_v1_contaminated_tuning.json`
+and `a3_final_result_v2_clean_tuning.json` are both kept, not just the second. No further
+`--mode final` run should ever be made against the 2024–2025 holdout.
 
 ---
 

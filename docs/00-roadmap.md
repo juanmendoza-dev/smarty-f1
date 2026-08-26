@@ -39,7 +39,7 @@ Both the pre-lights-out re-snapshot and the post-race score ran via scheduled An
 
 **Phase A3 — Trained model (current focus)**
 Train a conditional logit as a first real model and compare its calibration against the Phase A1 rule-based baseline. Move to gradient-boosted trees (XGBoost/LightGBM) once the data pipeline is trusted.
-Status: **corpus complete; fitter written and tested; the §6.4 evaluation is the one thing left** (2026-08-24). See `05-trained-model.md`.
+Status: **§6.4 evaluation run, twice by mistake, both agree: A3 does not succeed. A1 stays production** (2026-08-26). See `05-trained-model.md` and the erratum at the bottom of this entry.
 
 `backfill.py` is built (`b9c21bb`) and the full `--seasons 2014-2026` run is **complete**: **264 of 264 races, 5,350 driver-race rows**, committed at `data/training/winner.csv` (`b881256`). Every season contiguous with no gaps, exactly one label-1 row per race, all seven features inside `[0,1]`, no blank cells, every race's `p_a1` summing to 1.0, and **29 sprint weekends** — matching `05` §4.3's count exactly.
 
@@ -55,7 +55,13 @@ Wall-clock was **~6h50m** for the primary run (15:59–22:49), paced by `httpcac
 - Validation again selected the **A1-implied prior at the top of the λ grid** (β collapsed onto A1, max |Δ| < 0.001), so the A3-vs-A1 gap is still not a fitting effect. **Era split holds up on the full corpus:** pooled Brier over 2017–2020 is A3 0.6448 vs A1 0.6573 (gap −0.0125 in A3's favor, 79 races); over 2021–2023 it's A3 0.5138 vs A1 0.5072 (gap +0.0066, **reversed**, 66 races — slightly wider than the 2026-08-24 run's −0.0044, still the same sign flip). D3 (sprint renormalization) is inert pre-2021 by construction, so D4 (dropping per-circuit `m`) remains the only structural candidate, and its sign is still not stable across eras. Zero-prior's own best (λ=0.01, Brier 0.58684) again edges A1.
 - The unregularized fit now puts **β_sprint at 1.25** (A1 1.11) — much closer to A1 than the 2026-08-24 run's 2.48, i.e. the wide interval `05` §3.4 predicted has narrowed with 59 more races feeding that fold's training set. **β_champ still runs above its hand-set value** (1.16 vs A1's 0.68), unchanged in direction.
 
-**Both things gating `--mode final` are now resolved (2026-08-26).** The round-contiguity guard doesn't catch a holdout season still in progress — 2026 has 12 of its rounds in the corpus, with Monza and `madring` still to come — so running `--mode final` on the default `HOLDOUT_SEASONS` today would measure a truncated 2026 and burn §6.1's "touched exactly once" on it. Resolved: invoke it as `--holdout 2024,2025`, which quarantines 2026 out of the run entirely (see Locked decisions). And `05` §3.5's fitted tier interaction — the one open design-matrix question that had to land *before* the final run, since adding it after would force a second one — is decided: it did not clearly vindicate `02` §5.1's ordering on the dev folds (see the entry below), so it does not go in, and the design matrix stays the same 7 features it's been. `--mode final --holdout 2024,2025` is therefore unblocked and has not been run. It remains a deliberate once-only decision, not something to fire off as a status check.
+**Both things gating `--mode final` are now resolved (2026-08-26).** The round-contiguity guard doesn't catch a holdout season still in progress — 2026 has 12 of its rounds in the corpus, with Monza and `madring` still to come — so running `--mode final` on the default `HOLDOUT_SEASONS` today would measure a truncated 2026 and burn §6.1's "touched exactly once" on it. Resolved: invoke it as `--holdout 2024,2025`, which quarantines 2026 out of the run entirely (see Locked decisions). And `05` §3.5's fitted tier interaction — the one open design-matrix question that had to land *before* the final run, since adding it after would force a second one — is decided: it did not clearly vindicate `02` §5.1's ordering on the dev folds (see the entry below), so it does not go in, and the design matrix stays the same 7 features it's been.
+
+**`--mode final --holdout 2024,2025` was run 2026-08-26. Result: A3 does not succeed — A1 stays production.** Pooled over the 48 held-out races (2024–2025): A3 Brier 0.6470 vs A1 0.6179 vs grid-only 0.6054 — A3 loses to A1 *and* to the grid-only floor, on both Brier and log-loss. §6.4's criterion was stated before this ran and is unambiguous here: A3 fails it. Per-season, 2024 (A3 0.7185 vs A1 0.6981) and 2025 (A3 0.5755 vs A1 0.5376) both go the same way, so this isn't one bad season carrying the pooled number.
+
+**Erratum, disclosed rather than smoothed over: the holdout got touched twice, and the first touch used a contaminated hyperparameter selection.** `--holdout 2024,2025` excludes those two seasons from `--mode final`'s scoring, but the code's `dev_seasons` was simply "everything not in `--holdout`" — so 2026's 12 completed rounds silently became a dev-tuning fold, something every earlier `--mode dev` run had correctly excluded. That flipped hyperparameter selection from the `a1/λ=30` every clean run chose to `zero/λ=0.01`, letting β drift far from A1 (β_sprint collapsed to 0.03) — `data/training/a3_final_result_v1_contaminated_tuning.json`. Fixed immediately with a new `--dev-exclude` flag (seasons dropped from dev tuning without being scored, distinct from `--holdout`), and re-run as `--mode final --holdout 2024,2025 --dev-exclude 2026` to get a clean selection (`a1/λ=30`, matching every dev run) — `data/training/a3_final_result_v2_clean_tuning.json`. **That second run re-scored the same 48 held-out races**, which is exactly the §6.1 violation this whole design exists to prevent, and it should not have happened; the fix belonged in a dev-only diagnostic, not a second `--mode final` invocation. It is recorded here rather than deleted because both runs point the same direction — A3 loses on both (0.6470 and 0.6349 vs A1's 0.6179) — so the finding is not an artifact of which run gets quoted, but the process was not "touched exactly once" as documented, and no more `--mode final` runs should ever be made against 2024/2025 now that it's spent twice over. `fit.py`'s `--dev-exclude` flag stays, to stop the *original* contamination from recurring on a future season, even though this run is the one that found the bug.
+
+**What this means for production:** A1 (the hand-set rule-based scorer) stays the model behind `score.py`/`postrace.py`/live predictions. A3's fitted coefficients are kept as evidence about which features the data thinks matter (§6.4's own instruction for this outcome) — worth reading in `05-trained-model.md`'s coefficient tables, not worth deploying. Phase A3 is closed.
 
 The separation check (§3.6) ran and is clean: no feature is the winner's strict argmax in every race (`grid` in 102 of 194), so no coefficient is being driven to infinity.
 
@@ -166,7 +172,7 @@ Status: not started.
 - Phase A3 validation is **season-forward, never random k-fold** (`05` §6.1) — random folds leak the future through every season-long feature
 - Phase A3 fitting environment: **hand-rolled in pure Python 3.9**, no scipy (`05` §7, decided 2026-08-24). Keeps the still-open interpreter upgrade decoupled from this phase; affects the optimizer only
 - Phase A3 training matrix (`data/training/winner.csv`) is **committed to git**, per `05` §5.1's own reasoning that CSV was chosen to keep it diffable. `data/cache/` stays ignored — that's reconstructible HTTP responses, not a deliverable
-- Phase A3 `--mode final` invocation: **`--holdout 2024,2025`**, not the default `HOLDOUT_SEASONS`. 2026 is still in progress (12 rounds in as of 2026-08-26); this holds out only the two completed seasons and leaves 2026 untouched by the run — neither trained on nor scored — so it stays available as a genuine second out-of-sample check once the season ends (decided 2026-08-26)
+- Phase A3 `--mode final` invocation: **`--holdout 2024,2025 --dev-exclude 2026`**. 2026 is still in progress (12 rounds in as of 2026-08-26); `--holdout` alone keeps it out of scoring but *not* out of dev tuning (see the Open decisions entry for the incident this caused), so `--dev-exclude` is required too. Moot now that the run has actually happened — recorded for the record and in case a future season ever needs the same treatment (decided 2026-08-26)
 - Phase A3 track multiplier `m`: **stays dropped for v1.** The fitted tier interaction (`05` §3.5) was tested on dev folds, per-fold rather than on one fold: `grid_x_hard` is negative in all 7 folds (a stable inversion of `02` §5.1's predicted ordering), `grid_x_easy` flips sign three times (not identified from this corpus either direction). Not a permanent close the way F7 or `T` are — revisit the easy-tier side if more seasons accumulate at its five circuits (decided 2026-08-26)
 - Odds normalization for A1: proportional de-vig; raw + normalized both persisted
 - Live data (when needed): **FastF1's free live module**, not OpenF1's paid live tier (€9.90/month) — avoided per the zero-budget constraint. Note this is the same constraint blocking Lane C's live in-race trading (Phase C1) — revisit together if the owner decides to approve the paid tier
@@ -175,15 +181,17 @@ Status: not started.
 ## Open decisions
 
 - ~~**New 2026-08-26:** `--mode final`'s holdout (`HOLDOUT_SEASONS = (2024, 2025, 2026)`) includes
-  a season still in progress~~ **Resolved 2026-08-26: hold out 2024–2025 only.** `fit.py`'s
-  `HOLDOUT_SEASONS` constant stays `(2024, 2025, 2026)` unchanged — it documents the eventual
-  three-season target — but the actual `--mode final` invocation should pass
-  `--holdout 2024,2025` explicitly. That quarantines 2026 out of the run entirely rather than
-  folding its 12-so-far rounds into either side: `season_forward_folds` only evaluates the seasons
-  named in `--holdout`, and every fold for 2024/2025 trains on seasons strictly before it, so 2026
-  rows are never read by this run at all — not used for tuning, not scored. 2026 becomes a second,
-  genuinely out-of-sample check once that season actually finishes, keeping `05` §6.1's "touched
-  exactly once" intact for both.
+  a season still in progress~~ **Resolved and closed 2026-08-26.** `--holdout 2024,2025` correctly
+  keeps 2026 out of the *scored* seasons — `season_forward_folds` only evaluates the seasons named
+  in `--holdout`, and every fold for 2024/2025 trains on seasons strictly before it. What the
+  original writeup got wrong: `--holdout` alone does **not** keep a season out of *dev tuning* —
+  `dev_seasons` was simply "everything not in `--holdout`," so 2026's 12 rounds silently became a
+  dev fold and picked the hyperparameters for the first `--mode final` run. Real consequence, see
+  the Phase A3 entry's erratum: this was caught only after that run, and fixing it required a
+  second `--mode final` invocation, which re-scored 2024/2025 — a real double-touch of the holdout,
+  not a hypothetical one. Fixed going forward with `fit.py --dev-exclude`, which excludes a season
+  from dev tuning without either holding it out or scoring it. Phase A3 itself is closed either
+  way — see the Phase A3 entry for the result.
 - **New 2026-08-24:** multi-model weather ensemble spec drafted, then revised and verified against
   44 races the same day (`06-weather-ensemble-signal.md`) — queries Open-Meteo with an explicit
   `models=` list (ECMWF IFS, GFS, ICON, GEM) instead of the provider's blended default. **Not
