@@ -15,7 +15,7 @@ Lanes A and B remain the prediction engine, unchanged in scope. **Lane C** (new,
 | **What** | Race winner, podium, points, DNF probability | Overtake prediction, corner-level, real-time |
 | **Data pattern** | Pull once before a session, compute, done | Continuous stream during a session, react in real time |
 | **Complexity driver** | Feature quality, market comparison | Latency, broadcast delay-sync, event detection |
-| **Status** | Active — current focus (Phase A3) | Deferred — design only, not building yet |
+| **Status** | Active — current focus (Phase A3) | Source decided and specced (`03`); client build authorized, model layer gated on B1 |
 
 Lane C (trading, see below) sits downstream of both: it can trade Lane A's settled-market predictions (winner, podium) without waiting on Lane B, but in-race overtake markets need Lane B's live feed to exist first. It's tracked as its own lane rather than a sub-phase of either.
 
@@ -197,7 +197,7 @@ Status: not started.
 
 ## Open decisions
 
-- **New 2026-08-26:** Lane B's live data source (`03-live-telemetry-overtakes.md` §2.4). Four
+- ~~**New 2026-08-26:** Lane B's live data source (`03-live-telemetry-overtakes.md` §2.4). Four
   candidates, none clean: FastF1's live module is zero-budget and ToS-clean but not actually live
   (confirmed permanent limitation, not a version gap); OpenF1's free tier is the same —
   zero-budget, ToS-clean, not live — and its paid tier (€9.90/mo) is live but costs money and
@@ -211,10 +211,41 @@ Status: not started.
   use" as a use case gets, and one hobbyist client already had its hosted deployment IP-blocked
   by F1 for doing exactly this. Owner's call: approve the paid tier, accept the legal/stability
   risk of the direct connection (worth an actual legal read, not a default), or leave Lane B
-  blocked.
-  One cheap, source-independent check can run first regardless: a single manual side-by-side
-  observation of broadcast vs. any live source, to see whether the delay is seconds (workable) or
-  minutes (kills B0 outright, no matter which source gets chosen) — see `03` §3 and §5.
+  blocked.~~ **Decided and closed 2026-08-26: the direct connection, risk knowingly accepted.**
+  See the Locked decisions entry above for what was accepted and on what conditions, and `03`
+  §§4–13 for the spec that came out of it. The four open items that survive are below and in
+  `03` §16.
+- **New 2026-08-26:** **if the unauthenticated live timing endpoint closes, what replaces it?**
+  (`03` §6.4.) Found while writing `03`'s spec, not in the original research: F1 changed the
+  service in May 2025 and now runs a second endpoint (`/signalrcore`) behind an **F1TV
+  Access/Pro/Premium subscription token** — FastF1 moved to it in v3.7.0 (their issue #753). The
+  legacy unauthenticated endpoint B0 targets still works (a third-party client last pushed
+  2026-08-07 uses exactly it), so this isn't blocking today, but it's one deprecation away from
+  being blocking. The spec's answer to hitting the gate is to stop loudly, never to fall back or
+  retry. The owner's options at that point: **(a)** buy an F1TV subscription — paid, so explicit
+  approval is needed under `welcome.md`'s zero-budget constraint, *and* it's a materially worse
+  legal posture than today's, because a subscription binds a named account holder to F1's terms
+  directly and removes the "separate host, different agreement" caveat the current risk
+  acceptance leans on; **(b)** revisit OpenF1's €9.90/mo tier, which at least is ToS-clean;
+  **(c)** stop Lane B. This is a genuinely different decision from the one already taken and
+  shouldn't be treated as covered by it.
+- **New 2026-08-26:** **whether Lane B's output may ever feed Lane C.** `03` §4.3 turns this from
+  a sequencing detail into an explicit interlock: no Lane C module imports from the Lane B
+  client, and the Lane B client has no path to an order interface. Flipping that switch is the
+  moment "personal, non-commercial research" stops being an available description of what this
+  project does — so it should be a dated decision taken on that basis, not something that happens
+  because two modules both happened to finish. Related to, but separate from, the existing Lane C
+  item on venue ToS.
+- **New 2026-08-26:** **whether Lane B appears in the portfolio/LinkedIn writeup at all.**
+  `welcome.md` says this project exists partly to be shown. Lane B is the one lane where being
+  seen carries its own risk — the enforcement precedent in `03` §2.3 was against the most visible
+  instance of this behaviour. Options run from omitting the lane, through describing the
+  architecture without naming the endpoint, to writing it up in full. Worth deciding before
+  anything about this lane is published rather than after.
+- **The B1 delay observation is now a gate, not a nice-to-have** (`03` §4.4, carried from `03`
+  §3). Still unrun, still free. B0's client may be built without it; the overtake model on top
+  may not. Do it at the first available session, alongside `03` §13's acceptance run — the same
+  capture serves both.
 - ~~**New 2026-08-26:** `--mode final`'s holdout (`HOLDOUT_SEASONS = (2024, 2025, 2026)`) includes
   a season still in progress~~ **Resolved and closed 2026-08-26.** `--holdout 2024,2025` correctly
   keeps 2026 out of the *scored* seasons — `season_forward_folds` only evaluates the seasons named
