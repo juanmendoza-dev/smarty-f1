@@ -55,7 +55,7 @@ Wall-clock was **~6h50m** for the primary run (15:59–22:49), paced by `httpcac
 - Validation again selected the **A1-implied prior at the top of the λ grid** (β collapsed onto A1, max |Δ| < 0.001), so the A3-vs-A1 gap is still not a fitting effect. **Era split holds up on the full corpus:** pooled Brier over 2017–2020 is A3 0.6448 vs A1 0.6573 (gap −0.0125 in A3's favor, 79 races); over 2021–2023 it's A3 0.5138 vs A1 0.5072 (gap +0.0066, **reversed**, 66 races — slightly wider than the 2026-08-24 run's −0.0044, still the same sign flip). D3 (sprint renormalization) is inert pre-2021 by construction, so D4 (dropping per-circuit `m`) remains the only structural candidate, and its sign is still not stable across eras. Zero-prior's own best (λ=0.01, Brier 0.58684) again edges A1.
 - The unregularized fit now puts **β_sprint at 1.25** (A1 1.11) — much closer to A1 than the 2026-08-24 run's 2.48, i.e. the wide interval `05` §3.4 predicted has narrowed with 59 more races feeding that fold's training set. **β_champ still runs above its hand-set value** (1.16 vs A1's 0.68), unchanged in direction.
 
-**Before `--mode final` can run, one thing needs deciding that the round-contiguity guard doesn't catch:** `HOLDOUT_SEASONS = (2024, 2025, 2026)` includes a season still in progress — the corpus has 2026 through round 12 (Dutch GP) as of 2026-08-26, with Monza (round 13) on 2026-09-06 and `madring` debuting 2026-09-13. The guard checks contiguity, not season completeness, so it would let `--mode final` run today against a truncated 2026. §6.1 requires the holdout be touched exactly once — running it now, then again after Monza, breaks that. Needs an owner call: freeze 2026 at its current rounds as "final," or drop 2026 from `HOLDOUT_SEASONS` and hold out only the completed 2024–2025 pair, running 2026 later as genuine out-of-sample once the season ends. Moved to Open decisions.
+**Both things gating `--mode final` are now resolved (2026-08-26).** The round-contiguity guard doesn't catch a holdout season still in progress — 2026 has 12 of its rounds in the corpus, with Monza and `madring` still to come — so running `--mode final` on the default `HOLDOUT_SEASONS` today would measure a truncated 2026 and burn §6.1's "touched exactly once" on it. Resolved: invoke it as `--holdout 2024,2025`, which quarantines 2026 out of the run entirely (see Locked decisions). And `05` §3.5's fitted tier interaction — the one open design-matrix question that had to land *before* the final run, since adding it after would force a second one — is closed: it came back flat/inverted on the dev folds, so `m` stays dropped and the design matrix is the same 7 features it's been. `--mode final --holdout 2024,2025` is therefore unblocked and has not been run. It remains a deliberate once-only decision, not something to fire off as a status check.
 
 The separation check (§3.6) ran and is clean: no feature is the winner's strict argmax in every race (`grid` in 102 of 194), so no coefficient is being driven to infinity.
 
@@ -166,19 +166,24 @@ Status: not started.
 - Phase A3 validation is **season-forward, never random k-fold** (`05` §6.1) — random folds leak the future through every season-long feature
 - Phase A3 fitting environment: **hand-rolled in pure Python 3.9**, no scipy (`05` §7, decided 2026-08-24). Keeps the still-open interpreter upgrade decoupled from this phase; affects the optimizer only
 - Phase A3 training matrix (`data/training/winner.csv`) is **committed to git**, per `05` §5.1's own reasoning that CSV was chosen to keep it diffable. `data/cache/` stays ignored — that's reconstructible HTTP responses, not a deliverable
+- Phase A3 `--mode final` invocation: **`--holdout 2024,2025`**, not the default `HOLDOUT_SEASONS`. 2026 is still in progress (12 rounds in as of 2026-08-26); this holds out only the two completed seasons and leaves 2026 untouched by the run — neither trained on nor scored — so it stays available as a genuine second out-of-sample check once the season ends (decided 2026-08-26)
+- Phase A3 track multiplier `m`: **stays dropped, not just for v1.** The fitted tier interaction (`05` §3.5) was tested on dev folds and came back flat/inverted against `02` §5.1's predicted ordering — see the Phase A3 entry and `05` §3.5 (decided 2026-08-26)
 - Odds normalization for A1: proportional de-vig; raw + normalized both persisted
 - Live data (when needed): **FastF1's free live module**, not OpenF1's paid live tier (€9.90/month) — avoided per the zero-budget constraint. Note this is the same constraint blocking Lane C's live in-race trading (Phase C1) — revisit together if the owner decides to approve the paid tier
 - No paid capture hardware for Lane B — Apple TV app runs natively on Mac, so screen capture of the app window is the plan, not an HDMI capture card
 
 ## Open decisions
 
-- **New 2026-08-26:** `--mode final`'s holdout (`HOLDOUT_SEASONS = (2024, 2025, 2026)`) includes
-  a season still in progress — 2026 has 12 of its rounds in the corpus as of this writing, with
-  Monza and `madring` still to come. Running `--mode final` today measures a truncated 2026;
-  running it again later breaks `05` §6.1's "touched exactly once." Owner needs to pick: freeze
-  2026 at its current rounds as the final holdout, or drop 2026 from `HOLDOUT_SEASONS` and hold
-  out only the completed 2024–2025 pair, treating the rest of 2026 as pure out-of-sample once the
-  season ends. Blocks `--mode final` from being run at all until decided.
+- ~~**New 2026-08-26:** `--mode final`'s holdout (`HOLDOUT_SEASONS = (2024, 2025, 2026)`) includes
+  a season still in progress~~ **Resolved 2026-08-26: hold out 2024–2025 only.** `fit.py`'s
+  `HOLDOUT_SEASONS` constant stays `(2024, 2025, 2026)` unchanged — it documents the eventual
+  three-season target — but the actual `--mode final` invocation should pass
+  `--holdout 2024,2025` explicitly. That quarantines 2026 out of the run entirely rather than
+  folding its 12-so-far rounds into either side: `season_forward_folds` only evaluates the seasons
+  named in `--holdout`, and every fold for 2024/2025 trains on seasons strictly before it, so 2026
+  rows are never read by this run at all — not used for tuning, not scored. 2026 becomes a second,
+  genuinely out-of-sample check once that season actually finishes, keeping `05` §6.1's "touched
+  exactly once" intact for both.
 - **New 2026-08-24:** multi-model weather ensemble spec drafted, then revised and verified against
   44 races the same day (`06-weather-ensemble-signal.md`) — queries Open-Meteo with an explicit
   `models=` list (ECMWF IFS, GFS, ICON, GEM) instead of the provider's blended default. **Not
@@ -257,14 +262,14 @@ Status: not started.
   the sweep after `--mode final` runs. One thing the prior choice does *not* affect: the two arms
   are identical at λ=0 by construction, so a λ=0 win would carry no content either way — the code
   says so explicitly rather than leaving it to be noticed
-- A3: the pooled model **drops the per-circuit `m`** (`05` §3.5, D4), and on the preliminary dev
-  folds that is the *only* structural difference that can explain the A3-vs-A1 gap — D3 is
-  provably inert on 2017–2020 and that is where the entire gap sits (see the Phase A3 entry).
-  What it does **not** support is "dropping `m` helps": the gap is +0.0125 on 2017–2020 and
-  −0.0044 on 2021–2023, so the sign flips by era on a partial, non-randomly-holed corpus. That is
-  a reason to run `05` §3.5's fitted tier interaction, which measures the multiplier directly
-  instead of inferring it from a difference of differences — not a reason to touch `02` §5.1's
-  numbers yet
+- ~~A3: the pooled model **drops the per-circuit `m`** (`05` §3.5, D4)~~ **Resolved 2026-08-26:**
+  ran `05` §3.5's fitted tier interaction on the full-corpus dev folds (`tier_interaction_backtest.py`).
+  The era-split argument that motivated running it still holds on the complete corpus (gap +0.0125
+  on 2017–2020, +0.0066 on 2021–2023 — see the Phase A3 entry above), but the interaction itself
+  came back **flat/inverted, not vindicated**: unregularized coefficients are `grid_x_hard` −0.89,
+  `grid_x_easy` −0.52 (§5.1 predicts hard positive, easy negative), and both are unstable under
+  mild shrinkage rather than just wrong-signed. `m` stays dropped, not just for v1 but for good —
+  this closes the open item without touching the holdout.
 - Lane C: the illiquidity found at Monza (podium priced ~0.5 on $0–300 volume vs. the winner
   market's $1,400–$14,000) is filed under Phase A4 as a snapshot-*timing* problem. For Lane C it
   is also a **capacity** problem: a market priced at 0.5 on no volume is not mispriced, it is
