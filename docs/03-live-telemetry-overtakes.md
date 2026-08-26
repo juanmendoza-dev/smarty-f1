@@ -248,7 +248,7 @@ interface. Crossing that line needs a new decision recorded in `00-roadmap.md`, 
 
 ### 4.4 Implementation is gated on the B1 delay check
 
-`03` §3 and §5.2 flagged a cheap observation that can kill B0 outright: if the gap between this
+§3, and the research memo's original open item 2, flagged a cheap observation that can kill B0 outright: if the gap between this
 feed and the owner's actual broadcast is minutes rather than seconds, corner-level prediction
 against a live market is dead regardless of which source feeds it. That observation has still not
 been run.
@@ -921,7 +921,7 @@ Listed so a future reader can tell "not built yet" from "decided against":
    weighed against; (b) revisit OpenF1's €9.90/mo paid tier, which is at least ToS-clean; or
    (c) stop Lane B. Not decidable in advance by an agent: it trades money against legal exposure
    against abandoning the lane, and it is a different decision from the one already taken.
-2. **Run the B1 manual delay observation.** Carried forward from §3 and the previous §5.2, now
+2. **Run the B1 manual delay observation.** Carried forward from §3 and the research memo's original open item 2, now
    with teeth: §4.4 makes B0's prediction layer *gated* on it, not merely informed by it. A
    multi-minute delay closes Lane B regardless of data source. Still not run; free; should be done
    at the first available session, alongside §13's acceptance run.

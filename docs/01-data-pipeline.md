@@ -593,8 +593,10 @@ flagged in §9.
    turns out to exclude *all* live-window access, not just some of it, and the only remaining
    zero-budget option — a direct, unofficial connection to F1's own live timing feed — carries a
    real Terms of Service risk and a documented history of F1 actively IP-blocking third-party
-   clients that use it. This does not affect Lane A. See `03` §2 for the full comparison and §5
-   for the open owner decision.
+   clients that use it. This does not affect Lane A. **Updated 2026-08-26:** `03` is now a build
+   spec, not research — the owner took the direct-connection route knowingly (`03` §5), scoped to
+   personal research/development only (`03` §4.2). See `03` §2 for the source comparison and
+   `03` §16 for what is still open.
 
 ---
 
