@@ -31,3 +31,20 @@ OVERTAKING_MULTIPLIER = {
 
 def multiplier_for(circuit_id):
     return OVERTAKING_MULTIPLIER.get(circuit_id, 1.00)
+
+
+# 05-trained-model.md sec3.5 / sec10 item 2: the fitted tier interaction needs
+# a tier label, not the multiplier value itself. Circuits missing from
+# OVERTAKING_MULTIPLIER (17 of the corpus's 32, added by the sec5 backfill)
+# get "default" here too, deliberately -- assigning them "hard" or "easy" by
+# hand would re-import the judgement the interaction exists to test. This is
+# the explicit "default tier" bucket sec3.5 calls for, not a guess.
+TIER_HARD = "hard"     # m = 1.15, position hard to change
+TIER_DEFAULT = "default"  # m = 1.00, and every circuit not in the table
+TIER_EASY = "easy"     # m = 0.85, position easy to change
+
+_TIER_BY_MULTIPLIER = {1.15: TIER_HARD, 0.85: TIER_EASY}
+
+
+def tier_for(circuit_id):
+    return _TIER_BY_MULTIPLIER.get(OVERTAKING_MULTIPLIER.get(circuit_id), TIER_DEFAULT)
