@@ -261,24 +261,62 @@ Order + fill confirmation + local ledger reconciliation on both. A mapping from 
 ### Phase Q5 — Market-making extension (future, own decision required)
 
 The owner's stated long-term interest: quote both sides, earn the spread / rewards rather than
-bet direction.
+bet direction. This section records how that works and its ceiling, so the decision to pursue it
+is made with eyes open.
 
-Concrete hook: the Monza winner legs carry **`rewardsMinSize: 50`, `rewardsMaxSpread: 4.5`** —
-Polymarket's F1 winner markets **are** in the liquidity-rewards program. Rewards are daily USDC,
-**paid whether or not the resting orders fill**, scored quadratically on how close to mid and
-how tight vs. other makers (min payout $1/day). Maker rebates (a share of taker fees on filled
-resting orders) stack on top.
+**How market making works.** Instead of betting on the outcome, you post a resting bid *and* a
+resting ask around your fair value (e.g. fair value 0.30 → bid 0.29, ask 0.31). A retail buyer
+lifts your ask (you're now short 1 share at 0.31); later a retail seller hits your bid (you're
+flat, having kept 0.02). If your inventory stays balanced you don't care who wins. Profit ≈
+`spread captured × volume that crosses you`, minus the one risk that dominates everything else:
+
+- **Adverse selection / inventory risk.** The person hitting your quote may know something
+  (a grid penalty, FP3 pace). If news moves fair value 15¢ and you're slow to cancel, informed
+  traders sweep your stale quote before you pull it — one such event erases ~100 spread
+  captures. MM P&L = spread captured − losses to informed flow. Managing that is the whole job,
+  and it needs a bot that **cancels/replaces within seconds of new information**, running
+  continuously. It also needs a **continuously-updated fair-value model** — Lane B territory
+  (`03`), not a pre-race snapshot.
+
+**The ceiling doesn't move.** MM makes a small edge *usable* (no slippage from forcing a big
+directional position), but F1 winner volume is ~$48k/race, so spread capture caps around
+$100–300/race. It scales with *volume*, which F1 does not have. The general rule this lane keeps
+running into: **market inefficiency and capacity are inversely correlated** — the deep F1 market
+(Drivers' Champion, $201M, `07` §11.2) is efficient and unmodellable here; the markets this
+project can model are thin. MM does not break that; only trading many markets / venues does.
+
+**Why market-neutral MM (the "BTC up/down middleman" play) is NOT available for F1.** On a
+crypto binary you quote both sides on the prediction market and immediately hedge on a deep 24/7
+venue (Binance/Deribit), so your position is genuinely outcome-neutral and P&L = spread −
+hedging cost. **There is no instrument that pays out on "Norris wins Monza"** — no hedge exists,
+so on F1 you always carry outcome risk on your inventory. The closest substitute is
+Polymarket↔Kalshi cross-venue, and those books are both thin and usually agree within 1–2pp
+(`07` §11.2–§11.3). Any F1 MM here is inventory-risk MM, not arbitrage.
+
+**Concrete hook that makes it worth considering anyway:** the Monza winner legs carry
+**`rewardsMinSize: 50`, `rewardsMaxSpread: 4.5`** — Polymarket's F1 winner markets **are** in
+the liquidity-rewards program. Rewards are daily USDC, **paid whether or not the resting orders
+fill**, scored quadratically on how close to mid and how tight vs. other makers (min payout
+$1/day). Maker rebates (a share of taker fees on filled resting orders) stack on top. This can
+turn thin-market MM from marginal to worthwhile — *if* the pool is big enough:
 
 - **UNVERIFIED and required before rewards are treated as a revenue line:** the per-market
   reward pool for F1 markets. The documented examples are crypto at $300k/market; F1 is
   configured separately and is likely far smaller. Find the F1 allocation or mark it UNVERIFIED
   in the repo convention — do not estimate it.
-- Needs CLOB (§Q4 Polymarket path), a fair-value model that updates continuously (Lane B
-  territory — `03`), inventory-risk management, and a latency budget. It is a genuinely
-  different build from Q1–Q4 and gets its own spec.
+- Needs CLOB (§Q4 Polymarket path), the continuously-updated fair-value model above,
+  inventory-risk management, and a latency budget. It is a genuinely different build from Q1–Q4
+  and **gets its own spec** in this folder.
 - The in-race version (quote the winner market *during* the race off a live win-probability
   model) is where this lane, Lane B, and `07` §10.3's "Kalshi winner market trades 826k
   contracts in-race" converge. Also its own spec.
+
+**Sequencing note.** The owner's instinct was "build the model for a long time, then transition
+to MM." Reverse that: for MM the model is the easier half — the binding constraints are latency,
+uptime, CLOB execution, and inventory management. Build a toy MM early (paper, or the Kalshi
+demo host) alongside Q1–Q2; it will tell you what the fair-value model actually needs (update
+frequency, which inputs move price, latency budget), and those requirements should shape the
+model rather than the other way round.
 
 ---
 
