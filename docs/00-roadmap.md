@@ -167,8 +167,9 @@ out-of-fold. It **fails `08` §7's calibration bar across its whole range** (str
 the bar outright — 10/10 calibration bins within 2× (`08` §11.1); a light damped-Platt map tightens
 the worst-bin ratio 1.71 → 1.28 on top. So it is a usable in-domain probability the win-probability
 layer can multiply, not just a ranker. Offline only — running it live and trading
-on it remain gated on B1 and on `03` §4.3's interlock. The top open decision is now whether the
-**win-probability layer** gets specced next (`08` §12 item 5). `08` §13 is the cold-start handoff.
+on it remain gated on B1 and on `03` §4.3's interlock. **The win-probability layer this model was
+built to feed is now specced — `09-live-win-probability.md`, 2026-08-27, not approved (Phase B4
+below).** `08` §13 is the cold-start handoff.
 Earlier status, for the record: **specced, not approved, not built.** Three things were measured before the spec was written: ≈38 on-track overtakes per race (115 across three 2026 races, so ≈450 labels a season); **one lead change across those three races**, which is why the model trains on all overtakes and lets the win-probability layer decide what matters; and a `Position`-stream label resolution of ~3.3s, which is why v1 is specced at a 10-second horizon and the owner's 5-second target is an open item rather than an assumption.
 
 **Lane B tooling — live viewer / debug UI (new 2026-08-27)**
@@ -187,6 +188,15 @@ Status: **specced, not approved, not built — and gated on `03` §13's acceptan
 for the track map, not a footnote. One consequence worth carrying into the writeup decision: a
 screenshot of a real capture is per-car live timing data in image form, so `03` §11.2 covers it and
 nothing from this tool gets published while `03` §16 item 4 is open.
+
+**Phase B4 — Live win probability (new 2026-08-27)**
+Specced in `09-live-win-probability.md`. The consumer `08` was built to feed and the piece that closes the trading chain in `08` §1: a state estimator that carries Lane A's pre-race distribution forward through a race by Monte Carlo forward simulation, using `03` §7's tick stream and `08`'s calibrated in-domain overtake probabilities. It trains no new predictive model.
+Status: **specced 2026-08-27, not approved, not built.** Six measurements were run against the 12-race archive before the spec was written, and two of them reshape the lane:
+- **Pit stops cause 71% of lead changes** (34 of 48 changes of the car in P1 across 12 races), the leader's retirement 2%, and on-track passes at most 27% — so `08` is the *fourth* biggest mover of P(win), behind pit-cycle track position, retirement, and laps simply running out (`09` §2.1). This is consistent with `08` §2.1's one on-track lead change in three races rather than a contradiction of it: the two count different things and bound the same quantity.
+- **`08`'s calibrated domain is thinnest exactly at the front of the field** — 32 in-domain overtakes at P1–P3 across eight test races, 68% coverage against 88–95% elsewhere, and a worst calibration ratio of 2.33 in the P2–P6 band against the pooled 1.71 (`09` §2.4). `08` §11.1 is qualified accordingly.
+
+`09` §3 works the arithmetic through: `08`'s average contribution to P(win) at the front of the field is **~0.4 points against Kalshi's 1-point tick and a 0.5-point Monte Carlo standard error**, rising to ~2 points on a genuinely threatening pursuit. `09` §10 pre-registers an ablation baseline that measures this **offline, before B1** — `09` §13 item 3's recommended sequencing, because if the ablation comes back at zero then B1's result stops mattering for this chain.
+**Gate:** the *offline* layer would be authorized by approving `09`, which **extends** `03` §4.4's 2026-08-26 amendment — that amendment names `08` explicitly, so this is a new dated decision rather than an inheritance (`09` §1.2). Running it live stays gated on B1; any Lane C consumption stays gated on `03` §4.3's interlock, which `09` §8.2 restates as an enforced import check rather than an intention.
 
 **Phase B2b — Automated trigger recognition**
 Computer vision on screen-captured broadcast frames, targeting broadcast graphic overlays (pit boards, safety car flags, lights-out gantry) rather than raw scene content — a more tractable detection target. Requires reference footage of Apple's actual broadcast graphics first (their first season broadcasting F1 in the US, so no existing reference material).
@@ -218,7 +228,7 @@ The in-race trading case (driver closing on a braking zone, trade before the ove
 What that does **not** mean is that C1 is unblocked. Two things still gate live in-race trading, and neither is a data-plumbing problem:
 - **`03` §4.3's interlock.** Lane B's spec explicitly does not authorize any Lane C component consuming its output — that's the line where "personal, non-commercial use" stops being an available reading of what this project is doing, and it needs its own decision with a date on it. See the open decisions below.
 - **B1's delay measurement**, still unrun. If the broadcast/feed gap is minutes, in-race trading is dead regardless.
-- **The market itself, checked 2026-08-26 (`07` §10).** C1's premise sentence above — "trade before the overtake resolves" — has no market behind it on either venue. The in-race market that *is* liquid is race winner. If C1 is ever unblocked, it is unblocked toward a live win-probability model, not toward corner-level overtakes. Owner's call, recorded in `07` §10.6.
+- **The market itself, checked 2026-08-26 (`07` §10).** C1's premise sentence above — "trade before the overtake resolves" — has no market behind it on either venue. The in-race market that *is* liquid is race winner. If C1 is ever unblocked, it is unblocked toward a live win-probability model, not toward corner-level overtakes. Owner's call, recorded in `07` §10.6. **That model is now specced — `09-live-win-probability.md` (2026-08-27, not approved).** `09` §8 defines the exact record a Lane C component would consume, and `09` §8.2 forbids the import in both directions — with a static test over the module graph, not merely a rule — until the interlock decision is dated.
 
 Status: not started. Still the first fork in Lane C. The remaining option if the above stays blocked: scope Lane C's first cut to markets that don't need corner-level timing (winner, podium — settled after the fact, no live feed required).
 
