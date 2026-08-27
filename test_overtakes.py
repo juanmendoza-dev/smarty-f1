@@ -190,10 +190,31 @@ def test_throttle_not_bounded():
     check("no assertion bounds throttle at 100", not bad)
 
 
+# ---------------------------------------------------------- recalibration
+def test_isotonic_pav():
+    print("isotonic PAV + Platt (overtake_fit, 08 sec12 item 2)")
+    import overtake_fit as F
+    # a monotone-in-expectation but noisy signal
+    x = [i / 100 for i in range(100)]
+    y = [1 if (i / 100) > 0.5 + 0.15 * (-1) ** i else 0 for i in range(100)]
+    px, pv = F.isotonic_pav(x, y)
+    check("PAV output is non-decreasing", all(pv[i] <= pv[i + 1] + 1e-9 for i in range(len(pv) - 1)))
+    check("PAV maps low x low, high x high",
+          F.iso_apply(px, pv, 0.05) < 0.3 and F.iso_apply(px, pv, 0.95) > 0.7)
+    check("iso_apply clamps outside the fitted range",
+          F.iso_apply(px, pv, -1.0) == pv[0] and F.iso_apply(px, pv, 2.0) == pv[-1])
+    # Platt on a mis-scaled probability -> should pull the mean toward the base rate
+    p = [0.4] * 90 + [0.4] * 10          # constant, way above the 10% base rate
+    yy = [0] * 90 + [1] * 10
+    a, b = F.platt_fit(p, yy)
+    q = F.platt_apply(a, b, 0.4)
+    check("Platt pulls a mis-scaled 0.4 down toward the 10%% base rate", 0.03 < q < 0.25)
+
+
 def main():
     for fn in (test_ahead_index, test_find_passes, test_episodes,
                test_lookahead_labels, test_no_lookahead_guard, test_rule_scorer,
-               test_logistic, test_throttle_not_bounded):
+               test_logistic, test_throttle_not_bounded, test_isotonic_pav):
         fn()
     print()
     if FAILURES:

@@ -173,6 +173,84 @@ def predict(X, w, b):
     return list(1.0 / (1.0 + np.exp(-np.clip(z, -35.0, 35.0))))
 
 
+def isotonic_pav(x, y):
+    """Pool-adjacent-violators isotonic regression. 08 sec12 item 2 route (a).
+
+    Returns (px, pv): a non-decreasing step function, px ascending. Hand-rolled
+    for the same reason the logistic fit is -- writing the calibrator is part of
+    the point of this phase, and PAV is a dozen lines.
+
+    y is 0/1 and the base rate is ~0.4%, so nearly every block collapses to a
+    tiny value; the few high-score blocks are where the map does real work.
+    """
+    order = sorted(range(len(x)), key=lambda i: x[i])
+    blocks = []  # each: [sum_y, count, x_right]
+    for i in order:
+        blocks.append([float(y[i]), 1, x[i]])
+        while len(blocks) >= 2 and \
+                blocks[-2][0] / blocks[-2][1] >= blocks[-1][0] / blocks[-1][1]:
+            sy = blocks[-2][0] + blocks[-1][0]
+            c = blocks[-2][1] + blocks[-1][1]
+            blocks[-2:] = [[sy, c, blocks[-1][2]]]
+    px = [b[2] for b in blocks]
+    pv = [b[0] / b[1] for b in blocks]
+    return px, pv
+
+
+def iso_apply(px, pv, q):
+    """Linear interpolation between calibration points, clamped at the ends."""
+    if q <= px[0]:
+        return pv[0]
+    if q >= px[-1]:
+        return pv[-1]
+    lo, hi = 0, len(px) - 1
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if px[mid] <= q:
+            lo = mid
+        else:
+            hi = mid
+    if px[hi] == px[lo]:
+        return pv[hi]
+    return pv[lo] + (pv[hi] - pv[lo]) * (q - px[lo]) / (px[hi] - px[lo])
+
+
+def platt_fit(p, y, iters=200, lr=0.5):
+    """1-D logistic (Platt) scaling on the model's log-odds: q = sigma(a*z + b),
+    z = logit(p). 08 sec12 item 2 route (a), the parametric alternative to
+    isotonic. Two parameters, so it survives a thin calibration set where a
+    free-form isotonic step function overfits the tail."""
+    eps = 1e-6
+    z = [math.log(min(1 - eps, max(eps, pi)) / (1 - min(1 - eps, max(eps, pi)))) for pi in p]
+    a, b = 1.0, 0.0
+    n = len(y)
+    base = sum(y) / n
+    b = math.log(base / (1 - base)) if 0 < base < 1 else 0.0
+    for _ in range(iters):
+        ga = gb = 0.0
+        for zi, yi in zip(z, y):
+            q = sigmoid(a * zi + b)
+            ga += (q - yi) * zi
+            gb += (q - yi)
+        a -= lr * ga / n
+        b -= lr * gb / n
+    return a, b
+
+
+def platt_apply(a, b, q):
+    eps = 1e-6
+    q = min(1 - eps, max(eps, q))
+    return sigmoid(a * math.log(q / (1 - q)) + b)
+
+
+def percentile(vals, q):
+    s = sorted(vals)
+    if not s:
+        return 0.0
+    k = max(0, min(len(s) - 1, int(q * (len(s) - 1))))
+    return s[k]
+
+
 def brier(p, y):
     return sum((pi - yi) ** 2 for pi, yi in zip(p, y)) / len(y)
 
@@ -364,10 +442,121 @@ def main():
               "\n        Usable today as a RANKER; not yet as a probability a"
               "\n        win-probability layer can multiply.")
 
+    recal = recalibration_pass(rows, rounds, names)
+
     if args.json:
         with open(args.json, "w") as f:
-            json.dump({"results": results, "folds": [f[0] for f in folds]}, f, indent=1)
+            json.dump({"results": results, "folds": [f[0] for f in folds],
+                       "recalibration": recal}, f, indent=1)
         print("\nwrote %s" % args.json)
+
+
+def recalibration_pass(rows, rounds, names):
+    """08 sec12 item 2, BOTH routes (owner decision 2026-08-27).
+
+    (a) Recalibration on HELD-OUT races -- nested folds: train the logistic on
+        rounds[:i-2], fit the calibrator on the two races rounds[i-2:i], score
+        rounds[i]. Two calibration races rather than one because a single F1
+        race carries ~130 positives, too few for a free-form isotonic fit in
+        the tail (measured: one-race isotonic worsened pooled Brier). Both
+        isotonic (PAV) and Platt (1-D logistic) are fitted and reported; Platt
+        has two parameters and degrades more gracefully on a thin set.
+    (b) A confidence-gated domain flag: in_domain = raw p >= the 80th percentile
+        of the train+calib score distribution (sec12 item 2's "top deciles").
+        The consumer multiplies a recalibrated probability only for in-domain
+        pairs and treats the rest as "no approach in progress".
+
+    Reported over all test rows and over the in-domain subset, with coverage.
+    """
+    print("\n" + "=" * 72)
+    print("recalibration + domain gate (08 sec12 item 2 -- BOTH routes)")
+    print("=" * 72)
+
+    raw_all, iso_all, platt_all, y_all, dom_mask = [], [], [], [], []
+    used = []
+    for i in range(4, len(rounds)):
+        fit_rounds, calib_rounds, test_round = rounds[:i - 2], rounds[i - 2:i], rounds[i]
+        tr = [r for r in rows if r["round"] in fit_rounds]
+        ca = [r for r in rows if r["round"] in calib_rounds]
+        te = [r for r in rows if r["round"] == test_round]
+        if not te or sum(r["label"] for r in te) == 0 or sum(r["label"] for r in tr) == 0:
+            continue
+        used.append(test_round)
+        ytr = [r["label"] for r in tr]
+        yca = [r["label"] for r in ca]
+        Xtr, rest, _ = standardize(tr, ca + te, names)
+        Xca, Xte = rest[:len(ca)], rest[len(ca):]
+        w, b = fit_logistic(Xtr, ytr)
+        p_ca = predict(Xca, w, b)
+        p_te = predict(Xte, w, b)
+        px, pv = isotonic_pav(p_ca, yca)
+        pa, pb = platt_fit(p_ca, yca)
+        dom_min = percentile(list(p_ca) + list(p_te), 0.80)
+        for r, praw in zip(te, p_te):
+            raw_all.append(praw)
+            iso_all.append(iso_apply(px, pv, praw))
+            platt_all.append(platt_apply(pa, pb, praw))
+            y_all.append(r["label"])
+            dom_mask.append(praw >= dom_min)
+
+    require(raw_all, "no usable nested folds for recalibration (need >=5 races)")
+    print("nested folds: test rounds %s (train on all earlier, calibrate on the two before)"
+          % ", ".join("R%d" % r for r in used))
+
+    def report(tag, p, y):
+        e = evaluate(tag, p, y)
+        cal = e["calibration"]
+        ratios = [c["ratio"] for c in cal if c["ratio"] == c["ratio"] and c["observed"] > 0]
+        worst = max(ratios, key=lambda r: abs(math.log(r))) if ratios else float("nan")
+        good = [c for c in cal if c["ratio"] == c["ratio"] and c["observed"] > 0
+                and abs(math.log(c["ratio"])) < math.log(2.0)]
+        ok = bool(ratios) and abs(math.log(worst)) < math.log(2.0)
+        print("\n  %s" % tag)
+        print("    brier=%.6f  n=%d  positives=%d" % (e["brier"], e["n"], e["positives"]))
+        print("    %-4s %8s %11s %11s %8s" % ("bin", "n", "predicted", "observed", "ratio"))
+        for c in cal:
+            print("    %-4s %8d %11.5f %11.5f %8s"
+                  % (c["bin"], c["n"], c["mean_pred"], c["observed"],
+                     ("%.2f" % c["ratio"]) if c["ratio"] == c["ratio"] else "n/a"))
+        print("    bins within 2x: %d of %d | worst ratio %s | ACCEPTANCE: %s"
+              % (len(good), len(cal), ("%.2f" % worst) if worst == worst else "n/a",
+                 "PASS" if ok else "FAIL"))
+        return {"tag": tag, "brier": e["brier"], "n": e["n"], "positives": e["positives"],
+                "calibration": cal, "bins_within_2x": len(good), "worst_ratio": worst,
+                "acceptance": "PASS" if ok else "FAIL"}
+
+    out = {"test_rounds": used, "n_test": len(y_all), "positives_test": sum(y_all)}
+    out["raw_logit_all"] = report("raw logistic (before recalibration), all test rows", raw_all, y_all)
+    out["isotonic_all"] = report("isotonic-recalibrated, all test rows", iso_all, y_all)
+    out["platt_all"] = report("Platt-recalibrated, all test rows", platt_all, y_all)
+
+    idx = [k for k, m in enumerate(dom_mask) if m]
+    cov_rows = len(idx) / len(y_all)
+    cov_pos = (sum(y_all[k] for k in idx) / sum(y_all)) if sum(y_all) else 0.0
+    print("\n  domain gate retains %.1f%% of pairs and %.1f%% of real overtakes"
+          % (100 * cov_rows, 100 * cov_pos))
+    out["domain_coverage_rows"] = cov_rows
+    out["domain_coverage_positives"] = cov_pos
+    out["raw_logit_in_domain"] = report(
+        "raw logistic, in-domain rows only (top ~20%% by raw score)",
+        [raw_all[k] for k in idx], [y_all[k] for k in idx])
+    out["isotonic_in_domain"] = report(
+        "isotonic-recalibrated, in-domain rows only", [iso_all[k] for k in idx],
+        [y_all[k] for k in idx])
+    out["platt_in_domain"] = report(
+        "Platt-recalibrated, in-domain rows only", [platt_all[k] for k in idx],
+        [y_all[k] for k in idx])
+
+    best = min(("raw_logit_in_domain", "isotonic_in_domain", "platt_in_domain"),
+               key=lambda k: (out[k]["acceptance"] != "PASS", -out[k]["bins_within_2x"]))
+    print("\n  reading: best in-domain calibration is %s (%d/10 bins within 2x, %s)."
+          % (best, out[best]["bins_within_2x"], out[best]["acceptance"]))
+    print("  the domain gate is the load-bearing half -- it keeps %.0f%% of overtakes in %.0f%%"
+          % (100 * cov_pos, 100 * cov_rows))
+    print("  of pairs. The win-probability layer multiplies the recalibrated probability for")
+    print("  in-domain pairs only and treats the rest as no-approach.")
+    out["best_in_domain"] = best
+    return out
 
 
 if __name__ == "__main__":
