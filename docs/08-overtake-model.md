@@ -314,10 +314,83 @@ Via `lib.invariants.require`, never bare `assert` (stripped under `python -O`):
 
 ---
 
-## 11. Open items — the owner's call
+## 12. Results — first run, 2026-08-26
+
+Built and validated the same day this spec was approved. `overtake_build.py` → 12 completed 2026
+rounds, 428,511 rows, 1,714 positives (0.40%). `overtake_fit.py` → race-forward folds, train on
+rounds 1..n, test on n+1, ten folds.
+
+| Model | Brier (pooled, out-of-fold) | AUC |
+|---|---|---|
+| Base rate (baseline 2) | 0.003856 | n/a — constant, does not rank |
+| Rule scorer (baseline 1) | 0.023296 | 0.7958 |
+| **Logistic regression** | **0.003715** | **0.9064** |
+
+**The model discriminates well and is not yet a usable probability. Both halves matter.**
+
+**Discrimination is real.** AUC 0.9064 pooled out-of-fold, race-forward, and it holds per-race:
+0.86–0.97 on nine of ten folds. The rule scorer's 0.7958 says the hand-weighted physics was a
+sound starting point; the regression beating it by ~0.11 AUC says the fitted weights found more.
+
+**The single exception is instructive.** Round 6, Monaco, is the worst fold at AUC 0.605 — and
+Monaco produced only 14 on-track overtakes all race against a 33–50 range elsewhere. The model is
+weakest exactly where overtaking barely happens, which is the right place to be weak but a real
+limit on a circuit where the winner market would still be trading.
+
+**Calibration fails §7's acceptance criterion**, which is the criterion this spec set precisely so
+that a good-looking AUC could not carry the decision on its own:
+
+| Quantile bin | Predicted | Observed | Ratio |
+|---|---|---|---|
+| q1–q5 (bottom half) | 0.00000–0.00026 | 0.00025–0.00052 | 0.01–0.49 |
+| q6 | 0.00057 | 0.00047 | 1.21 |
+| q7 | 0.00120 | 0.00074 | 1.61 |
+| q8 | 0.00255 | 0.00140 | 1.81 |
+| q9 | 0.00596 | 0.00441 | 1.35 |
+| q10 | 0.02796 | 0.02970 | 0.94 |
+
+Five of ten bins land within 2x, and they are the top five — the operationally relevant range,
+where a win-probability layer would actually act. The failure is concentrated in the bottom half,
+where the model says "essentially zero" and the observed rate is a small non-zero floor. **Part of
+that floor is structural, not a fixable modelling error:** §2.4 measured that 12–33% of real
+overtakes have no tracked pursuit episode before them, so they cannot be anticipated from this
+feature set and land in the lowest bins by construction.
+
+**Verdict: usable today as a ranker, not yet as a probability.** Feeding it to a win-probability
+layer that *multiplies* it would propagate the bottom-half error. Reporting Brier alone would have
+hidden this entirely — the regression "beats" the base rate 0.003715 vs 0.003856, a 3.7% relative
+improvement that is almost meaningless at a 0.40% base rate. That is why §7 named calibration and
+not Brier as the acceptance criterion.
+
+**Feature weights** (standardized, final fold, so comparable to each other) are physically sensible,
+which is its own check that nothing leaked: `interval` −1.74 dominates, then `interval_min_recent`
+−0.71, `time_in_range` −0.38, `speed_delta` +0.30. Being close, having been close, and carrying a
+speed advantage are what the model uses. `closing_rate` at +0.03 is near-inert and was expected to
+matter more — a real surprise worth investigating (§13 item 3).
+
+### What would fix the calibration
+
+Untried, in the order worth trying — none of these are done:
+
+1. **Isotonic or Platt recalibration** on a held-out fold. Cheapest, standard, and it directly
+   targets the failure without touching the ranker that already works.
+2. **Restrict the model's domain** to the top deciles and let the win-probability layer treat
+   everything below as "no approach in progress." Honest, and matches where the signal is.
+3. **A better closing-rate feature.** A 3s linear fit on a stream updating every ~3.3s is close to
+   a two-point estimate; the near-zero weight may be measurement noise rather than a finding about
+   racing.
+
+---
+
+## 13. Open items — the owner's call
 
 1. **Prediction horizon.** 5s is the stated goal; §2.2 measures the raw label at ~3.3s resolution.
-   Accept a 10s v1, or fund §5.2's sub-second refinement first?
+   v1 shipped at 10s. Accept that, or fund §5.2's sub-second refinement now?
+2. **Recalibrate, or restrict the domain?** §12 lists three routes and none is taken. This is the
+   one decision blocking the model from being a probability rather than a ranker.
+3. **Why is `closing_rate` inert (+0.03)?** Either the feature is measurement noise at a 3.3s
+   update rate, or closing speed genuinely doesn't predict completion once you know the gap.
+   Those have different consequences and the spec does not know which it is — **UNVERIFIED**.
 2. **Does the win-probability layer get specced next, or does the overtake model ship alone?**
    The trading rationale only closes with that layer; the portfolio/learning value does not need it.
 3. **`03` §4.3's interlock** — unchanged and still the owner's dated decision. Building this model
