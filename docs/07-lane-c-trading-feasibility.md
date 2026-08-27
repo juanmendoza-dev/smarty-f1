@@ -20,7 +20,7 @@ design — those belong in a Lane C spec written after the blockers below are re
 | Do we **have** a measured edge to trade on? | **No.** In every market type, for both venues, the evidence is either absent or negative (see §2). This is the tightest constraint on Lane C, ahead of any API question. |
 | Can we **paper-trade** a strategy end to end? | **Yes, now** for Lane A markets — off the Gamma/Kalshi reads `snapshot.py` already makes, plus (for order mechanics) Kalshi's public demo host. Zero budget. |
 | Can we **place live trades** off Lane A predictions (winner, podium)? | **Blocked**, not on tech but on: (a) no measured edge, (b) venue access depends on the owner's jurisdiction (§3), (c) real-money approval per `welcome.md`, (d) risk controls must be built first (§6). |
-| Can we trade **in-race** markets (overtakes, corner-level)? | **Blocked behind Lane B, which is itself blocked.** `03` §2.4: no live data source is simultaneously zero-budget, genuinely live, ToS-clean, and stable. Lane C cannot reach this until that resolves. |
+| Can we trade **in-race** markets (overtakes, corner-level)? | **The overtake market does not exist** — measured 2026-08-26 across both venues, open and closed (§10.1). What *does* exist is a race-winner market that trades heavily through the race (48.5% of lifetime volume inside the 2h window, §10.3). This row's original answer — "blocked behind Lane B" — was wrong about *why*: the blocker was never only the feed. |
 
 The short version: **the trading layer is not the hard part — the edge is.** Lane C's premise,
 stated in `welcome.md` and the roadmap, is "our prediction is the edge that drives the trade."
@@ -188,8 +188,11 @@ item 2 says — it's the same scarce resource (live-snapshotted races with outco
    Decision deferred until §3 and item 2 resolve.
 4. **De-vig method (§2, `01` §9.2).** Proportional de-vig fabricates longshot edges; for a
    trading bot this is a bug. Resolve against harness data before any execution code.
-5. **In-race markets are downstream of Lane B (`03` §5).** No separate Lane C decision needed
-   until Lane B's data-source question resolves.
+5. ~~**In-race markets are downstream of Lane B (`03` §5).** No separate Lane C decision needed
+   until Lane B's data-source question resolves.~~ **Superseded 2026-08-26 by §10.** Lane B's
+   data-source question did resolve, and the market check that nobody had run came back split:
+   no overtake market exists on either venue, but Kalshi's *winner* market trades through the
+   race with real volume. The live decisions are now §10.6's, not this one.
 6. **Both venues' current ToS on automated trading, read directly** — Kalshi's looks permissive,
    Polymarket US's is unwritten here; confirm at spec time, both move.
 
@@ -389,5 +392,9 @@ component; that remains a separate dated decision.
   [Kalshi fee schedule PDF](https://kalshi.com/docs/kalshi-fee-schedule.pdf)
 - Polymarket fees: [predictionhunt: Polymarket fees 2026](https://www.predictionhunt.com/blog/polymarket-fees-complete-guide),
   [zenhodl: maker/taker/CLOB](https://zenhodl.net/blog/polymarket-fees-explained-maker-taker-clob)
+- Gate 4 (§10) is measured from the venues' own APIs, not from secondary sources: Polymarket
+  Gamma `/events` + `/public-search`, Kalshi `/series`, `/events`, `/markets`, and
+  `/series/{s}/markets/{t}/candlesticks`. Lights-out from
+  `data/snapshots/2026-12-race-20260823T031058Z.json` `meta.race_start_utc`.
 - Internal: `00-roadmap.md` (Lane C, Phase A3 §6.4, Phase A4), `01-data-pipeline.md` §6–§9,
   `03-live-telemetry-overtakes.md` §2.4/§5, `data/snapshots/2026-12-race-20260823T031058Z-postrace.json`
