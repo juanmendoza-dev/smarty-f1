@@ -54,6 +54,15 @@ The project is split into independent tracks. Don't conflate them — most confu
   the offline model is authorized, live use and trading are not. **§13 is the handoff** — how to
   rebuild and re-validate from cold, expected outputs, where to pick up, and the six corrections
   made during the build so they are not re-made
+- `docs/09-live-win-probability.md` — the live win-probability layer (Phase B4), **specced
+  2026-08-27, not approved, not built**. The consumer `08` was built to feed: a state estimator
+  that carries Lane A's pre-race distribution through a race by Monte Carlo forward simulation over
+  field orderings, not a new predictive model. Read `08` first. Six measurements were run before it
+  was written and two of them reshape the lane: **pit stops cause 71% of lead changes** (`09` §2.1),
+  so `08` is the fourth-biggest mover of P(win) rather than the engine; and **`08`'s calibrated
+  domain is thinnest exactly at the front of the field** (`09` §2.4), which qualifies `08` §11.1's
+  headline. §3 states plainly what the overtake model is worth here in market ticks, and §10
+  pre-registers the ablation that measures it — offline, before B1
 - `docs/07-lane-c-trading-feasibility.md` — Lane C (trading bot) feasibility research (2026-08-26). **Not a build spec** — it finds the blocker is the *edge*, not the APIs (no measured edge in any market yet), and lays out a zero-budget path: build an edge-measurement + paper-trading harness first. §11 adds a live market-structure + book-depth survey across both venues. See also the roadmap's Lane C phases
 - `docs/10-live-viewer.md` — the local live viewer / debug UI for Lane B's captures (**specced
   2026-08-27, not approved, not built**). Tooling, not a phase: it renders
