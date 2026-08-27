@@ -59,6 +59,15 @@ shapes is sourced from documentation and from working third-party clients read a
 below, and is marked **`UNVERIFIED`** in this project's own idiom until §13's acceptance run
 executes it. §13 is the step that converts these to verified, and it is the first thing B0 does.
 
+**One thing here *was* measured against real data, and it changed the spec.** On 2026-08-26 the
+completed 2026 Dutch GP (R12) was loaded from F1's **historical archive** via FastF1 3.8.3 — Lane
+A's already-locked historical path (`01` §8.1), not the live feed, and not a connection to the
+live-timing stream this document governs. That measurement settled §7.3 (channel 45 is constant
+zero), confirmed §8's position data was present for that race, corrected the sample rates in §13,
+and **falsified two of §12's channel-domain assertions**, one of which would have halted the
+client within seconds of the first green flag. Those sections carry their numbers inline. It does
+not verify the *wire format*, which is what §13 is for.
+
 Sources read for §§6–12, all on **2026-08-26**:
 
 | Source | Read at | What it establishes |
@@ -663,6 +672,26 @@ name, no enum, and no semantic meaning attached. B0 does not decode it and does 
 reverse-engineering it. Any downstream consumer that wants meaning from it must first establish
 the mapping from captured data and record it here.
 
+**Measured 2026-08-26 — channel 45 is constant zero.** Loaded the completed 2026 Dutch GP (R12)
+from the historical archive via FastF1 3.8.3 and read the channel across the full race:
+**944,196 samples, all 22 drivers, every single value `0`.** No other value occurs.
+
+So channel 45 carries no information at all this season — it is not a re-encoded active-aero
+state, it is dead. The practical consequences:
+
+- The opaque-passthrough decision above is confirmed as correct, and cheap: nothing is being
+  thrown away.
+- **No overtake model may use this field as a DRS analogue.** Pre-2026 designs that keyed off
+  "DRS open" have no equivalent input available. If active-aero or overtake-mode state is wanted,
+  it is not in this channel and would have to be found elsewhere in the feed or inferred.
+- Carrying it stays worthwhile only as a drift tripwire: if it ever becomes non-zero, the
+  regulations' telemetry surfaced somewhere, and that is worth noticing.
+
+One caveat on provenance: this is measured *through FastF1's parser*, which maps channel 45 to its
+`DRS` column, not from raw wire frames. An all-zero column is consistent with the channel being
+zero on the wire; it is also consistent with FastF1 no longer populating it. §13's acceptance run
+reads raw frames and is what separates those.
+
 This is deliberately not filed as an open item for the owner: it is a scoping call, and the
 scoping call is that a field whose meaning is unknown gets carried, not guessed. Guessing it would
 produce exactly the failure `lib/invariants.py` exists to prevent — a plausible-looking number
@@ -698,6 +727,17 @@ observed to not broadcast GPS position data at all."*
 This is the second-largest live threat to Lane B's premise after the broadcast-delay question, and
 it gets its own section rather than a footnote, because corner-level prediction needs X/Y and the
 feed may simply not send it. A spec that buried this would be a spec resting on an assumption.
+
+**Measured 2026-08-26 — position data was present for the 2026 Dutch GP.** Same archive load as
+§7.3: **932,690 position samples across 22 drivers**, `X` ranging −1,015 to 8,703 (not zeroed, not
+absent), `Status` = `OnTrack` on every sample. So the degraded mode below is real but was **not**
+triggered by the most recent race under 2026 regulations — corner-level prediction has the spatial
+input it needs, at least for this circuit and session type.
+
+That is one race, not a guarantee. The community warning was about *some* 2026 sessions, and a
+single positive observation cannot refute a claim about session-to-session variability. §8 stays
+exactly as specified — the degraded path is built, not assumed away — and §13's acceptance run
+records `Position.z` availability as a standing check rather than a one-off.
 
 Two degraded modes, both first-class and both explicitly reported in the tick's `degraded` field:
 
@@ -943,9 +983,37 @@ guards *data*, which is that module's stated test for what belongs there.
 
 1. Every `CarState` key is a FIA three-letter code present in `DriverList` for this session
    (`01` §8.2). A racing number that cannot be resolved to a code halts.
-2. `speed` ∈ [0, 400] km/h; `throttle` ∈ [0, 100]; `brake` ∈ {0, 100}; `gear` ∈ [0, 8];
-   `rpm` ∈ [0, 20000] — or `None`. An out-of-range value halts (§10): it means the channel index
-   map moved, not that a car did something unusual.
+2. **Channel domains — revised 2026-08-26 against measured data. The first draft's version of
+   this assertion would have halted the client on legitimate telemetry, and is the reason this
+   was measured before any code was written.**
+
+   Measured across the full 2026 Dutch GP (R12) from the archive: **944,196 samples, 22 drivers.**
+
+   | Field | Asserted domain | Disposition on violation | Measured |
+   |---|---|---|---|
+   | `speed` | [0, 400] km/h | halt | max 353 ✓ |
+   | `rpm` | [0, 20000] | halt | max 13,566 ✓ |
+   | `throttle` | **[0, 110]** | halt | max **104** — see below |
+   | `gear` | [0, 8] | **drop the sample, count it, never halt** | 82 violations — see below |
+   | `brake` | 0 or 100 (raw wire) | halt | FastF1 normalises to bool; raw form unconfirmed until §13 |
+
+   **`throttle` exceeds 100 routinely — 97,218 samples, 10.3% of the race, observed max 104.** At
+   one sample in ten this is not corruption, it is the channel's actual range; the community doc's
+   "0–100%" is simply too tight. The domain is widened to [0, 110] and violation stays halt-class.
+   The first draft's [0, 100] would have fired within seconds of the first green flag.
+
+   **`gear` above 8 is sparse corruption, not drift — 82 samples, 0.0087%, roughly 1 in 11,500.**
+   The values are scattered one-offs (9, 17, 19, 20, 21, … 45, 47, 49) with no pattern: a lossy
+   feed, not a moved index map. Halting would kill the client ~82 times per race. **Correct
+   disposition: set the field to `None` for that sample, increment a per-session counter, and log
+   the count once at session end.** A *sustained* run of out-of-range gears is a different signal
+   and should halt — the tripwire is >1% of samples in any 60-second window, which is three orders
+   of magnitude above what was measured.
+
+   This is the general lesson, and it belongs next to §10's drift/degradation split: a value
+   outside its expected domain can mean the schema moved *or* that the feed is lossy, and those
+   need opposite responses. Frequency is what separates them. Any future domain assertion here
+   gets measured against a real session before it is given halt disposition.
 3. `track_status` ∈ {1, 2, 4, 5, 6, 7}.
 4. No two ticks share a `(session_key, t_feed)` pair.
 5. `t_feed` is non-decreasing within a session, except across a reconnect gap, where
@@ -996,8 +1064,10 @@ on `SessionStatus` finished. Then check, from the capture:
 4. Every racing number in `CarData`/`Position` resolved to a `DriverList` code.
 5. Whether `Position.z` was broadcast at all (§8's 2026 concern), and whether either channel
    dropped mid-session.
-6. Observed update rates for `CarData.z`, `Position.z`, and `Heartbeat`, against the ~3.7 Hz /
-   ~3.7 Hz / ~1 Hz the prior art documents.
+6. Observed update rates for `CarData.z`, `Position.z`, and `Heartbeat`. **Measured from the
+   2026 R12 archive: car data 4.17 Hz (median Δt 0.240 s), position 4.15 Hz (0.241 s)** — both
+   somewhat faster than the ~3.7 Hz the community doc states. Heartbeat's ~1 Hz is still
+   unmeasured. Confirm these hold on the live wire, where the archive may have been resampled.
 7. Whether a server-initiated disconnect occurred, at what elapsed time, and whether the
    reconnect path recovered state correctly (§9.4) — this is the measurement that either confirms
    or refutes §9.1's account of the ~2h drop, on this feed, from this client.
