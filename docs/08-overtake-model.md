@@ -372,11 +372,13 @@ that floor is structural, not a fixable modelling error:** §2.4 measured that 1
 overtakes have no tracked pursuit episode before them, so they cannot be anticipated from this
 feature set and land in the lowest bins by construction.
 
-**Verdict: usable today as a ranker, not yet as a probability.** Feeding it to a win-probability
-layer that *multiplies* it would propagate the bottom-half error. Reporting Brier alone would have
-hidden this entirely — the regression "beats" the base rate 0.003715 vs 0.003856, a 3.7% relative
-improvement that is almost meaningless at a 0.40% base rate. That is why §7 named calibration and
-not Brier as the acceptance criterion.
+**Verdict (first run): usable as a ranker, not yet a probability across its whole range.** Feeding
+the full-range output to a win-probability layer that *multiplies* it would propagate the
+bottom-half error. Reporting Brier alone would have hidden this entirely — the regression "beats"
+the base rate 0.003715 vs 0.003856, a 3.7% relative improvement that is almost meaningless at a
+0.40% base rate. That is why §7 named calibration and not Brier as the acceptance criterion.
+**§11.1 (2026-08-27) revises this:** restricted to its domain, the model *is* a calibrated
+probability — read that before quoting the ranker line.
 
 **Feature weights** are reported as the **mean across all ten folds with sign stability**, not from
 one fold. Reporting a single fold would invite exactly the error the roadmap already made once with
@@ -403,54 +405,60 @@ and carrying a speed advantage are what the model uses. Two findings worth separ
   cause is that episodes under caution are rare in this corpus rather than uninformative; the
   honest statement is that this corpus cannot tell. **UNVERIFIED.**
 
-### What would fix the calibration
-
-1. **Isotonic or Platt recalibration** on a held-out fold. **Tried 2026-08-27 — does not fix it,
-   see §11.1.** Isotonic on the full prediction range moved 5→6 of 10 bins within 2×; Platt made
-   it worse (over-flattens the top at a 0.4% base rate). Neither cleared §7's bar.
-2. **Restrict the model's domain** to the top deciles. **This is the fix (§11.1).** The raw model,
-   restricted to the top ~20% of pairs by score, clears §7's bar outright — 10 of 10 calibration
-   bins within 2×.
-3. **A better closing-rate feature.** A 3s linear fit on a stream updating every ~3.3s is close to
-   a two-point estimate; the near-zero weight may be measurement noise rather than a finding about
-   racing. Still untried; unrelated to the calibration fix.
-
 ### 11.1 Recalibration + domain gate — the "do both" run, 2026-08-27
 
 Owner's call on §12's calibration item was **do both**: recalibrate *and* expose a
 confidence-gated domain flag. `overtake_fit.py` now runs a nested race-forward pass — train the
 logistic on rounds 1..n−2, fit the calibrator on rounds n−1 and n (two races, ~250 positives —
 one race's ~130 was too thin and a single-race isotonic fit actually worsened pooled Brier),
-score round n+1. Test rounds R5–R12, 264,049 pairs, 986 overtakes. Both isotonic (hand-rolled
-PAV) and Platt (1-D logistic on the log-odds) are fitted; the domain flag is
-`in_domain = raw p ≥ the 80th percentile of the train+calib score distribution`.
+score round n+1. Test rounds R5–R12, 264,049 pairs, 986 overtakes. Two calibrators are fitted:
+isotonic (hand-rolled PAV) and Platt (1-D logistic on the log-odds). The domain flag is
+`in_domain = raw p ≥ θ`.
 
 | Model | bins within 2× | worst ratio | §7 acceptance |
 |---|---|---|---|
 | Raw logistic, all test rows | 5 / 10 | 0.01 | FAIL |
 | Isotonic-recalibrated, all rows | 6 / 10 | 0.01 | FAIL |
-| Platt-recalibrated, all rows | 5 / 10 | 0.19 | FAIL |
-| **Raw logistic, in-domain only** | **10 / 10** | **1.48** | **PASS** |
-| Isotonic-recalibrated, in-domain only | 7 / 10 | 0.37 | FAIL |
-| Platt-recalibrated, in-domain only | 1 / 10 | 0.08 | FAIL |
+| Platt-recalibrated, all rows | 0 / 10 | huge | FAIL |
+| **Raw logistic, in-domain only** | **10 / 10** | **1.71** | **PASS** |
+| Isotonic-recalibrated, in-domain only | 8 / 10 | 0.32 | FAIL |
+| Platt-recalibrated, in-domain only | 0 / 10 | huge | FAIL |
 
-**The domain gate is the load-bearing half.** It retains **89.2% of real overtakes in 20.4% of
+**The domain gate is the load-bearing half.** It retains **89.2% of real overtakes in 20.6% of
 pairs** — the bottom ~80% of the score distribution holds only ~11% of overtakes, and those are
 the structurally-unpredictable ones from §2.4 (12–33% of overtakes have no tracked pursuit
 episode). Inside the gate the raw model is *already a calibrated probability*: predicted 0.003 →
-0.077 tracks observed 0.003 → 0.070 across every decile.
+0.076 tracks observed 0.004 → 0.070 across every decile.
 
-**Recalibration does not help and can hurt.** Isotonic on the full range trades a small
-improvement in the tail for compression at the top; applied *inside* the already-calibrated
-domain it makes things worse (7/10). Platt over-flattens everywhere — at a 0.4% base rate the 1-D
-logistic pulls the whole distribution toward the mean and destroys the top bin (predicted 0.004
-vs observed 0.020 at q10, all rows). **The finding: the model doesn't need recalibration, it
-needs a domain.**
+**The threshold θ is a serve-time constant, not a percentile computed on the fly.** A live
+consumer sees one tick at a time and cannot take the 80th percentile of a race in progress, so
+`overtake_fit.py` computes θ as the 80th percentile of the **train+calibration** predictions only
+(never the test fold) and reports it per fold: **mean 0.0037, range 0.0023–0.0059**. The
+win-probability layer hard-codes **θ = 0.0037** (and refits it whenever the model is retrained)
+and gates on `p_raw ≥ θ`.
 
-**What the win-probability layer consumes:** the raw model probability for in-domain pairs, and
-"no approach in progress" for the rest. No isotonic/Platt map in the path. `overtake_fit.py`
-prints this whole table; `data/live/overtakes/fit_recal.json` records it (gitignored, `03`
-§11.2). The isotonic/Platt code stays in `overtake_fit.py` as the evidence that they were tried.
+**Recalibration does not help.** Isotonic on the full range trades a small tail improvement for
+compression at the top; applied *inside* the already-calibrated domain it still misses (8/10).
+Platt is numerically hostile to this data — at a 0.4% base rate the score distribution is
+near-separable, so plain gradient descent drives the slope to zero and collapses the map, while an
+undamped Newton step overshoots to `a ≈ 1e10` and diverges (both measured). `platt_fit` now uses
+a ridge-damped Newton with a backtracking line search, which keeps it finite but it still does not
+clear the bar. **The finding: the model doesn't need recalibration, it needs a domain.**
+
+**What the win-probability layer consumes:** `p_raw` for pairs with `p_raw ≥ 0.0037`, and "no
+approach in progress" for the rest. No isotonic/Platt map in the path. `overtake_fit.py` prints
+this whole table plus the per-fold θ and Platt `(a,b)`; `data/live/overtakes/fit_recal.json`
+records it (gitignored, `03` §11.2). The isotonic/Platt code stays in `overtake_fit.py` as the
+evidence that they were tried and why they were not used.
+
+### The three routes, scored
+
+1. **Isotonic / Platt recalibration** (§11 route 1). Tried, held-out — does not clear §7's bar,
+   full-range or in-domain. See the table above.
+2. **Restrict the model's domain** (§11 route 2). **This is the fix:** `p_raw ≥ 0.0037`, 10/10
+   bins within 2×, 89% of overtakes retained.
+3. **A better closing-rate feature** (§11 route 3). Still untried; unrelated to the calibration
+   fix, but it is the most interesting open thread the fit turned up (§12 item 3).
 
 ---
 
@@ -519,7 +527,7 @@ A correct run reports, in this order:
 - **Fit:** pooled out-of-fold Brier — base 0.003856, rule 0.003996, **logit 0.003715**; logit
   **AUC 0.9064**; **5 of 10 calibration bins within 2x** (q6–q10); `ACCEPTANCE (sec7): FAIL`.
 - **Recalibration + domain gate** (§11.1): nested folds R5–R12, 264,049 pairs, 986 overtakes.
-  Domain gate retains **89.2% of overtakes in 20.4% of pairs**. `raw_logit_in_domain` reports
+  Domain gate retains **89.2% of overtakes in 20.6% of pairs**. `raw_logit_in_domain` reports
   **10/10 bins within 2×, ACCEPTANCE: PASS**; every other line (isotonic/Platt, all-rows or
   in-domain) is FAIL. `data/live/overtakes/fit_recal.json` records it.
 

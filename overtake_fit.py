@@ -215,25 +215,69 @@ def iso_apply(px, pv, q):
     return pv[lo] + (pv[hi] - pv[lo]) * (q - px[lo]) / (px[hi] - px[lo])
 
 
-def platt_fit(p, y, iters=200, lr=0.5):
+def _platt_nll(z, y, a, b, ridge):
+    s = 0.0
+    for zi, yi in zip(z, y):
+        t = a * zi + b
+        s += (math.log1p(math.exp(-abs(t))) + max(t, 0.0)) - yi * t
+    return s / len(y) + 0.5 * ridge * (a - 1.0) ** 2
+
+
+def platt_fit(p, y, iters=100, ridge=1e-3):
     """1-D logistic (Platt) scaling on the model's log-odds: q = sigma(a*z + b),
     z = logit(p). 08 sec12 item 2 route (a), the parametric alternative to
-    isotonic. Two parameters, so it survives a thin calibration set where a
-    free-form isotonic step function overfits the tail."""
+    isotonic.
+
+    This data is numerically hostile to it: at a 0.4% base rate the score
+    distribution is near-separable, so plain gradient descent drives `a` -> 0
+    and collapses the map, while an undamped Newton step overshoots to
+    `a` ~ 1e10 and diverges (both were measured). So: damped Newton with a
+    small ridge toward `a = 1` and a backtracking line search on the penalized
+    NLL. If it still cannot make downhill progress it returns the last iterate
+    -- Platt is reported as "attempted", not trusted, and the domain gate is
+    the actual fix (08 sec11.1).
+    """
     eps = 1e-6
     z = [math.log(min(1 - eps, max(eps, pi)) / (1 - min(1 - eps, max(eps, pi)))) for pi in p]
-    a, b = 1.0, 0.0
     n = len(y)
     base = sum(y) / n
-    b = math.log(base / (1 - base)) if 0 < base < 1 else 0.0
+    a, b = 1.0, (math.log(base / (1 - base)) if 0 < base < 1 else 0.0)
+    cur = _platt_nll(z, y, a, b, ridge)
     for _ in range(iters):
-        ga = gb = 0.0
+        g0 = g1 = h00 = h01 = h11 = 0.0
         for zi, yi in zip(z, y):
             q = sigmoid(a * zi + b)
-            ga += (q - yi) * zi
-            gb += (q - yi)
-        a -= lr * ga / n
-        b -= lr * gb / n
+            r = q - yi
+            wq = max(q * (1 - q), 1e-9)
+            g0 += r * zi
+            g1 += r
+            h00 += wq * zi * zi
+            h01 += wq * zi
+            h11 += wq
+        g0 = g0 / n + ridge * (a - 1.0)
+        g1 /= n
+        h00 = h00 / n + ridge
+        h01 /= n
+        h11 /= n
+        det = h00 * h11 - h01 * h01
+        if abs(det) < 1e-12:
+            break
+        da = (g0 * h11 - g1 * h01) / det
+        db = (g1 * h00 - g0 * h01) / det
+        step = 1.0
+        while step > 1e-4:
+            na, nb = a - step * da, b - step * db
+            if _platt_nll(z, y, na, nb, ridge) < cur - 1e-12:
+                break
+            step *= 0.5
+        else:
+            break
+        a, b = a - step * da, b - step * db
+        new = _platt_nll(z, y, a, b, ridge)
+        if cur - new < 1e-9:
+            cur = new
+            break
+        cur = new
     return a, b
 
 
@@ -473,7 +517,7 @@ def recalibration_pass(rows, rounds, names):
     print("=" * 72)
 
     raw_all, iso_all, platt_all, y_all, dom_mask = [], [], [], [], []
-    used = []
+    used, dom_mins, platt_ab = [], [], []
     for i in range(4, len(rounds)):
         fit_rounds, calib_rounds, test_round = rounds[:i - 2], rounds[i - 2:i], rounds[i]
         tr = [r for r in rows if r["round"] in fit_rounds]
@@ -491,7 +535,13 @@ def recalibration_pass(rows, rounds, names):
         p_te = predict(Xte, w, b)
         px, pv = isotonic_pav(p_ca, yca)
         pa, pb = platt_fit(p_ca, yca)
-        dom_min = percentile(list(p_ca) + list(p_te), 0.80)
+        platt_ab.append((pa, pb))
+        # The domain threshold is computed from train+calib predictions ONLY --
+        # never the test fold. A live consumer sees one tick at a time and
+        # cannot compute a percentile over a race it hasn't finished, so the
+        # threshold has to be a constant fixed before serve time.
+        dom_min = percentile(list(p_ca), 0.80)
+        dom_mins.append(dom_min)
         for r, praw in zip(te, p_te):
             raw_all.append(praw)
             iso_all.append(iso_apply(px, pv, praw))
@@ -502,6 +552,12 @@ def recalibration_pass(rows, rounds, names):
     require(raw_all, "no usable nested folds for recalibration (need >=5 races)")
     print("nested folds: test rounds %s (train on all earlier, calibrate on the two before)"
           % ", ".join("R%d" % r for r in used))
+    print("domain threshold (80th pct of calib predictions, per fold): %s"
+          % ", ".join("%.5f" % d for d in dom_mins))
+    print("  -> mean %.5f, range %.5f-%.5f  (this is the constant a live consumer uses)"
+          % (sum(dom_mins) / len(dom_mins), min(dom_mins), max(dom_mins)))
+    print("Platt (a, b) per fold: %s"
+          % ", ".join("(%.2f, %.1f)" % ab for ab in platt_ab))
 
     def report(tag, p, y):
         e = evaluate(tag, p, y)
