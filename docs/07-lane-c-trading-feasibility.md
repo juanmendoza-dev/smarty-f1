@@ -276,8 +276,9 @@ classified), so it is a well-formed market — just not the one Lane B was aimed
 `KXF1BIGGESTMOVER` returns **no Monza event** while `KXF1RACE`, `KXF1RACEPODIUM`, `KXF1TOP10`,
 `KXF1TOP5`, `KXF1FASTLAP`, and `KXF1TOPCONSTRUCTOR` all have `ITAGP26` open. Whether it ever
 relists is **UNVERIFIED**. Liquidity was thin: 17,524 contracts lifetime across all 22 legs
-(≈1% of the winner market's 1,703,263), and its most-traded leg, `-NOR`, recorded **zero** trades
-across the entire race. Polymarket has no equivalent market of any kind.
+(≈1% of the winner market's 1,703,263), and its four most-traded legs (`-VER` 2,959, `-HAD` 2,854,
+`-ALO` 2,826, `-BEA` 2,786) together traded just 2,478 contracts in-race across 25 leg-minutes,
+with `-HAD` recording **zero** in-race trades at all. Polymarket has no equivalent market of any kind.
 
 ### 10.3 Kalshi F1 markets trade *during* the race — measured, not inferred
 
@@ -288,7 +289,7 @@ snapshot (`data/snapshots/2026-12-race-20260823T031058Z.json`, `meta.race_start_
 
 Kalshi books did not close at lights-out. Across the Dutch GP, `close_time` sits **+5.05h** past
 lights-out for every race-outcome series (`KXF1RACE`, `KXF1RACEPODIUM`, `KXF1TOP10`, `KXF1TOP5`,
-`KXF1FASTLAP`, `KXF1BIGGESTMOVER`, `KXF1TOPCONSTRUCTOR`) — i.e. ~3h after the chequered flag —
+`KXF1FASTLAP`, `KXF1BIGGESTMOVER`, `KXF1TOPCONSTRUCTOR`) — comfortably past the end of the race —
 while the qualifying-dependent series closed the evening before (`KXF1POLE` at −17.58h).
 
 Volume, per one-minute candle, `KXF1RACE-DUTGP26`, **all 22 driver legs**:
@@ -303,9 +304,12 @@ Volume, per one-minute candle, `KXF1RACE-DUTGP26`, **all 22 driver legs**:
 Nearly half the market's entire life-of-contract volume traded while the race was running, and
 there was not a single silent minute. Prices moved accordingly — `-NOR` went 0.37 → 0.32 → 0.16
 → 0.28 → 0.48 → 0.82 → 0.96 across the two hours, with 25,895 contracts in the 14:53Z minute
-alone. Every other F1 market type traded in-race too (in-race share of the ±6h window, top-4 legs:
-winner 75.5%, top-constructor 72.8%, biggest-mover 58.7%, fastest lap 48.4%, podium 47.7%, top-5
-41.6%, top-10 35.8%).
+alone. Every other F1 market type traded in-race too. Stated as in-race contract counts rather than
+shares, because only `KXF1RACE` was swept over its full `open_time → close_time` life — a
+percentage against a shorter window would understate pre-race volume and is not comparable to the
+48.5% above. Across each series' four most-traded Dutch GP legs, contracts traded inside
+13:00–15:00Z: winner 649,575, podium 36,614, fastest lap 7,484, top-5 3,259, top-constructor
+2,941, biggest-mover 2,478, top-10 2,194.
 
 > **Scope note — this used an endpoint outside the locked decision.** `01`'s locked decision scopes
 > Kalshi to `GET /markets`. The measurement above uses
