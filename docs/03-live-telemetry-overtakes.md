@@ -1,62 +1,51 @@
 # 03 — Live Telemetry & Overtakes (Lane B)
 
-Status: **§6's endpoint is WRONG and under revision — corrected 2026-08-26, same day, see the
-banner below. Do not build against §6/§13 until it is rewritten.** The rest of the spec (§§4–5,
-7–12) stands.
-
-Previously: B0 source decided and specced 2026-08-26, implementation authorized for personal
-research/development only and gated on the B1 delay check (§4.4). This document was a research
-memo; it is now a build spec. §§1–3 are the original research, preserved unchanged — the four-way
-source comparison, F1's own ToS text, and the IP-blocking precedent are the evidence the decision
-rests on, not background to be deleted once the decision is made. §§4 onward are the spec.
+Status: **B0 source decided and specced 2026-08-26. §6 was corrected and rewritten the same day
+— see the banner below; the endpoint moved, the decision did not. Implementation authorized for
+personal research/development only, and gated on the B1 delay check (§4.4).** This document was a
+research memo; it is now a build spec.
 
 Read `welcome.md`, `00-roadmap.md`, and `01-data-pipeline.md` §9.5 first. This document supersedes
 `01` §9.5's flag.
 
 ---
 
-> ## ⚠ CORRECTION 2026-08-26 — the unauthenticated endpoint is dead
+> ## ⚠ CORRECTION 2026-08-26 — §6's endpoint was wrong; §6 has been rewritten
 >
-> **§6.1 says B0 connects to the legacy `/signalr` endpoint without authentication. That endpoint
-> has been returning HTTP 401 since approximately 2026-06-06 and is no longer usable.**
+> **What was wrong.** The first draft of §6 had B0 connecting to the legacy `/signalr` endpoint
+> with `clientProtocol=1.5`. That endpoint has returned **HTTP 401 since approximately
+> 2026-06-06** and is retired.
 >
-> **How the error was made.** §6.1's evidence was that `matteocelani/f1-telemetry` still had
-> `F1_SERVER_URL = https://livetiming.formula1.com/signalr` on `main` and had been pushed
-> 2026-08-07. That inference was wrong: the repo's `main` simply has not merged the fix. Its
-> issue [#24](https://github.com/matteocelani/f1-telemetry/issues/24) ("SignalR endpoint returns
-> 401 — F1 switched to SignalR Core with account auth", 2026-06-06) is open with two independent
-> reporters confirming it, and the migration [PR #25](https://github.com/matteocelani/f1-telemetry/pull/25)
-> is open and unmerged. The recent pushes were **replay-mode** work — which is what you build when
-> you cannot connect live. Recency of commits was read as evidence of a working live path; it was
-> not.
+> **How the error was made, since the reasoning is worth not repeating.** The evidence for §6.1
+> was that `matteocelani/f1-telemetry` still had `F1_SERVER_URL = .../signalr` on `main` and had
+> been pushed 2026-08-07. That inference was wrong twice over: the repo's `main` had not merged
+> its fix (issue [#24](https://github.com/matteocelani/f1-telemetry/issues/24) open, migration PR
+> open and unmerged), and the recent commits were **replay-mode** work — which is what you build
+> when you *cannot* connect live. Commit recency was read as evidence of a working live path. It
+> is not evidence of that.
 >
-> **What is actually true.** F1 introduced `/signalrcore` in May 2025 (FastF1 issue #753) and
-> appears to have shut the legacy endpoint off around June 2026 — roughly a year of overlap. The
-> only live path now requires a **Bearer JWT tied to an F1 account**, sent both as an
-> `Authorization` header and an `access_token` query parameter, over the SignalR **Core** text
-> protocol (`\x1e` record separators, explicit handshake frame, type-1/type-3 messages,
-> `negotiateVersion=1`) — a different wire protocol from §6.1's, not a URL swap.
+> **What is true instead, and it is good news.** The feed did not close, it **moved**: F1
+> introduced `/signalrcore` in May 2025 and retired the legacy endpoint around June 2026. The
+> current endpoint is a different URL and a genuinely different wire protocol (SignalR Core, JSON
+> protocol v1, `\x1e`-delimited frames) — **and it is still unauthenticated.** No F1 account, no
+> F1TV subscription, no bearer token. Measured by two independent reporters on two residential
+> ISPs during Zandvoort FP1 on 2026-08-21, and corroborated against a primary source read
+> directly: `slowlydev/f1-dash`, a 1,907-star public dashboard with no login, connects token-less.
+> §6.4 has the full evidence table.
 >
-> **The one thing that decides whether this stays zero-budget.** A commenter on #24 reports that a
-> **free F1 account is sufficient — no F1 TV subscription needed**, with a working deployment.
-> FastF1's own code says the opposite, printing "This feature requires an active F1TV
-> Access/Pro/Premium subscription" and carrying `SubscriptionStatus` / `SubscribedProduct` claims
-> in the token. Both cannot be right. **`UNVERIFIED` and unresolved** — it is a single community
-> report against a maintainer's in-code assertion, and it is the difference between this lane
-> costing nothing and costing a subscription.
+> **What this does and does not change.** §6.1, §6.2 and §6.4 are rewritten. §6.3's channel set
+> and §6.5's connection discipline are unchanged, because neither depended on the transport. §§4,
+> 5, 7–12 stand as written. Most importantly: **the decision in §5 is unaffected.** It was a
+> decision to connect anonymously and unauthenticated to F1's live timing feed, and that is
+> exactly what §6 now specifies. §16's open item 1 (what to do if the unauthenticated path closes)
+> has **not** fired — it remains a contingency, not a live question.
 >
-> **Why this is not a quiet fix.** §16's open item 1 asked what to do *if* the unauthenticated
-> endpoint closed, and called that a decision the owner had to take separately — because any
-> authenticated route binds a named account holder to F1's terms directly and removes the
-> "separate host, different agreement" caveat that §5's risk acceptance leans on. That item has
-> now fired. §6 is not rewritten unilaterally; the route is the owner's call, and it is a
-> different question from the one answered in §5.
->
-> **Also unresolved:** #25's thread reports a reconnect loop against `/signalrcore` — WebSocket
-> close code 1006 immediately after each subscribe snapshot, repeating every 5s — for one reporter
-> while working for another. Unexplained. If it is general rather than environmental it is a
-> second, independent problem with the authenticated path, and §9's backoff design would need to
-> account for a connection that dies on a timer rather than after ~2h.
+> **An intermediate version of this banner was also wrong** and is worth flagging for anyone who
+> read it: for a few minutes it stated that the only live path required a Bearer JWT tied to an F1
+> account, and that whether a *free* account sufficed was contested. Both came from an early
+> comment in issue #24 that its own author later retracted, having had a token in place from the
+> first attempt and never tested whether it was load-bearing. The controlled comparison — no token
+> versus garbage token versus live session — is in §6.4.
 
 ---
 
@@ -351,68 +340,121 @@ Two consequences follow and are locked here:
 
 ## 6. The connection
 
-All of §6 is `UNVERIFIED` per the verification note until §13 runs.
+**Rewritten 2026-08-26** after the correction at the top of this document. §§6.1, 6.2 and 6.4
+below are the corrected versions; §§6.3 and 6.5 are unchanged from the first draft, because the
+channel set and the connection discipline never depended on which endpoint served them.
 
-### 6.1 Endpoint and handshake — the legacy SignalR path
+The wire-protocol details here are drawn from a primary source read directly — `slowlydev/f1-dash`
+(1,907 stars, a public real-time dashboard with no login, `realtime/src/f1.rs` and
+`signalr/src/lib.rs` at HEAD) — plus two independent live measurements during Zandvoort FP1 on
+2026-08-21, reported in `matteocelani/f1-telemetry` issue #24. Still `UNVERIFIED` **by this
+project** until §13's acceptance run, in the sense the verification note means: nobody here has
+executed it.
 
-> **SUPERSEDED — see the correction banner at the top of this document. The endpoint described in
-> this subsection returns 401 and the protocol described is no longer the one in use. Everything
-> from here to the end of §6.5 is retained only to show what was specced and why it was wrong;
-> none of it is buildable as written.**
+### 6.1 Endpoint and handshake — SignalR Core, unauthenticated
 
-There are **two** live-timing endpoints on this host, and the distinction matters more than
-anything else in this section.
+There are two live-timing endpoints on this host. One of them is dead.
 
-| | Legacy | Newer |
+| | Legacy — **RETIRED** | Current |
 |---|---|---|
-| Base | `https://livetiming.formula1.com/signalr` | `wss://livetiming.formula1.com/signalrcore` |
-| Protocol | ASP.NET SignalR, `clientProtocol=1.5` | ASP.NET **Core** SignalR |
-| Auth | **None** | F1TV subscription JWT (§6.4) |
-| Used by | `matteocelani/f1-telemetry` (active 2026-08-07), the hobbyist clients in §2.3 | FastF1 ≥ 3.7.0 |
+| Base | `https://livetiming.formula1.com/signalr` | `https://livetiming.formula1.com/signalrcore` |
+| Protocol | ASP.NET SignalR, `clientProtocol=1.5` | ASP.NET **Core** SignalR, JSON protocol v1 |
+| Status | **HTTP 401 since ~2026-06-06** | Working |
+| Auth | n/a | **None required** — see §6.4 |
+| Hub | `Streaming` | `Streaming` (unchanged) |
 
-**B0 uses the legacy `/signalr` endpoint.** It is the one §2.3's proven prior art uses, the one
-that needs no account, and the only one compatible with the zero-budget constraint.
+**B0 uses `/signalrcore`, unauthenticated.** No F1 account, no F1TV subscription, no bearer token.
 
-This refines §2.3 rather than contradicting it. §2.3 said the feed "is not authenticated" — true
-of this endpoint, and still true as of the 2026-08-07 prior art. What §2.3 did not know is that a
-second, authenticated endpoint now exists alongside it. §6.4 carries that as a risk.
+This is the same *substantive* decision §5 recorded — an unauthenticated, anonymous connection to
+F1's live timing feed — reached at a different URL over a different wire protocol. It is not the
+authenticated route, and §16's open item 1 has **not** fired. Nothing about the legal posture in
+§2.3/§5 changes: no account is created, no terms are individually accepted, and the "separate
+host, different agreement" caveat §5 leans on survives intact.
 
-Handshake, four steps, in order:
+Handshake, six steps. Steps 1 and 3's cookie handling are not optional — see §6.2.
 
-1. `GET {base}/negotiate?clientProtocol=1.5&connectionData={connectionData}` → JSON containing
-   `ConnectionToken`, plus a `Set-Cookie` that must be carried into every later step.
-   `connectionData` is the URL-encoded `[{"name":"Streaming"}]`.
-2. Open a WebSocket to
-   `wss://livetiming.formula1.com/signalr/connect?clientProtocol=1.5&transport=webSockets&connectionToken={token}&connectionData={connectionData}`,
-   sending the negotiate cookie.
-3. `GET {base}/start?clientProtocol=1.5&transport=webSockets&connectionToken={token}&connectionData={connectionData}`
-   — SignalR 1.x requires this explicit start after the socket opens; skipping it yields a socket
-   that never delivers data.
-4. Send the subscribe invocation over the socket:
-   `{"H":"Streaming","M":"Subscribe","A":[[...channels...]],"I":1}`.
+1. `OPTIONS https://livetiming.formula1.com/signalrcore/negotiate` → returns a `Set-Cookie`
+   carrying **`AWSALBCORS`**. Capture it.
+2. `POST https://livetiming.formula1.com/signalrcore/negotiate?negotiateVersion=1`, sending that
+   cookie → JSON body containing `connectionToken`. An empty body is a failure even on HTTP 200
+   and must be treated as one.
+3. Open a WebSocket to `wss://livetiming.formula1.com/signalrcore?id={connectionToken}`, sending
+   the **same** `AWSALBCORS` cookie plus the §6.2 headers.
+4. Send the SignalR Core handshake frame — `{"protocol":"json","version":1}` followed by the
+   record separator — and read the response. A response containing an `error` key is a failed
+   handshake, not a message.
+5. Send the subscribe invocation:
+   `{"type":1,"invocationId":"<uuid>","target":"Subscribe","arguments":[[...channels...]]}`
+   plus the record separator.
+6. The full current state arrives as a **`type: 3`** (Completion) message whose `invocationId`
+   matches the one sent in step 5, with the state in its `result` field. Match on the
+   `invocationId`; do not assume the next frame is the completion.
 
-The subscribe **response** arrives as a frame with an `R` field carrying the full current state of
-every subscribed channel — not a delta. This is the mechanism §9.4 relies on for reconnection.
-Ordinary updates arrive in an `M` array of `{"H","M","A"}` messages, where `A` is
-`[channelName, payload]`. A frame whose body is `{}` is the server keep-alive; discard it.
+Framing and message types — this is where SignalR Core differs most from the legacy protocol, and
+where a parser written against §6.1's previous draft would silently fail:
 
-### 6.2 Request headers — required, fixed, and never varied
+- **Messages are delimited by `\x1e`** (U+001E, record separator), appended to every outgoing
+  message and terminating every incoming one. **A single WebSocket frame may carry several
+  messages**, so every received frame must be split on `\x1e` and each part parsed separately. A
+  parser that treats one frame as one message will drop data under load.
+- **`type: 1`** — Invocation. Live updates arrive with `target: "feed"` and `arguments` as a
+  three-element tuple: `[channelName, data, timestamp]`.
+- **`type: 3`** — Completion. The subscribe snapshot (step 6).
+- **`type: 6`** — Ping/keep-alive. Discard.
 
-The legacy handshake requires specific headers. Per the 2026-08-07 prior art, negotiate sends
-`User-Agent: BestHTTP`, `Accept-Encoding: gzip, deflate`, `Origin: https://www.formula1.com`,
-`Referer: https://www.formula1.com/`; the WebSocket upgrade sends `User-Agent: BestHTTP`,
-`Origin: https://www.formula1.com`, and the negotiate cookie.
+The `R`-field mechanism §9.4 relies on for reconnection still exists; it is the step-6 `type: 3`
+completion rather than a legacy `R` field. Everything §9.4 says about it holds — it is a full
+state replacement, not a delta.
 
-This sits next to §5's no-evasion rule, and the two must not be confused, so the rule is stated
-precisely:
+`UNVERIFIED` and specifically flagged for §13: whether `CarData.z` / `Position.z` payloads are
+still base64 + raw DEFLATE inside the new envelope. There is no reason to expect otherwise — the
+compression is a property of the channel, not the transport — but it has not been confirmed by
+anyone here, and §7.2's decode path is the thing that breaks if it changed.
+
+### 6.2 Headers, the ALB sticky-session trap, and the no-evasion rule
+
+Required on the WebSocket upgrade, per the primary source: `User-Agent: BestHTTP`,
+`Accept-Encoding: gzip,identity`, and `Cookie: AWSALBCORS=<value>` from step 1. The negotiate POST
+in step 2 sends the same cookie.
+
+**The trap, and it is worth stating loudly because it costs a session to diagnose live.** F1 runs
+this service behind an AWS Application Load Balancer. If the `AWSALBCORS` cookie is not replayed
+on the WebSocket upgrade, the upgrade lands on a *different ALB target* — one that has never heard
+of the `connectionToken` the negotiate just issued. The observable symptom:
+
+```
+POST /signalrcore/negotiate  → 200 + connectionToken
+WS upgrade                   → non-101 status / "network error"
+```
+
+That reads exactly like an authentication rejection and is not one. It is session affinity. One
+reporter in issue #24 hit precisely this and initially concluded the endpoint wanted credentials.
+A second reporter's symptom — a reconnect loop closing with WebSocket code 1006 immediately after
+each subscribe snapshot, retrying every 5 s — is plausibly the same fault one layer along, though
+that one is not confirmed.
+
+Two implementation consequences:
+
+- **The WebSocket client must be able to set request headers and cookies.** Node's built-in
+  `WebSocket` cannot, which is what produced the symptom above; the `ws` package can. For this
+  project the equivalent constraint applies to whichever Python WebSocket library is chosen — it
+  must support custom headers on the upgrade. This is a real selection criterion, not a detail.
+- **A failed upgrade after a successful negotiate must not be classified as a refusal** (§9.3).
+  Retrying the *whole* handshake from step 1, which mints a fresh cookie and token, is the correct
+  response, and it is a routine-class event.
+
+The no-evasion rule from the first draft carries over unchanged, and the distinction it draws is
+the same one:
 
 > These header values are **what the protocol requires to complete a handshake at all**. They are
-> set once, as constants, and are never varied. Changing headers, User-Agent, IP, or origin *in
+> set once, as constants, and never varied. Changing headers, User-Agent, IP, or origin *in
 > response to a failed or blocked connection* is evasion and is prohibited by §5. Setting the
 > documented values that make the handshake work in the first place is not.
 
-The test is mechanical: if the client contains any code path that picks a different header value
-depending on what happened to a previous attempt, that path violates §5.
+The mechanical test is unchanged: if the client contains any code path that picks a different
+header value depending on what happened to a previous attempt, that path violates §5. Re-running
+the handshake to obtain a *fresh* `AWSALBCORS` cookie is not that — the value is whatever the
+server just issued, not a value the client chose.
 
 ### 6.3 Subscribed channels
 
@@ -452,38 +494,64 @@ Explicitly **not** subscribed, and the reason each is left out:
 
 Subscribing to less is also cheaper to keep correct under §10's drift rules: every channel in the
 set is a schema this project has to notice changing.
+### 6.4 Authentication is not required — measured, not assumed
 
-### 6.4 The authentication risk, and what to do if the legacy endpoint closes
+The first draft of this spec treated authentication as a looming risk and reserved §16's open item
+1 for "what to do if the unauthenticated endpoint closes." The evidence now says the endpoint did
+not close; it **moved**, and the new one is equally open.
 
-FastF1 moved to the authenticated `signalrcore` endpoint in v3.7.0 after F1 changed the service in
-May 2025 (issue #753). `fastf1/internals/f1auth.py`, read at HEAD, performs a browser-based F1
-account sign-in, extracts a `subscriptionToken` JWT, and verifies it against
-`api.formula1.com/static/jwks.json`; the token carries `SubscriptionStatus` and
-`SubscribedProduct` claims. FastF1's own docs state it "can require an active F1TV
-Access/Pro/Premium subscription to access certain data," and its client exposes `no_auth=True`
-with the caveat that it "may only work for some sessions or may only return empty or partial
-data."
+What was measured, by two independent reporters on two residential ISPs in two countries, during
+Zandvoort FP1 on 2026-08-21 (issue #24):
 
-The legacy endpoint has nonetheless kept working unauthenticated — the 2026-08-07 prior art is the
-evidence — so this is a **risk to detect, not a blocker to design around**.
+| Check | Result |
+|---|---|
+| `POST /signalrcore/negotiate?negotiateVersion=1`, no `Authorization` | **HTTP 200 + `connectionToken`** |
+| Same, with `Authorization: Bearer <garbage>` | **HTTP 200 + `connectionToken`** |
+| `POST /signalr/negotiate` (legacy) | **HTTP 401** |
+| `type: 3` subscribe snapshot, token-less vs. garbage-token | **Byte-identical** (65,484 bytes, 9 channels) |
+| Live `feed` invocations over the same window | **9,260 vs. 9,260** — identical channel by channel |
+| Raw frames captured | Same 400-frame multiset; the only two differing frames carried an identical server timestamp and differed in arrival order |
 
-**Detection signature:** HTTP 401 or 403 from `/negotiate` or `/start`; or a negotiate that
-succeeds while the subscribe response's `R` field comes back empty or missing every channel in
-§6.3's required set.
+A *garbage* token returning 200 is the decisive detail: the header is not validated, it is
+ignored. The 401 belongs to the retired legacy endpoint, not to an auth gate on the current one.
+
+Corroborated from a primary source read directly rather than taken on report:
+**`slowlydev/f1-dash`** — a public F1 dashboard with 1,907 stars and no login of any kind —
+connects to `livetiming.formula1.com/signalrcore` (`realtime/src/f1.rs:9`) through a client
+(`signalr/src/lib.rs`) in which the strings `Bearer`, `access_token` and `Authorization` do not
+appear at all. Its open issues are feature requests and a 2026 grid-expansion fix; there is no
+breakage report against the feed.
+
+**Why FastF1 authenticating is not evidence against this.** FastF1 ≥3.7.0 does sign in with an F1
+account and its docs say it "can require an active F1TV Access/Pro/Premium subscription to access
+certain data." Both statements can be true alongside the measurements above: FastF1 chose to
+implement auth while diagnosing the 2025 migration, and its `no_auth=True` caveat ("may only work
+for some sessions or may only return empty or partial data") is a hedge written without the
+controlled comparison that has since been run. One earlier community writeup did claim a token was
+needed — and its author subsequently retracted it, noting they had had a token in place from the
+first attempt and never tested whether it was load-bearing. That was the control that mattered.
+
+**Scope of the claim, stated precisely.** What is measured is that authentication is **not
+required** to receive the subscribe snapshot and the live `feed` invocations. The comparison was
+token-less against *garbage*-token, so both arms were effectively unauthenticated — it does not
+establish that a *valid* token yields nothing extra. It might unlock additional channels; nobody
+has tested that. B0 does not care: every channel §6.3 needs is in the unauthenticated feed.
+
+**Detection signature, if this ever changes.** HTTP 401 or 403 on the `OPTIONS`, the negotiate, or
+the upgrade; or a negotiate that succeeds while the `type: 3` snapshot comes back empty or missing
+every channel in §6.3's required set. Note the §6.2 trap: a failed *upgrade* after a successful
+negotiate is the ALB cookie fault, not this.
 
 **Required behaviour on that signature: stop, loudly.** Raise through `lib.invariants.require`
 with a message naming this section, write the failure to the run log, exit. Specifically:
 
-- **Do not** fall back to the `signalrcore` endpoint.
+- **Do not** obtain, borrow, or synthesize a subscription token to get past it.
 - **Do not** retry past §9.3's ceiling — a gate is not a transient fault.
-- **Do not** attempt to obtain, borrow, or synthesize a subscription token.
 
-The path forward from there is an owner decision, not an agent's — filed as §16's first open item,
-because it is simultaneously a money decision (F1TV Access is paid, and `welcome.md` requires
-explicit approval for any paid dependency) and a materially worse legal posture: an F1TV
-subscription binds a named account holder to F1's subscription terms directly, which removes the
-"separate host, different agreement" caveat §2.3 relies on. It is a genuinely different decision
-from the one recorded in §5, and it must be taken separately.
+The path forward from there is an owner decision, not an agent's, and it is the one §16's open
+item 1 now describes: authenticating would bind a named account holder to F1's terms directly and
+would remove the "separate host, different agreement" caveat §5's acceptance leans on. That is a
+genuinely different decision from the one recorded in §5. It is not live today.
 
 ### 6.5 Connection discipline
 
@@ -502,7 +570,6 @@ risk acceptance assumed.
    project does not need to make. Only §13's acceptance run and B1's measurement need a live one.
 4. **A visible run log.** Every connect, disconnect, reconnect, backoff, and stop is logged with a
    timestamp. If this is ever questioned, the honest account of what the client did should exist.
-
 ## 7. What the client parses and exposes — the tick-state contract
 
 B0's product is a **tick**: one immutable snapshot of per-car state at a point in session time.
@@ -912,9 +979,17 @@ a session.
 The run: start the client no earlier than T-60min, capture one full practice session, disconnect
 on `SessionStatus` finished. Then check, from the capture:
 
-1. The §6.1 handshake completed unauthenticated, and the subscribe `R` frame carried every §6.3
-   channel. (If not → §6.4's gate, stop, and file the open item.)
-2. `CarData.z` and `Position.z` decoded as base64 + raw DEFLATE into §7.2's shapes.
+1. The §6.1 six-step handshake completed **unauthenticated** against `/signalrcore`, and the
+   `type: 3` subscribe completion carried every §6.3 channel. (If not → §6.4's gate, stop, and
+   file the open item.) Record whether the `AWSALBCORS` cookie replay was in fact required — §6.2
+   says it is, and a run that succeeds without it would mean the ALB affinity behaviour has
+   changed.
+1b. Frames were split on `\x1e` correctly, and at least one WebSocket frame carrying **more than
+   one** message was observed and handled. If none was seen, say so — it means the multi-message
+   path is still untested, not that it works.
+2. `CarData.z` and `Position.z` decoded as base64 + raw DEFLATE into §7.2's shapes — the one
+   §6.1 flags as carried over from the legacy protocol on expectation rather than evidence. If
+   this fails, §7.2's decode path is what changed, not the connection.
 3. `CarData` channel indices 0/2/3/4/5/45 are present, and 0/2/3/4/5 fall in §12.2's ranges.
    Record what channel 45 actually contains across the session — this is the observation that
    would eventually let §7.3's opaque field be decoded, if anyone ever decides that is worth doing.
@@ -968,15 +1043,17 @@ Listed so a future reader can tell "not built yet" from "decided against":
 
 ## 16. Open items — genuinely the owner's call, not guessable
 
-1. **If the legacy endpoint closes, what then?** (§6.4.) F1 already moved FastF1's path behind an
-   F1TV Access/Pro/Premium subscription in 2025; the unauthenticated legacy endpoint still works
-   as of the 2026-08-07 prior art, but it is one deprecation away from not working. The options
-   are (a) buy an F1TV subscription — paid, so it needs explicit approval under `welcome.md`'s
-   zero-budget constraint, *and* it binds a named account to F1's subscription terms directly,
-   which is a materially worse legal posture than the anonymous access §5's acceptance was
-   weighed against; (b) revisit OpenF1's €9.90/mo paid tier, which is at least ToS-clean; or
-   (c) stop Lane B. Not decidable in advance by an agent: it trades money against legal exposure
-   against abandoning the lane, and it is a different decision from the one already taken.
+1. **If the unauthenticated endpoint ever closes, what then?** (§6.4.) **Not live as of
+   2026-08-26** — downgraded from a blocking question to a standing contingency once §6.4's
+   measurements showed the current endpoint is open. Recorded because the pattern is now
+   established: F1 introduced `/signalrcore` in May 2025 and retired `/signalr` around June 2026,
+   so a future migration is a question of when, not whether. If the next one closes the
+   unauthenticated path rather than relocating it, the options are (a) authenticate with an F1
+   account — which may or may not require a paid F1TV subscription, needs explicit approval under
+   `welcome.md`'s zero-budget constraint either way, *and* binds a named account holder to F1's
+   terms directly, removing the "separate host, different agreement" caveat §5's acceptance leans
+   on; (b) revisit OpenF1's €9.90/mo tier, which is at least ToS-clean; or (c) stop Lane B. Not
+   decidable in advance by an agent, and not a decision that needs taking today.
 2. **Run the B1 manual delay observation.** Carried forward from §3 and the research memo's original open item 2, now
    with teeth: §4.4 makes B0's prediction layer *gated* on it, not merely informed by it. A
    multi-minute delay closes Lane B regardless of data source. Still not run; free; should be done
