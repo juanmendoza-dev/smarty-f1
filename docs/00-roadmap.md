@@ -120,13 +120,30 @@ enough to its lights-out to have priced markets — not guaranteed to be Monza s
 
 **Phase B0 — Live data source + tick client**
 Tick-based state per car (position, speed, gap, brake/throttle, and whatever channel 45 turns out to carry — see below), then trigger conditions (approaching a known corner/braking zone) and scoring logic for overtake probability. See `03-live-telemetry-overtakes.md`, which is now a build spec rather than a research memo.
-Status: **source decided and specced 2026-08-26. Client build authorized; the prediction layer on top of it is not.**
+Status: **client built and unit-tested 2026-08-27; not yet run against the live wire.** Source
+decided and specced 2026-08-26. The prediction layer on top of it is still not authorized (`03` §4.4).
+
+`lib/signalr.py` (hand-rolled SignalR Core transport with the `03` §6.2 ALB-cookie replay),
+`lib/livetiming_parse.py` + `lib/livetiming_tick.py` (base64/raw-DEFLATE decode, the §7 tick
+contract, §8 degraded modes, the §7.4 terminal-state latch, all 15 §12 assertions),
+`lib/livetiming_client.py` (the §9.3 backoff taxonomy, §9.2 heartbeat liveness, §9.5 session-change
+detection, §11 local capture, offline replay), `livetiming_capture.py` (CLI). `test_livetiming.py`
+— 14 synthetic-fixture groups, all passing under `.venv312`. One spec change made during the build:
+`03` §7.1's tick gains a `t_wall` UTC field alongside `t_local`, because B1 compares the feed
+against a broadcast event on a wall clock and a monotonic clock has no epoch.
+
+**Every `03` §6–7 claim about the wire stays `UNVERIFIED`** until §13's acceptance run, which needs
+a live session — the next is Monza FP1 (~2026-09-04). That run and B1's delay measurement are the
+same capture (`03` §13).
 
 The data-source question that blocked this phase is closed: Lane B connects **directly to F1's own live timing feed** over the unauthenticated SignalR Core endpoint at `livetiming.formula1.com/signalrcore` — `03` §2.4's fourth row, chosen with the ToS and IP-blocking findings in `03` §2.3 in full view and knowingly accepted (`03` §5). Not FastF1's live module, which can't parse live at any budget; not OpenF1, whose free tier has no live access at all and whose paid tier costs money that hasn't been approved.
 
 `03` §4.2 draws the scope tightly and the tightness is part of the decision: personal research and development only — capture, parse, shadow-mode predictions logged locally and read by nobody else. No hosted or public deployment (the one documented F1 enforcement action was against a *hosted* instance), no redistribution, and a hard interlock against Lane C consuming any of it (`03` §4.3). `03` §9 specs graceful backoff and a hard stop on any 401/403/429, explicitly not aggressive retry; `03` §10 specs fail-loud on schema drift via `lib/invariants.require`, the same convention `fit.py`/`backfill.py` use; `03` §11 keeps every capture local and gitignored.
 
-**Gate:** the client and B1's delay measurement may be built now. The overtake model on top of them may not, until B1 comes back with a workable gap (`03` §4.4). A multi-minute broadcast delay kills the premise no matter how good the feed is.
+**Gate:** the client is built; B1's delay measurement runs off it at the next live session. The
+overtake model on top of them may not run live until B1 comes back with a workable gap (`03` §4.4)
+— the *offline* overtake model is separately authorized and already built (Phase B2 below). A
+multi-minute broadcast delay kills the live premise no matter how good the feed is.
 
 Two things `03` turned up while being written into a spec, neither of them in the original memo:
 - **The feed moved endpoints, and is still unauthenticated.** F1 introduced `/signalrcore` in May 2025 and retired the legacy `/signalr` around June 2026 (it returns 401 now). The new one is a different wire protocol — SignalR Core, `\x1e`-framed — but needs **no account, no F1TV subscription, no token**: measured token-less vs. garbage-token during Zandvoort FP1 with byte-identical results, and corroborated against `slowlydev/f1-dash`, a 1,907-star public dashboard with no login whose client contains no auth code at all (`03` §6.4). Zero-budget survives intact and the risk acceptance in `03` §5 is unaffected — it was always a decision to connect anonymously. **This was initially specced against the dead legacy endpoint and corrected the same day**; see `03`'s correction banner for what the bad inference was.
@@ -136,7 +153,7 @@ Two things `03` turned up while being written into a spec, neither of them in th
 
 **Phase B1 — Delay/sync investigation**
 Determine the real gap between live data feed timing and broadcast timing for the owner's actual watching setup (Apple TV app, either on Mac directly or the physical Apple TV box). Approach: auto-record the broadcast + auto-log the data feed in parallel, compare after the fact — not manual real-time comparison.
-Status: **unblocked as of 2026-08-26 — B0's source is decided, and B1 is now the gate on everything above it.** `03` §4.4 makes the overtake model conditional on this measurement rather than merely informed by it, and `03` §13's first-connection acceptance run is designed so the same capture serves both. `03` §3 found that one existing hobbyist project solves broadcast sync manually — the viewer sets a delay buffer (up to three minutes) from their own experience, not from measurement — which isn't rigorous enough to reuse but is a useful sanity check that real delay can run into the low minutes on some setups. The check itself, unchanged now that the source is settled: a single manual side-by-side observation (start a live source and the Apple TV broadcast together, compare one clearly-timestamped event like lights-out) to see whether the gap is roughly seconds or roughly minutes. A multi-minute gap would close B0 outright, independent of which data source gets chosen, since Lane B's whole premise needs the gap to be workable for a real-time trade. Not run yet.
+Status: **unblocked, and now has a client to run against as of 2026-08-27.** B0's source is decided and the capture client is built; B1 is the gate on everything above it. `03` §4.4 makes the overtake model conditional on this measurement rather than merely informed by it, and `03` §13's first-connection acceptance run is designed so the same capture serves both. **Runs at the next live session (Monza FP1, ~2026-09-04)** — it cannot run today because there is no track running until then. `03` §3 found that one existing hobbyist project solves broadcast sync manually — the viewer sets a delay buffer (up to three minutes) from their own experience, not from measurement — which isn't rigorous enough to reuse but is a useful sanity check that real delay can run into the low minutes on some setups. The check itself, unchanged now that the source is settled: a single manual side-by-side observation (start a live source and the Apple TV broadcast together, compare one clearly-timestamped event like lights-out) to see whether the gap is roughly seconds or roughly minutes. A multi-minute gap would close B0 outright, independent of which data source gets chosen, since Lane B's whole premise needs the gap to be workable for a real-time trade. Not run yet.
 
 **Phase B2 — Overtake model (new 2026-08-26)**
 Specced in `08-overtake-model.md`. The owner decided to build it and gave the rationale that closes Lane B's trading-vs-learning fork: the overtake model is an **intermediate signal feeding a live win-probability model**, which trades the race-winner market `07` §10.3 measured as liquid throughout a race (48.5% of lifetime volume in-race, a trade in all 120 race minutes). `03` §4.4's gate is amended accordingly — the **offline** model is authorized; running it live and trading on it stay gated on B1 and on `03` §4.3's interlock.
@@ -278,10 +295,13 @@ Status: not started.
   instance of this behaviour. Options run from omitting the lane, through describing the
   architecture without naming the endpoint, to writing it up in full. Worth deciding before
   anything about this lane is published rather than after.
-- **The B1 delay observation is now a gate, not a nice-to-have** (`03` §4.4, carried from `03`
-  §3). Still unrun, still free. B0's client may be built without it; the overtake model on top
-  may not. Do it at the first available session, alongside `03` §13's acceptance run — the same
-  capture serves both.
+- **The B1 delay observation is a gate, not a nice-to-have** (`03` §4.4, carried from `03` §3).
+  Still unrun, still free. **The client it runs against is now built (2026-08-27)** — the only
+  thing left is a live session. Do it at Monza FP1 (~2026-09-04), alongside `03` §13's acceptance
+  run: `.venv312/bin/python livetiming_capture.py --session-start <FP1-start>`, then compare a
+  clearly-timestamped broadcast event (lights-out, a purple-sector flash) on the Apple TV feed
+  against the same event's `t_wall` in `data/live/ticks/<slug>.jsonl`. Seconds → Lane B lives;
+  minutes → it's dead regardless of feed quality.
 - ~~**New 2026-08-26:** `--mode final`'s holdout (`HOLDOUT_SEASONS = (2024, 2025, 2026)`) includes
   a season still in progress~~ **Resolved and closed 2026-08-26.** `--holdout 2024,2025` correctly
   keeps 2026 out of the *scored* seasons — `season_forward_folds` only evaluates the seasons named

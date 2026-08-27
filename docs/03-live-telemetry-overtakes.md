@@ -2,7 +2,12 @@
 
 Status: **B0 source decided and specced 2026-08-26. §6 was corrected and rewritten the same day
 — see the banner below; the endpoint moved, the decision did not. Implementation authorized for
-personal research/development only, and gated on the B1 delay check (§4.4).** This document was a
+personal research/development only, and gated on the B1 delay check (§4.4). Client built and
+unit-tested 2026-08-27** — `lib/signalr.py` (transport), `lib/livetiming_parse.py` +
+`lib/livetiming_tick.py` (decode + tick contract), `lib/livetiming_client.py` (lifecycle),
+`livetiming_capture.py` (CLI), `test_livetiming.py` (14 synthetic-fixture groups, all passing).
+**Not yet run against the live wire:** every §6–7 claim stays `UNVERIFIED` until §13's acceptance
+run, which needs a live session — the next is Monza FP1 (~2026-09-04). This document was a
 research memo; it is now a build spec.
 
 Read `welcome.md`, `00-roadmap.md`, and `01-data-pipeline.md` §9.5 first. This document supersedes
@@ -609,14 +614,25 @@ model reads ticks and nothing else.
 Tick
   session_key        str    from SessionInfo.Path — identifies the session uniquely
   t_feed             str    feed timestamp of the newest message folded into this tick
-  t_local            float  local monotonic receipt time, for the B1 delay measurement
+  t_local            float  local monotonic receipt time — for ordering and §9.4's staleness guard
+  t_wall             str    UTC wall-clock at emit (ISO 8601) — the epoch B1 needs (see below)
   track_status       int    TrackStatus code (1 clear, 2 yellow, 4 SC, 5 red, 6 VSC, 7 VSC ending)
   lap_current        int?   LapCount.CurrentLap
   lap_total          int?   LapCount.TotalLaps
   degraded           set    which of {position, cardata} are unavailable this tick (§8)
   gap_after_reconnect bool  True on the first tick after a reconnect gap (§9.4)
+  stale              bool   newest input older than §9.4's 5s limit — no consumer may predict
   cars               dict   FIA three-letter code -> CarState
 ```
+
+**`t_wall` added 2026-08-27, during B0's build.** §7.1 originally carried
+`t_local` alone and §13 item 8 leaned on it for B1. A monotonic clock is the
+right clock for ordering and the §9.4 staleness check — it cannot run backwards
+— but it has no epoch, so it cannot be subtracted from "lights-out appeared on
+the broadcast at 14:03:07Z", which is exactly the subtraction B1 is. Both
+timestamps are written on every tick: `t_local` for the machine-internal checks,
+`t_wall` for the human-observed-event comparison B1 does. The client sets both;
+the assembler sets neither.
 
 ```
 CarState
@@ -1063,6 +1079,18 @@ first deliverable after the client exists. It is one session, and it should be a
 session, not a race** — lower stakes, and §2.1's own note is that some data only appears close to
 a session.
 
+**The client exists as of 2026-08-27; this run has not happened** — there has been no live
+session since. The next opportunity is Monza FP1 (~2026-09-04). Command:
+
+```
+.venv312/bin/python livetiming_capture.py --session-start 2026-09-04T11:30:00Z
+```
+
+(substitute the real FP1 start). It writes `data/live/raw/<slug>/*.jsonl`,
+`data/live/ticks/<slug>.jsonl`, and `data/live/logs/<slug>.log`. The client's run log already
+counts multi-message frames (item 1b), records every reconnect with its gap (item 7), and stamps
+`t_local` + `t_wall` on every tick (item 8). Items 1–6 are checked from the raw file afterwards.
+
 The run: start the client no earlier than T-60min, capture one full practice session, disconnect
 on `SessionStatus` finished. Then check, from the capture:
 
@@ -1090,7 +1118,10 @@ on `SessionStatus` finished. Then check, from the capture:
 7. Whether a server-initiated disconnect occurred, at what elapsed time, and whether the
    reconnect path recovered state correctly (§9.4) — this is the measurement that either confirms
    or refutes §9.1's account of the ~2h drop, on this feed, from this client.
-8. `t_local` was recorded on every tick, so the same capture can serve B1's delay measurement.
+8. `t_local` (monotonic) **and `t_wall` (UTC)** were recorded on every tick. B1's delay
+   measurement subtracts a broadcast event's wall-clock time from `t_wall`; `t_local` is only for
+   the machine-internal ordering and staleness checks. (See §7.1's 2026-08-27 note on why one
+   clock was not enough.)
 
 Update this document with the results and drop the `UNVERIFIED` markers on what the run confirms.
 Anything the run contradicts is a spec bug to fix here first, before more code.
