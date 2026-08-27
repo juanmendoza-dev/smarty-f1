@@ -40,16 +40,21 @@ incident), so the numbers came first.
 
 ### 2.1 On-track overtakes are plentiful; lead changes are not
 
-| Race (2026) | Raw single-place gains | **On-track overtakes** | Lead changes | Into top 5 |
-|---|---|---|---|---|
-| Dutch GP | 257 | **48** | 1 | 4 |
-| Hungarian GP | 239 | **39** | 0 | 7 |
-| Belgian GP | 182 | **39** | 0 | 4 |
-| **Total** | 678 | **126** (≈42/race) | **1** | **15** |
+| Race (2026) | Raw single-place gains | Pit/lap-1 filtered | **On-track overtakes** (+debounce) | Lead changes | Into top 5 |
+|---|---|---|---|---|---|
+| Dutch GP | 257 | 48 | **43** | 1 | 4 |
+| Hungarian GP | 239 | 39 | **38** | 0 | 7 |
+| Belgian GP | 182 | 39 | **34** | 0 | 4 |
+| **Total** | 678 | 126 | **115** (≈38/race) | **1** | **15** |
 
-The raw→on-track collapse is the pit-cycle filter: most single-place "gains" happen because the
+The raw→filtered collapse is the pit-cycle filter: most single-place "gains" happen because the
 car ahead pitted, which is not an overtake. Excluding lap 1, and any event where **either** driver
 is within a pit window, takes 678 down to 126.
+
+**The debounce is not a no-op — measured.** Requiring the new order to still hold 10s later drops a
+further 11 events (126 → 115, 8.7%). The third and fourth columns are reported separately because
+an earlier draft of this spec quoted the 126 figure against the four-filter procedure of §5.1,
+which is not the procedure that produced it. **115 is the number §5.1 actually yields.**
 
 **The load-bearing number is the lead-change column: one, across three races.** The owner's chain
 as literally stated — overtake happens, *therefore the race winner changes* — has almost no events
@@ -69,10 +74,18 @@ specific horizon shorter than ~10s is **UNVERIFIED**.
 
 ### 2.3 `IntervalToPositionAhead` is dense, numeric, and is the core feature
 
-99.6% of 31,304 interval samples parse as numeric (the rest are `LAP n` strings for lapped cars,
-which must be handled as a distinct category, never coerced to a number). Median 2.98s, p10 0.53s,
-and **7,246 samples below 1.0 second** in a single race — i.e. the "car is closing / is within
-striking distance" state is densely populated, which is what a pursuit model needs.
+99.6% of 31,304 interval samples parse as numeric. Median 2.98s, p10 0.53s, and **7,246 samples
+below 1.0 second** in a single race — i.e. the "car is closing / is within striking distance"
+state is densely populated, which is what a pursuit model needs.
+
+**The 111 non-numeric values are NOT simply "lapped cars" — measured, and an earlier draft of this
+spec asserted that wrongly.** 80 of the 111 (72%) occur at `Position == 1`, i.e. the race leader,
+who has no car ahead and therefore no interval to report. Two distinct string forms appear —
+`LAP n` (e.g. `LAP 25`) and `1 L` (13 occurrences) — concentrated in four drivers. The leader case
+is structurally explicable; **the exact semantic of each form, and of the 31 non-leader rows, is
+UNVERIFIED.** Required handling: never coerce to numeric, never silently drop. Treat "no car ahead"
+as its own state, and treat an unrecognised form as schema drift and fail loud (`03` §10), rather
+than guessing a meaning — which is the failure `lib/invariants.py` exists to prevent.
 
 ---
 
@@ -89,7 +102,7 @@ rival time, a car stuck behind a slower one and bleeding the gap, a pit window o
 
 **Consequence for this spec, and it is a design decision, not a caveat:**
 
-- The model trains on **all on-track overtakes** (≈42/race, ≈500 for a 12-race 2026 season) — not
+- The model trains on **all on-track overtakes** (≈38/race, so ≈450 for a 12-race 2026 season) — not
   only lead changes, which would give ~4 positive labels a season and is untrainable.
 - The model outputs a **calibrated per-pair probability**, not an alert. It is a feature generator.
 - **The win-probability layer decides what matters.** An overtake for P14 gets predicted just the
@@ -117,7 +130,7 @@ shown in a portfolio *today*.
    within one second of the car ahead. Closing dynamics are structurally different, so pre-2026
    races are not the same process.
 
-**Cost: ~500 positive labels for the season.** Small. §7 sets the model complexity to match rather
+**Cost: ~450 positive labels for the season.** Small. §7 sets the model complexity to match rather
 than pretending otherwise.
 
 **Storage: the derived matrix is NOT committed.** `data/training/winner.csv` is committed because
@@ -179,7 +192,7 @@ same thing. Per candidate pair at time `t`:
 
 | Feature | Source | Note |
 |---|---|---|
-| `interval_to_ahead` | `IntervalToPositionAhead` | §2.3; `LAP n` is categorical, not numeric |
+| `interval_to_ahead` | `IntervalToPositionAhead` | §2.3; non-numeric forms are a separate state, semantics UNVERIFIED |
 | `d_interval_dt` | derived, over a short lookback | closing *rate* — the actual signal |
 | `interval_min_recent` | derived | how long the pursuer has been in range |
 | `speed_delta` | `car_data.Speed` | both cars |
@@ -204,9 +217,9 @@ SC laps inject guaranteed-negative episodes that teach the model nothing except 
 1. **A hand-weighted rule-based scorer** the owner can reason about — monotone in closing rate and
    interval, suppressed under SC/VSC, modulated by track position. This is the same discipline
    `02` applied to the winner algo, and it gives the trained model a baseline to beat.
-2. **Logistic regression** on the §6 features, per-pair-per-episode. With ~500 positives, this is
+2. **Logistic regression** on the §6 features, per-pair-per-episode. With ~450 positives, this is
    the honest ceiling on complexity; gradient-boosted trees are not justified at this label count
-   and would overfit ~40 features to ~500 events. Revisit after a second season, not before.
+   and would overfit ~40 features to ~450 events. Revisit after a second season, not before.
 
 Output is a **calibrated probability**, and calibration is the acceptance criterion, not accuracy:
 a feature generator that is 80% accurate but systematically overconfident is worse than useless to
@@ -247,8 +260,11 @@ Via `lib.invariants.require`, never bare `assert` (stripped under `python -O`):
 - `throttle` is **not** asserted ≤100 — measured to exceed it on 10.3% of samples, max 104;
 - feature vectors computed offline match what a live tick would produce, field for field — the
   train/serve skew guard `05` §4.2 exists for;
-- label counts per race within a plausible band (single digits or >150 on-track overtakes in one
-  race means the pit filter or the persistence filter broke).
+- label counts per race within a plausible band — **UNVERIFIED, set from the three races measured
+  in §2.1 (34–43) plus domain expectation, not from a validated ground truth**. Single digits, or
+  >150 on-track overtakes in one race, means the pit filter or the persistence filter broke.
+  Tightening this against race-control messages or an independent overtake count is worth doing
+  before the band is trusted as an assertion rather than a smoke test.
 
 ---
 
