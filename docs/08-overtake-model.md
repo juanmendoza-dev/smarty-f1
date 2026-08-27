@@ -183,6 +183,30 @@ traps, both to be guarded by assertion:
 - **Leakage through the horizon window.** A negative drawn from a window that overlaps a later
   positive is mislabeled. Episodes must be disjoint from any positive's horizon window.
 
+> **Amended 2026-08-26, at implementation, with the episode supply measured.** The rule above is
+> superseded by **row-level lookahead labeling**, for a reason the original framing missed.
+>
+> Measured on the Dutch GP: **356 episodes** (interval < 2.0s, same car ahead, ≥3s long), median
+> duration 46.4s, **38,943 episode-seconds** in one race. One row per episode would throw away
+> almost all of that and leave far too few positives to train on.
+>
+> The deeper problem is that the original design was **asymmetric**: positives sampled at
+> `t_event − H` and negatives sampled anywhere would make "time until the episode ends" a constant
+> for every positive and uniform for every negative. Every feature correlated with
+> proximity-to-pass then leaks, and the model discriminates on the sampling scheme rather than on
+> physics.
+>
+> **The rule is now:** sample a decision time `t` on a fixed 1 Hz cadence inside every episode
+> **without reference to outcome**, then label by looking forward — `label = 1` iff that pursuer
+> passes *that specific car* within `(t, t+H]`. A positive episode sampled 40s before the pass
+> correctly gets label 0, and those "closing but doesn't complete" rows are the hard negatives that
+> carry the discriminative work.
+>
+> This does not reintroduce the length artifact the original rule guarded against: that artifact
+> came from *episode-level* labels, where a long episode is structurally negative. Under row-level
+> lookahead labeling, a long episode simply contributes many rows at the true base rate. Folds are
+> race-forward (§8), so rows from one episode can never split across train and test.
+
 ---
 
 ## 6. Features
