@@ -1,7 +1,10 @@
 # 08 — Overtake Model (Phase B2)
 
-Status: **specced 2026-08-26; not approved, no implementation.** Per `welcome.md`, no code is
-written without an approved spec — this is that spec, not the build. Read `welcome.md`,
+Status: **built and validated 2026-08-26; recalibration + domain gate added 2026-08-27.** The
+model reaches AUC 0.906 race-forward and — restricted to its top ~20% of pairs by score, which
+hold 89% of overtakes — clears §7's calibration bar (§11.1), so it is a usable in-domain
+probability, not just a ranker. Offline only: live use and trading stay gated on B1 and `03`
+§4.3's interlock. Read `welcome.md`,
 `00-roadmap.md` (Lane B), `03-live-telemetry-overtakes.md` (§4.4's amended gate, §7's tick
 contract, §7.3's DRS finding), and `07-lane-c-trading-feasibility.md` §10 (the market evidence
 this model's rationale rests on) first.
@@ -402,15 +405,52 @@ and carrying a speed advantage are what the model uses. Two findings worth separ
 
 ### What would fix the calibration
 
-Untried, in the order worth trying — none of these are done:
-
-1. **Isotonic or Platt recalibration** on a held-out fold. Cheapest, standard, and it directly
-   targets the failure without touching the ranker that already works.
-2. **Restrict the model's domain** to the top deciles and let the win-probability layer treat
-   everything below as "no approach in progress." Honest, and matches where the signal is.
+1. **Isotonic or Platt recalibration** on a held-out fold. **Tried 2026-08-27 — does not fix it,
+   see §11.1.** Isotonic on the full prediction range moved 5→6 of 10 bins within 2×; Platt made
+   it worse (over-flattens the top at a 0.4% base rate). Neither cleared §7's bar.
+2. **Restrict the model's domain** to the top deciles. **This is the fix (§11.1).** The raw model,
+   restricted to the top ~20% of pairs by score, clears §7's bar outright — 10 of 10 calibration
+   bins within 2×.
 3. **A better closing-rate feature.** A 3s linear fit on a stream updating every ~3.3s is close to
    a two-point estimate; the near-zero weight may be measurement noise rather than a finding about
-   racing.
+   racing. Still untried; unrelated to the calibration fix.
+
+### 11.1 Recalibration + domain gate — the "do both" run, 2026-08-27
+
+Owner's call on §12's calibration item was **do both**: recalibrate *and* expose a
+confidence-gated domain flag. `overtake_fit.py` now runs a nested race-forward pass — train the
+logistic on rounds 1..n−2, fit the calibrator on rounds n−1 and n (two races, ~250 positives —
+one race's ~130 was too thin and a single-race isotonic fit actually worsened pooled Brier),
+score round n+1. Test rounds R5–R12, 264,049 pairs, 986 overtakes. Both isotonic (hand-rolled
+PAV) and Platt (1-D logistic on the log-odds) are fitted; the domain flag is
+`in_domain = raw p ≥ the 80th percentile of the train+calib score distribution`.
+
+| Model | bins within 2× | worst ratio | §7 acceptance |
+|---|---|---|---|
+| Raw logistic, all test rows | 5 / 10 | 0.01 | FAIL |
+| Isotonic-recalibrated, all rows | 6 / 10 | 0.01 | FAIL |
+| Platt-recalibrated, all rows | 5 / 10 | 0.19 | FAIL |
+| **Raw logistic, in-domain only** | **10 / 10** | **1.48** | **PASS** |
+| Isotonic-recalibrated, in-domain only | 7 / 10 | 0.37 | FAIL |
+| Platt-recalibrated, in-domain only | 1 / 10 | 0.08 | FAIL |
+
+**The domain gate is the load-bearing half.** It retains **89.2% of real overtakes in 20.4% of
+pairs** — the bottom ~80% of the score distribution holds only ~11% of overtakes, and those are
+the structurally-unpredictable ones from §2.4 (12–33% of overtakes have no tracked pursuit
+episode). Inside the gate the raw model is *already a calibrated probability*: predicted 0.003 →
+0.077 tracks observed 0.003 → 0.070 across every decile.
+
+**Recalibration does not help and can hurt.** Isotonic on the full range trades a small
+improvement in the tail for compression at the top; applied *inside* the already-calibrated
+domain it makes things worse (7/10). Platt over-flattens everywhere — at a 0.4% base rate the 1-D
+logistic pulls the whole distribution toward the mean and destroys the top bin (predicted 0.004
+vs observed 0.020 at q10, all rows). **The finding: the model doesn't need recalibration, it
+needs a domain.**
+
+**What the win-probability layer consumes:** the raw model probability for in-domain pairs, and
+"no approach in progress" for the rest. No isotonic/Platt map in the path. `overtake_fit.py`
+prints this whole table; `data/live/overtakes/fit_recal.json` records it (gitignored, `03`
+§11.2). The isotonic/Platt code stays in `overtake_fit.py` as the evidence that they were tried.
 
 ---
 
@@ -418,23 +458,28 @@ Untried, in the order worth trying — none of these are done:
 
 1. **Prediction horizon.** 5s is the stated goal; §2.2 measures the raw label at ~3.3s resolution.
    v1 shipped at 10s. Accept that, or fund §5.2's sub-second refinement now?
-2. **Recalibrate, or restrict the domain?** §11 lists three routes and none is taken. This is the
-   one decision blocking the model from being a probability rather than a ranker.
+2. ~~**Recalibrate, or restrict the domain?**~~ **RESOLVED 2026-08-27: do both, and the domain
+   restriction is what works** (§11.1). Recalibration was tried (isotonic + Platt, held-out) and
+   does not clear §7's bar; the domain gate does, on its own — 10/10 bins within 2× over the top
+   ~20% of pairs, which hold 89% of overtakes. The model is a usable in-domain probability now,
+   not just a ranker. The calibrator code stays in `overtake_fit.py` as evidence it was tried.
 3. **`closing_rate` is small but sign-stable across all ten folds** (+0.0389). So the question is
    no longer "is it identified" — it is: does closing rate genuinely add little once the gap is
-   known, or is a 3s linear fit on a ~3.3s-update stream too noisy to carry the signal? §12's
+   known, or is a 3s linear fit on a ~3.3s-update stream too noisy to carry the signal? §11's
    third fix would answer it. Not urgent, but it is the most interesting thing the fit turned up.
 4. **Five features are unidentified from twelve races** (§11), including `under_caution`. More
    seasons would settle them; dropping them now would be premature. No action needed unless the
    owner wants the feature set trimmed for explainability.
-2. **Does the win-probability layer get specced next, or does the overtake model ship alone?**
-   The trading rationale only closes with that layer; the portfolio/learning value does not need it.
-3. **`03` §4.3's interlock** — unchanged and still the owner's dated decision. Building this model
+5. **Does the win-probability layer get specced next, or does the overtake model ship alone?**
+   The trading rationale only closes with that layer; the portfolio/learning value does not need
+   it. With the calibration item resolved, this is now the top open decision for the lane.
+6. **`03` §4.3's interlock** — unchanged and still the owner's dated decision. Building this model
    does not trip it.
-4. **Gate 2 (B1) is still unrun** and still the owner's stated next step. Note that as written
+7. **Gate 2 (B1) is still unrun** and still the owner's stated next step. Note that as written
    (`03` §3) it measures feed-vs-*broadcast*, while the edge claim in §1 needs feed-vs-*market*.
    Kalshi's book had a trade in all 120 race minutes (`07` §10.3), so someone is already fast.
-   Whether our feed leads *the market* is a different measurement from the one specced.
+   Whether our feed leads *the market* is a different measurement from the one specced. **The B0
+   client it runs against is built as of 2026-08-27** (`03` §13); B1 runs at Monza FP1.
 
 ---
 
@@ -450,7 +495,7 @@ re-deriving anything from chat history. **This section is the handoff.**
 | `lib/overtakes.py` | Labelling: `AheadIndex`, `find_passes` (§5.1's five filters), `find_episodes` (§5.3) |
 | `lib/overtake_features.py` | Feature vectors (§6), lookahead labelling, `assert_no_lookahead` |
 | `overtake_build.py` | CLI: archive → training matrix |
-| `overtake_fit.py` | CLI: rule scorer (§7 stage 1), hand-rolled logistic regression (stage 2), race-forward validation (§8) |
+| `overtake_fit.py` | CLI: rule scorer (§7 stage 1), hand-rolled logistic regression (stage 2), race-forward validation (§8), isotonic/Platt recalibration + the domain gate (§11.1) |
 | `test_overtakes.py` | Synthetic-fixture tests — no real telemetry, per `03` §11.2 |
 
 ### 13.2 Commands
@@ -473,9 +518,15 @@ A correct run reports, in this order:
   Rounds 13–23 print `[future]` — those races have not happened yet and skipping them is correct.
 - **Fit:** pooled out-of-fold Brier — base 0.003856, rule 0.003996, **logit 0.003715**; logit
   **AUC 0.9064**; **5 of 10 calibration bins within 2x** (q6–q10); `ACCEPTANCE (sec7): FAIL`.
+- **Recalibration + domain gate** (§11.1): nested folds R5–R12, 264,049 pairs, 986 overtakes.
+  Domain gate retains **89.2% of overtakes in 20.4% of pairs**. `raw_logit_in_domain` reports
+  **10/10 bins within 2×, ACCEPTANCE: PASS**; every other line (isotonic/Platt, all-rows or
+  in-domain) is FAIL. `data/live/overtakes/fit_recal.json` records it.
 
-**The FAIL is the current correct output, not a broken run.** If it ever prints PASS without
-someone having implemented §11's recalibration, something has been weakened — check that first.
+**The all-rows FAIL is still the correct output** — the model is not calibrated across its whole
+range and never will be (§2.4's structural floor). What changed 2026-08-27 is that the *in-domain*
+line now prints PASS, and that is also correct. If `raw_logit_in_domain` ever prints FAIL, the
+domain gate or the fit has regressed — check there first.
 
 Per-race overtake counts land in 14–50. Monaco (R6) is the low outlier at 14 and that is real, not
 a bug: it is the hardest circuit on the calendar to overtake at, and it doubles as a sanity check
@@ -492,13 +543,14 @@ that the labeller is measuring racing rather than noise.
 
 ### 13.5 State of play — where to pick up
 
-**Done:** the model is built, validated race-forward, and honestly characterised. It is a good
-ranker (AUC 0.906) and **not yet a probability** (§11).
+**Done:** the model is built, validated race-forward, honestly characterised, and — as of
+2026-08-27 — **calibrated within its domain** (§11.1). AUC 0.906 race-forward; restricted to the
+top ~20% of pairs by score (89% of overtakes), 10/10 calibration bins within 2×. Recalibration
+(isotonic/Platt) was tried and does not help; the domain gate is the fix.
 
-**The one decision blocking progress** is §12 item 2: recalibrate (isotonic/Platt on a held-out
-fold), or restrict the model's domain to the top deciles and let the consumer treat the rest as
-"no approach in progress." Either is a small piece of work; neither is started, because which one
-is right depends on what the owner wants the consumer to be.
+**The top open decision** is now §12 item 5: does the **live win-probability layer** get specced
+next? That is the consumer this model was shaped for and the piece that closes the trading chain
+in §1. It needs its own doc (`welcome.md` bars building it without one).
 
 **Not started, and deliberately so:**
 - The **live win-probability layer** (§9) — the consumer this model was shaped for. Needs its own

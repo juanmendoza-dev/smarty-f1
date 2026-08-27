@@ -157,15 +157,17 @@ Status: **unblocked, and now has a client to run against as of 2026-08-27.** B0'
 
 **Phase B2 — Overtake model (new 2026-08-26)**
 Specced in `08-overtake-model.md`. The owner decided to build it and gave the rationale that closes Lane B's trading-vs-learning fork: the overtake model is an **intermediate signal feeding a live win-probability model**, which trades the race-winner market `07` §10.3 measured as liquid throughout a race (48.5% of lifetime volume in-race, a trade in all 120 race minutes). `03` §4.4's gate is amended accordingly — the **offline** model is authorized; running it live and trading on it stay gated on B1 and on `03` §4.3's interlock.
-Status: **built and validated 2026-08-26** (`lib/overtakes.py`, `lib/overtake_features.py`,
-`overtake_build.py`, `overtake_fit.py`, `test_overtakes.py`). Result in `08` §11: on 12 races /
-428,511 rows / 432 on-track overtakes, the fitted model reaches **AUC 0.906** race-forward
-out-of-fold but **fails `08` §7's calibration bar** — it is a usable *ranker*, not yet a
-probability the win-probability layer can multiply. One owner decision (recalibrate, or restrict
-the model's domain) stands between it and being a probability; see `08` §12. Offline only —
-running it live and trading on it remain gated on B1 and on `03` §4.3's interlock.
-`08` §13 is the cold-start handoff: commands, expected output, data locations, and what to pick
-up next.
+Status: **built and validated 2026-08-26; calibrated within its domain 2026-08-27** (`lib/overtakes.py`,
+`lib/overtake_features.py`, `overtake_build.py`, `overtake_fit.py`, `test_overtakes.py`). On 12
+races / 428,511 rows / 432 on-track overtakes the fitted model reaches **AUC 0.906** race-forward
+out-of-fold. It **fails `08` §7's calibration bar across its whole range** (structural — `08`
+§2.4's floor), but the owner's "do both" decision resolved it: **isotonic + Platt recalibration
+were tried and do not help; a confidence-gated domain flag does.** Restricted to the top ~20% of
+pairs by score — which hold **89% of overtakes** — the raw model clears the bar outright (10/10
+calibration bins within 2×, `08` §11.1). So it is a usable in-domain probability the
+win-probability layer can multiply, not just a ranker. Offline only — running it live and trading
+on it remain gated on B1 and on `03` §4.3's interlock. The top open decision is now whether the
+**win-probability layer** gets specced next (`08` §12 item 5). `08` §13 is the cold-start handoff.
 Earlier status, for the record: **specced, not approved, not built.** Three things were measured before the spec was written: ≈38 on-track overtakes per race (115 across three 2026 races, so ≈450 labels a season); **one lead change across those three races**, which is why the model trains on all overtakes and lets the win-probability layer decide what matters; and a `Position`-stream label resolution of ~3.3s, which is why v1 is specced at a 10-second horizon and the owner's 5-second target is an open item rather than an assumption.
 
 **Phase B2b — Automated trigger recognition**
