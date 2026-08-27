@@ -52,6 +52,7 @@ The project is split into independent tracks. Don't conflate them — most confu
   shape it (≈38 on-track overtakes/race, but **one lead change across three races**, and a label
   time-resolution of ~3.3s against a 5-second target horizon). Read `03` §4.4's amendment first —
   the offline model is authorized, live use and trading are not
-- `docs/07-lane-c-trading-feasibility.md` — Lane C (trading bot) feasibility research (2026-08-26). **Not a build spec** — it finds the blocker is the *edge*, not the APIs (no measured edge in any market yet), and lays out a zero-budget path: build an edge-measurement + paper-trading harness first. See also the roadmap's Lane C phases
+- `docs/07-lane-c-trading-feasibility.md` — Lane C (trading bot) feasibility research (2026-08-26). **Not a build spec** — it finds the blocker is the *edge*, not the APIs (no measured edge in any market yet), and lays out a zero-budget path: build an edge-measurement + paper-trading harness first. §11 adds a live market-structure + book-depth survey across both venues. See also the roadmap's Lane C phases
+- `docs/quant/` — the quantitative / trading lane. `07` is the feasibility memo; this folder is the build spec that follows it. `quant/00-directional-trading-spec.md` specs the edge-measurement harness → paper trading → risk controls → gated live execution, plus a market-making extension as a later phase. Read `quant/README.md` first
 
 If a decision you need isn't documented, don't assume — it means it hasn't been locked in yet. Ask.

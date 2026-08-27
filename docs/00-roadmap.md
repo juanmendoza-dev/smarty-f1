@@ -152,9 +152,17 @@ Status: not started.
 
 ## Lane C phases
 
+**The build spec for this lane now lives in `docs/quant/`** (`quant/00-directional-trading-spec.md`,
+started 2026-08-26). `07` stays the feasibility record; `docs/quant/` is the plan that follows
+from it. The phase names below (C0–C3) map onto the quant spec's Q1–Q5; the quant doc is
+authoritative for scope and sequencing, this section is the pointer. Owner directed the
+reframe 2026-08-26: the lane is now understood as **directional trading on per-race markets
+first** (winner + podium + points/top-N, both venues), with market making as a documented later
+phase (`quant/00` §Q5) rather than the near-term goal.
+
 **Phase C0 — Goal statement**
 Auto-trade YES/NO shares on Polymarket + Kalshi F1 markets (race winner, podium/placement, and eventually in-race overtake markets) off this project's own prediction pipeline.
-Status: goal adopted (2026-08-23). Feasibility researched 2026-08-26 — see `07-lane-c-trading-feasibility.md`. Headline finding: the blocker is the **edge, not the APIs**. A1 lost to the market mean on the one live race, A3 is a closed negative result, and podium/points/fastest-lap have zero pre-race market comparisons — so there is no measured edge in any market, including the settled ones C1 would scope down to. Buildable now at zero budget: an edge-measurement + paper-trading harness (07 §7), which produces exactly that missing evidence. No live-execution design until the edge question, the jurisdiction fork, and risk controls all resolve.
+Status: goal adopted (2026-08-23). Feasibility researched 2026-08-26 — see `07-lane-c-trading-feasibility.md`. Headline finding: the blocker is the **edge, not the APIs**. A1 lost to the market mean on the one live race, A3 is a closed negative result, and podium/points/fastest-lap have zero pre-race market comparisons — so there is no measured edge in any market, including the settled ones C1 would scope down to. Buildable now at zero budget: an edge-measurement + paper-trading harness (`quant/00` §Q1, was `07` §7), which produces exactly that missing evidence. No live-execution design until the edge question, the jurisdiction fork, and risk controls all resolve. **2026-08-26:** §11 of `07` added a live book-depth survey — Kalshi's per-race winner book is ~7× deeper at the touch than Polymarket's 10 days out, so the quant spec recommends Kalshi (demo host first) as the execution venue despite the owner's stated Polymarket preference; Polymarket winner markets are `negRisk` (linked legs) and carry live liquidity-rewards params.
 
 **Phase C1 — Real-time data feed (blocking)**
 The in-race trading case (driver closing on a braking zone, trade before the overtake resolves) needs sub-second telemetry.
