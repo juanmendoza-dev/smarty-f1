@@ -206,6 +206,10 @@ item 2 says — it's the same scarce resource (live-snapshotted races with outco
 
 ---
 
+> Numbering note: what was §9 (Sources) is now §12, at the end of the document where it belongs.
+> §§10–11 were appended by later work and the original ordering left Sources stranded in the
+> middle. There is no §9.
+
 ## 10. Gate 4 — do in-race / overtake markets actually exist? (measured 2026-08-26)
 
 Run as **Lane B gate 4** (`00-roadmap.md`'s Lane B gate list): the roadmap assumed in-race

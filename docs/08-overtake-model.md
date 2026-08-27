@@ -101,7 +101,7 @@ or the pursuer arrives on an out-lap, or the car ahead has a problem.
 
 **This is a hard ceiling on recall, not a tuning parameter.** Between roughly 12% and 33% of real
 overtakes cannot be anticipated from this feature set at any horizon, because there is no
-approach to observe. It shows up directly in §12's calibration: those passes land in the
+approach to observe. It shows up directly in §11's calibration: those passes land in the
 lowest-probability bins by construction and hold the observed rate there above zero.
 
 ---
@@ -314,7 +314,7 @@ Via `lib.invariants.require`, never bare `assert` (stripped under `python -O`):
 
 ---
 
-## 12. Results — first run, 2026-08-26
+## 11. Results — first run, 2026-08-26
 
 Built and validated the same day this spec was approved. `overtake_build.py` → 12 completed 2026
 rounds, 428,511 rows, 1,714 positives (0.40%). `overtake_fit.py` → race-forward folds, train on
@@ -414,17 +414,17 @@ Untried, in the order worth trying — none of these are done:
 
 ---
 
-## 13. Open items — the owner's call
+## 12. Open items — the owner's call
 
 1. **Prediction horizon.** 5s is the stated goal; §2.2 measures the raw label at ~3.3s resolution.
    v1 shipped at 10s. Accept that, or fund §5.2's sub-second refinement now?
-2. **Recalibrate, or restrict the domain?** §12 lists three routes and none is taken. This is the
+2. **Recalibrate, or restrict the domain?** §11 lists three routes and none is taken. This is the
    one decision blocking the model from being a probability rather than a ranker.
 3. **`closing_rate` is small but sign-stable across all ten folds** (+0.0389). So the question is
    no longer "is it identified" — it is: does closing rate genuinely add little once the gap is
    known, or is a 3s linear fit on a ~3.3s-update stream too noisy to carry the signal? §12's
    third fix would answer it. Not urgent, but it is the most interesting thing the fit turned up.
-4. **Five features are unidentified from twelve races** (§12), including `under_caution`. More
+4. **Five features are unidentified from twelve races** (§11), including `under_caution`. More
    seasons would settle them; dropping them now would be premature. No action needed unless the
    owner wants the feature set trimmed for explainability.
 2. **Does the win-probability layer get specced next, or does the overtake model ship alone?**
@@ -435,3 +435,104 @@ Untried, in the order worth trying — none of these are done:
    (`03` §3) it measures feed-vs-*broadcast*, while the edge claim in §1 needs feed-vs-*market*.
    Kalshi's book had a trade in all 120 race minutes (`07` §10.3), so someone is already fast.
    Whether our feed leads *the market* is a different measurement from the one specced.
+
+---
+
+## 13. Reproducing this — everything a cold session needs
+
+Written so a fresh agent (or the owner, months later) can rebuild and re-validate without
+re-deriving anything from chat history. **This section is the handoff.**
+
+### 13.1 What exists, and what each file is for
+
+| File | Role |
+|---|---|
+| `lib/overtakes.py` | Labelling: `AheadIndex`, `find_passes` (§5.1's five filters), `find_episodes` (§5.3) |
+| `lib/overtake_features.py` | Feature vectors (§6), lookahead labelling, `assert_no_lookahead` |
+| `overtake_build.py` | CLI: archive → training matrix |
+| `overtake_fit.py` | CLI: rule scorer (§7 stage 1), hand-rolled logistic regression (stage 2), race-forward validation (§8) |
+| `test_overtakes.py` | Synthetic-fixture tests — no real telemetry, per `03` §11.2 |
+
+### 13.2 Commands
+
+```bash
+# environment: use the 3.12 venv -- fastf1 is not installed anywhere else
+.venv312/bin/python overtake_build.py          # ~20 min cold, ~2 min warm
+.venv312/bin/python overtake_fit.py            # ~3 min
+.venv312/bin/python test_overtakes.py          # instant
+```
+
+`overtake_build.py --rounds 12` builds a single race, which is the fast way to check a change to
+the labeller. `overtake_fit.py --json out.json` records the run.
+
+### 13.3 Expected output, so a regression is visible
+
+A correct run reports, in this order:
+
+- **Build:** 12 races, 428,511 rows, **432 on-track overtakes**, 1,714 positives (0.40%).
+  Rounds 13–23 print `[future]` — those races have not happened yet and skipping them is correct.
+- **Fit:** pooled out-of-fold Brier — base 0.003856, rule 0.003996, **logit 0.003715**; logit
+  **AUC 0.9064**; **5 of 10 calibration bins within 2x** (q6–q10); `ACCEPTANCE (sec7): FAIL`.
+
+**The FAIL is the current correct output, not a broken run.** If it ever prints PASS without
+someone having implemented §11's recalibration, something has been weakened — check that first.
+
+Per-race overtake counts land in 14–50. Monaco (R6) is the low outlier at 14 and that is real, not
+a bug: it is the hardest circuit on the calendar to overtake at, and it doubles as a sanity check
+that the labeller is measuring racing rather than noise.
+
+### 13.4 Data locations
+
+- **FastF1 archive cache: `data/cache/fastf1/`** — gitignored, reconstructible, ~GB-scale. A cold
+  build downloads car + position data per race; a warm one is minutes.
+- **Training matrix: `data/live/overtakes/training.csv`** — gitignored, and this is load-bearing,
+  not incidental. `data/training/winner.csv` is committed because it is Jolpica classification
+  data; this matrix is F1 *timing* data and this repo is public, so `03` §11.2 applies. Verified
+  matched by `.gitignore:16` (`data/live/`), not merely untracked.
+
+### 13.5 State of play — where to pick up
+
+**Done:** the model is built, validated race-forward, and honestly characterised. It is a good
+ranker (AUC 0.906) and **not yet a probability** (§11).
+
+**The one decision blocking progress** is §12 item 2: recalibrate (isotonic/Platt on a held-out
+fold), or restrict the model's domain to the top deciles and let the consumer treat the rest as
+"no approach in progress." Either is a small piece of work; neither is started, because which one
+is right depends on what the owner wants the consumer to be.
+
+**Not started, and deliberately so:**
+- The **live win-probability layer** (§9) — the consumer this model was shaped for. Needs its own
+  spec. This is the piece that closes the trading chain in §1.
+- **Gate 2 / B1**, the broadcast-delay measurement, still unrun and still the owner's stated next
+  step for the *live* half. Note `03` §3 specs it as feed-vs-*broadcast*, while §1's edge claim
+  needs feed-vs-*market* — a different measurement (`07` §10.3 measured a trade in all 120 race
+  minutes on Kalshi, so someone is already fast).
+- **Anything live or trading.** `03` §4.4's amendment authorizes the offline model only, and
+  `03` §4.3's interlock — no Lane B output reaching a Lane C component — is untouched by this work
+  and remains a separate dated decision.
+
+**Related lane, not this one:** `docs/quant/` holds the Lane C directional-trading spec, written in
+parallel on 2026-08-26. It consumes Lane A's per-race predictions, not this model's output, and the
+interlock above is why. Don't wire them together without that decision.
+
+### 13.6 Corrections made during this build, so they are not re-made
+
+Each of these was wrong first and measured second. They are recorded because the failure mode they
+share — a confident, plausible, unverified claim — is the one this project has been bitten by
+repeatedly (`03`'s correction banner, §7.3's throttle incident).
+
+1. **Ordering cars by integrated distance does not work.** `add_distance()` integrates each car's
+   own telemetry, so cumulative distance drifts between cars; ranking by it matched FastF1's
+   official per-lap `Position` only **44.7%** of the time and invented 828 "overtakes" in one race.
+   The feed's own Position stream is ground truth. Do not rebuild this on distance.
+2. **The debounce filter is not a no-op** (126 → 115 across three races), and a fifth filter was
+   needed on top of it: jitter produces a phantom pass *and* a phantom re-pass, and persistence
+   alone rejects only the first (115 → 111).
+3. **`LAP n` interval values are not "lapped cars"** — 72% occur at `Position == 1`, the leader,
+   who has no car ahead. Exact semantics remain UNVERIFIED; never coerce them to a number.
+4. **The original sampling design was asymmetric** and would have leaked (§5.3's amendment).
+5. **The rule baseline was scored unfairly** at first — a hand-picked intercept implying ~4% odds
+   against a 0.40% base rate. Fairly scored it *loses* to the base rate on Brier while still
+   ranking well.
+6. **Feature weights from one fold are not evidence.** Reported across all ten with sign stability;
+   five features flip and are unidentified from twelve races.
