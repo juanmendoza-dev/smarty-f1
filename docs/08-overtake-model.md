@@ -3,7 +3,8 @@
 Status: **built and validated 2026-08-26; recalibration + domain gate added 2026-08-27.** The
 model reaches AUC 0.906 race-forward and — restricted to its top ~20% of pairs by score, which
 hold 89% of overtakes — clears §7's calibration bar (§11.1), so it is a usable in-domain
-probability, not just a ranker. Offline only: live use and trading stay gated on B1 and `03`
+probability, not just a ranker. **That PASS is pooled across the field and does not hold at the
+front of it** — see §11.1's 2026-08-27 qualification and `09` §2.4. Offline only: live use and trading stay gated on B1 and `03`
 §4.3's interlock. Read `welcome.md`,
 `00-roadmap.md` (Lane B), `03-live-telemetry-overtakes.md` (§4.4's amended gate, §7's tick
 contract, §7.3's DRS finding), and `07-lane-c-trading-feasibility.md` §10 (the market evidence
@@ -291,7 +292,8 @@ a win-probability layer that multiplies it.
 
 ## 9. Out of scope
 
-- **The live win-probability model.** Named as the consumer, not specced. It needs its own doc.
+- **The live win-probability model.** Named as the consumer, not specced here. **It now has
+  its own doc: `09-live-win-probability.md`** (specced 2026-08-27, not approved).
 - **Any live connection or trading.** `03` §4.4 as amended, `03` §4.3's interlock.
 - **Corner geometry as a first-class model.** v1 uses track position as a continuous feature;
   named braking zones are a later refinement.
@@ -424,6 +426,17 @@ isotonic (hand-rolled PAV) and Platt (1-D logistic on the log-odds). The domain 
 | Isotonic-recalibrated, in-domain only | 8 / 10 | 0.32 | FAIL |
 | **Platt-recalibrated, in-domain only** | **10 / 10** | **1.28** | **PASS** |
 
+> **Qualification added 2026-08-27 by `09` §2.4 — read before quoting the PASS.** The table
+> above is pooled over all in-domain rows regardless of where in the field the pair sits. Split
+> by the pursuer's position, the front of the field is both thinner and worse calibrated than the
+> pooled number implies: **47 overtakes at P1–P3 across the eight test races, 32 of them
+> in-domain**, and the gate retains only **68.1%** of front-of-field overtakes against 88–95%
+> everywhere else. Restricted to in-domain rows with the pursuer in P2–P6 (n = 10,836, 137
+> overtakes) the calibration is **4 of 5 quintile bins within 2×, worst ratio 2.33 — a FAIL of §7's
+> bar in that band**, where the pooled figure passes at 1.71. The PASS below is real and it is a
+> midfield PASS. A consumer working at the front of the field needs the extra restriction `09`
+> §5.3 imposes.
+
 **The domain gate is the load-bearing half.** It retains **89.2% of real overtakes in 20.6% of
 pairs** — the bottom ~80% of the score distribution holds only ~11% of overtakes, and those are
 the structurally-unpredictable ones from §2.4 (12–33% of overtakes have no tracked pursuit
@@ -481,9 +494,14 @@ per-fold θ and Platt `(a,b)`; `data/live/overtakes/fit_recal.json` records it (
 4. **Five features are unidentified from twelve races** (§11), including `under_caution`. More
    seasons would settle them; dropping them now would be premature. No action needed unless the
    owner wants the feature set trimmed for explainability.
-5. **Does the win-probability layer get specced next, or does the overtake model ship alone?**
-   The trading rationale only closes with that layer; the portfolio/learning value does not need
-   it. With the calibration item resolved, this is now the top open decision for the lane.
+5. ~~**Does the win-probability layer get specced next, or does the overtake model ship alone?**~~
+   **Specced 2026-08-27: `09-live-win-probability.md`.** Not approved, not built — the owner's call
+   is now approve/decline on that document rather than whether to write it. Two things `09` measured
+   that bear directly on this model: pit stops cause **71% of lead changes** and on-track passes at
+   most 27% (`09` §2.1), so `08` is the *fourth* largest mover of P(win) rather than the engine;
+   and this model's average in-domain contribution to P(win) at the front of the field works out at
+   **~0.4 points against a 1-point market tick** (`09` §3). `09` §10's ablation baseline is designed
+   to measure that offline, before B1, which is `09` §13 item 3's recommended sequencing.
 6. **`03` §4.3's interlock** — unchanged and still the owner's dated decision. Building this model
    does not trip it.
 7. **Gate 2 (B1) is still unrun** and still the owner's stated next step. Note that as written
@@ -560,13 +578,15 @@ that the labeller is measuring racing rather than noise.
 top ~20% of pairs by score (89% of overtakes), 10/10 calibration bins within 2×. Recalibration
 isotonic doesn't help; damped Platt helps a little *in-domain* only; the domain gate is the fix.
 
-**The top open decision** is now §12 item 5: does the **live win-probability layer** get specced
-next? That is the consumer this model was shaped for and the piece that closes the trading chain
-in §1. It needs its own doc (`welcome.md` bars building it without one).
+**The top open decision** was §12 item 5 — whether the **live win-probability layer** gets specced
+next. **It was, on 2026-08-27: `docs/09-live-win-probability.md`.** That doc is not approved and
+nothing is built from it; the decision in front of the owner is now approve/decline, plus `09`
+§13's own open items.
 
 **Not started, and deliberately so:**
-- The **live win-probability layer** (§9) — the consumer this model was shaped for. Needs its own
-  spec. This is the piece that closes the trading chain in §1.
+- The **live win-probability layer** (§9) — the consumer this model was shaped for. **Now specced
+  in `09-live-win-probability.md` (2026-08-27), not approved and not built.** This is the piece
+  that closes the trading chain in §1.
 - **Gate 2 / B1**, the broadcast-delay measurement, still unrun and still the owner's stated next
   step for the *live* half. Note `03` §3 specs it as feed-vs-*broadcast*, while §1's edge claim
   needs feed-vs-*market* — a different measurement (`07` §10.3 measured a trade in all 120 race
