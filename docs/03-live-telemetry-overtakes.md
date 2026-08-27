@@ -328,6 +328,15 @@ overtake model, trigger conditions, scoring — is not authorized until B1 retur
 >   order interface does. That remains a separate dated decision.
 >
 > The bar for the live half stays: seconds, not minutes.
+>
+> **Pending, 2026-08-27 — an extension is requested, not taken.** `09-live-win-probability.md`
+> specs a *second* offline model (the live win-probability layer) on the same reasoning: it
+> replays archived races, needs no live connection, and so B1's delay cannot bear on whether it is
+> correct. But the amendment above names `08-overtake-model.md` **explicitly**, and `08` §1 says
+> in terms that it does not authorize the win-probability layer. So approving `09` extends this
+> amendment rather than falling under it, and that extension should be dated here when it is made.
+> Until then `09` is a spec and nothing built from it is authorized. `09` §1.2 states the same
+> thing from the other side.
 
 Building the client first is the cheapest ordering, not a way around the gate. §13's acceptance
 run and B1's measurement are close to the same exercise.
@@ -1161,6 +1170,12 @@ Listed so a future reader can tell "not built yet" from "decided against":
   file still calls it "not a build spec yet."
 - `01-data-pipeline.md` §9.5: already points here; unchanged.
 - `.gitignore`: add `data/live/` per §11.2.
+- **Added 2026-08-27:** §4.4's amendment is scoped to `08` by name, and `09-live-win-probability.md`
+  needs it extended to cover a second offline model. Recorded as pending in §4.4 — not applied,
+  because that is the owner's dated decision, not this document's.
+- **Added 2026-08-27:** §4.3's interlock gains a second thing to hold the line against. `09` §8.2
+  restates it one layer up, as an enforced static import check over the module graph plus a
+  "no code path to an order interface" rule, on the reasoning that a rule with no test is a comment.
 
 ## 16. Open items — genuinely the owner's call, not guessable
 
