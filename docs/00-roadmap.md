@@ -161,11 +161,12 @@ Status: **built and validated 2026-08-26; calibrated within its domain 2026-08-2
 `lib/overtake_features.py`, `overtake_build.py`, `overtake_fit.py`, `test_overtakes.py`). On 12
 races / 428,511 rows / 432 on-track overtakes the fitted model reaches **AUC 0.906** race-forward
 out-of-fold. It **fails `08` §7's calibration bar across its whole range** (structural — `08`
-§2.4's floor), but the owner's "do both" decision resolved it: **isotonic + Platt recalibration
-were tried and do not help; a confidence-gated domain flag does.** Restricted to the top ~20% of
-pairs by score — which hold **89% of overtakes** — the raw model clears the bar outright (10/10
-calibration bins within 2×, `08` §11.1). So it is a usable in-domain probability the
-win-probability layer can multiply, not just a ranker. Offline only — running it live and trading
+§2.4's floor), but the owner's "do both" decision resolved it: **full-range recalibration
+(isotonic/Platt) doesn't clear the bar; a confidence-gated domain flag does.** Restricted to
+`p_raw ≥ 0.0037` (top ~20% of pairs by score, holding **89% of overtakes**) the raw model clears
+the bar outright — 10/10 calibration bins within 2× (`08` §11.1); a light damped-Platt map tightens
+the worst-bin ratio 1.71 → 1.28 on top. So it is a usable in-domain probability the win-probability
+layer can multiply, not just a ranker. Offline only — running it live and trading
 on it remain gated on B1 and on `03` §4.3's interlock. The top open decision is now whether the
 **win-probability layer** gets specced next (`08` §12 item 5). `08` §13 is the cold-start handoff.
 Earlier status, for the record: **specced, not approved, not built.** Three things were measured before the spec was written: ≈38 on-track overtakes per race (115 across three 2026 races, so ≈450 labels a season); **one lead change across those three races**, which is why the model trains on all overtakes and lets the win-probability layer decide what matters; and a `Position`-stream label resolution of ~3.3s, which is why v1 is specced at a 10-second horizon and the owner's 5-second target is an open item rather than an assumption.

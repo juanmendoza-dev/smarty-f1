@@ -603,14 +603,17 @@ def recalibration_pass(rows, rounds, names):
         "Platt-recalibrated, in-domain rows only", [platt_all[k] for k in idx],
         [y_all[k] for k in idx])
 
+    def wr(k):
+        r = out[k]["worst_ratio"]
+        return abs(math.log(r)) if r == r and r > 0 else 1e9
     best = min(("raw_logit_in_domain", "isotonic_in_domain", "platt_in_domain"),
-               key=lambda k: (out[k]["acceptance"] != "PASS", -out[k]["bins_within_2x"]))
-    print("\n  reading: best in-domain calibration is %s (%d/10 bins within 2x, %s)."
-          % (best, out[best]["bins_within_2x"], out[best]["acceptance"]))
-    print("  the domain gate is the load-bearing half -- it keeps %.0f%% of overtakes in %.0f%%"
+               key=lambda k: (out[k]["acceptance"] != "PASS", -out[k]["bins_within_2x"], wr(k)))
+    print("\n  reading: best in-domain calibration is %s (%d/10 bins within 2x, worst ratio %.2f, %s)."
+          % (best, out[best]["bins_within_2x"], out[best]["worst_ratio"], out[best]["acceptance"]))
+    print("  the domain gate is the load-bearing half -- it keeps %.0f%% of overtakes in %.0f%% of"
           % (100 * cov_pos, 100 * cov_rows))
-    print("  of pairs. The win-probability layer multiplies the recalibrated probability for")
-    print("  in-domain pairs only and treats the rest as no-approach.")
+    print("  pairs. Inside the gate the raw probability already passes; a light damped-Platt map")
+    print("  tightens the worst-bin ratio further. Everything outside the gate is 'no approach'.")
     out["best_in_domain"] = best
     return out
 

@@ -418,17 +418,18 @@ isotonic (hand-rolled PAV) and Platt (1-D logistic on the log-odds). The domain 
 | Model | bins within 2× | worst ratio | §7 acceptance |
 |---|---|---|---|
 | Raw logistic, all test rows | 5 / 10 | 0.01 | FAIL |
-| Isotonic-recalibrated, all rows | 6 / 10 | 0.01 | FAIL |
-| Platt-recalibrated, all rows | 0 / 10 | huge | FAIL |
-| **Raw logistic, in-domain only** | **10 / 10** | **1.71** | **PASS** |
+| Isotonic-recalibrated, all rows | 6 / 10 | 0.02 | FAIL |
+| Platt-recalibrated, all rows | 6 / 10 | 0.02 | FAIL |
+| Raw logistic, **in-domain only** | **10 / 10** | 1.71 | **PASS** |
 | Isotonic-recalibrated, in-domain only | 8 / 10 | 0.32 | FAIL |
-| Platt-recalibrated, in-domain only | 0 / 10 | huge | FAIL |
+| **Platt-recalibrated, in-domain only** | **10 / 10** | **1.28** | **PASS** |
 
 **The domain gate is the load-bearing half.** It retains **89.2% of real overtakes in 20.6% of
 pairs** — the bottom ~80% of the score distribution holds only ~11% of overtakes, and those are
 the structurally-unpredictable ones from §2.4 (12–33% of overtakes have no tracked pursuit
-episode). Inside the gate the raw model is *already a calibrated probability*: predicted 0.003 →
-0.076 tracks observed 0.004 → 0.070 across every decile.
+episode). No calibrator clears §7's bar across the whole prediction range and none ever will —
+that floor is structural. The bar is cleared **only inside the gate**, and there both the raw
+probability (worst bin ratio 1.71) and a light Platt map (1.28) pass.
 
 **The threshold θ is a serve-time constant, not a percentile computed on the fly.** A live
 consumer sees one tick at a time and cannot take the 80th percentile of a race in progress, so
@@ -437,24 +438,25 @@ consumer sees one tick at a time and cannot take the 80th percentile of a race i
 win-probability layer hard-codes **θ = 0.0037** (and refits it whenever the model is retrained)
 and gates on `p_raw ≥ θ`.
 
-**Recalibration does not help.** Isotonic on the full range trades a small tail improvement for
-compression at the top; applied *inside* the already-calibrated domain it still misses (8/10).
-Platt is numerically hostile to this data — at a 0.4% base rate the score distribution is
-near-separable, so plain gradient descent drives the slope to zero and collapses the map, while an
-undamped Newton step overshoots to `a ≈ 1e10` and diverges (both measured). `platt_fit` now uses
-a ridge-damped Newton with a backtracking line search, which keeps it finite but it still does not
-clear the bar. **The finding: the model doesn't need recalibration, it needs a domain.**
+**On Platt.** This data is numerically hostile to a 1-D logistic recalibration — at a 0.4% base
+rate the score distribution is near-separable, so plain gradient descent drives the slope to zero
+and collapses the map, while an undamped Newton step overshoots to `a ≈ 1e10` and diverges (both
+measured, and recorded here so they are not re-hit). `platt_fit` uses a ridge-damped Newton with a
+backtracking line search; the fitted slope then sits at `a ≈ 0.75–1.16` across the eight folds — a
+genuine mild recalibration, not a collapse. In-domain it tightens the worst-bin ratio from 1.71 to
+1.28. That is a real but small gain on top of the domain gate.
 
-**What the win-probability layer consumes:** `p_raw` for pairs with `p_raw ≥ 0.0037`, and "no
-approach in progress" for the rest. No isotonic/Platt map in the path. `overtake_fit.py` prints
-this whole table plus the per-fold θ and Platt `(a,b)`; `data/live/overtakes/fit_recal.json`
-records it (gitignored, `03` §11.2). The isotonic/Platt code stays in `overtake_fit.py` as the
-evidence that they were tried and why they were not used.
+**What the win-probability layer consumes:** for pairs with `p_raw ≥ 0.0037`, either `p_raw`
+directly (simplest, already passes) or the damped-Platt map of it (worst-ratio 1.71 → 1.28);
+everything below θ is "no approach in progress". `overtake_fit.py` prints the whole table plus the
+per-fold θ and Platt `(a,b)`; `data/live/overtakes/fit_recal.json` records it (gitignored, `03`
+§11.2).
 
 ### The three routes, scored
 
-1. **Isotonic / Platt recalibration** (§11 route 1). Tried, held-out — does not clear §7's bar,
-   full-range or in-domain. See the table above.
+1. **Isotonic / Platt recalibration** (§11 route 1). Isotonic never clears the bar. Damped Platt
+   clears it *in-domain* (10/10, worst 1.28) — a small polish on top of the gate, not a
+   substitute for it. Neither helps across the full range.
 2. **Restrict the model's domain** (§11 route 2). **This is the fix:** `p_raw ≥ 0.0037`, 10/10
    bins within 2×, 89% of overtakes retained.
 3. **A better closing-rate feature** (§11 route 3). Still untried; unrelated to the calibration
@@ -466,11 +468,12 @@ evidence that they were tried and why they were not used.
 
 1. **Prediction horizon.** 5s is the stated goal; §2.2 measures the raw label at ~3.3s resolution.
    v1 shipped at 10s. Accept that, or fund §5.2's sub-second refinement now?
-2. ~~**Recalibrate, or restrict the domain?**~~ **RESOLVED 2026-08-27: do both, and the domain
-   restriction is what works** (§11.1). Recalibration was tried (isotonic + Platt, held-out) and
-   does not clear §7's bar; the domain gate does, on its own — 10/10 bins within 2× over the top
-   ~20% of pairs, which hold 89% of overtakes. The model is a usable in-domain probability now,
-   not just a ranker. The calibrator code stays in `overtake_fit.py` as evidence it was tried.
+2. ~~**Recalibrate, or restrict the domain?**~~ **RESOLVED 2026-08-27: do both; the domain
+   restriction is what carries it** (§11.1). Held-out, isotonic doesn't clear §7's bar and
+   full-range recalibration never will. The **domain gate does** — `p_raw ≥ 0.0037` (top ~20% of
+   pairs, 89% of overtakes), 10/10 bins within 2×. A light damped-Platt map on top tightens the
+   worst-bin ratio 1.71 → 1.28 in-domain; the consumer can take it or leave it. The model is a
+   usable in-domain probability now, not just a ranker.
 3. **`closing_rate` is small but sign-stable across all ten folds** (+0.0389). So the question is
    no longer "is it identified" — it is: does closing rate genuinely add little once the gap is
    known, or is a 3s linear fit on a ~3.3s-update stream too noisy to carry the signal? §11's
@@ -527,9 +530,10 @@ A correct run reports, in this order:
 - **Fit:** pooled out-of-fold Brier — base 0.003856, rule 0.003996, **logit 0.003715**; logit
   **AUC 0.9064**; **5 of 10 calibration bins within 2x** (q6–q10); `ACCEPTANCE (sec7): FAIL`.
 - **Recalibration + domain gate** (§11.1): nested folds R5–R12, 264,049 pairs, 986 overtakes.
-  Domain gate retains **89.2% of overtakes in 20.6% of pairs**. `raw_logit_in_domain` reports
-  **10/10 bins within 2×, ACCEPTANCE: PASS**; every other line (isotonic/Platt, all-rows or
-  in-domain) is FAIL. `data/live/overtakes/fit_recal.json` records it.
+  Domain gate retains **89.2% of overtakes in 20.6% of pairs**. `raw_logit_in_domain` and
+  `platt_in_domain` both report **10/10 bins within 2×, ACCEPTANCE: PASS** (worst ratio 1.71 and
+  1.28); every all-rows line and `isotonic_in_domain` is FAIL. Per-fold Platt `a` sits at
+  0.75–1.16. `data/live/overtakes/fit_recal.json` records it.
 
 **The all-rows FAIL is still the correct output** — the model is not calibrated across its whole
 range and never will be (§2.4's structural floor). What changed 2026-08-27 is that the *in-domain*
@@ -554,7 +558,7 @@ that the labeller is measuring racing rather than noise.
 **Done:** the model is built, validated race-forward, honestly characterised, and — as of
 2026-08-27 — **calibrated within its domain** (§11.1). AUC 0.906 race-forward; restricted to the
 top ~20% of pairs by score (89% of overtakes), 10/10 calibration bins within 2×. Recalibration
-(isotonic/Platt) was tried and does not help; the domain gate is the fix.
+isotonic doesn't help; damped Platt helps a little *in-domain* only; the domain gate is the fix.
 
 **The top open decision** is now §12 item 5: does the **live win-probability layer** get specced
 next? That is the consumer this model was shaped for and the piece that closes the trading chain
