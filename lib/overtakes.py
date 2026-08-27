@@ -176,6 +176,14 @@ def find_passes(pos, ahead_idx, windows, lap1_t):
         b = ahead_idx.position_of(ev.t + DEBOUNCE_S, ev.overtaken)
         if a is None or b is None or not a < b:
             continue
+        # filter 4b: and it is not itself the REVERSION of a swap this same
+        # pair made moments ago. Found by a synthetic fixture: feed jitter
+        # produces a phantom pass AND a phantom re-pass, and checking
+        # persistence alone rejects only the first of the two, silently
+        # keeping the second as a real overtake.
+        if any(c.overtaker == ev.overtaken and c.overtaken == ev.overtaker
+               and 0 < ev.t - c.t <= DEBOUNCE_S for c in candidates):
+            continue
         events.append(ev)
     return events
 
