@@ -40,12 +40,17 @@ incident), so the numbers came first.
 
 ### 2.1 On-track overtakes are plentiful; lead changes are not
 
-| Race (2026) | Raw single-place gains | Pit/lap-1 filtered | **On-track overtakes** (+debounce) | Lead changes | Into top 5 |
+| Race (2026) | Raw single-place gains | Pit/lap-1 filtered | +debounce | **Final** (+reversion) | Lead changes |
 |---|---|---|---|---|---|
-| Dutch GP | 257 | 48 | **43** | 1 | 4 |
-| Hungarian GP | 239 | 39 | **38** | 0 | 7 |
-| Belgian GP | 182 | 39 | **34** | 0 | 4 |
-| **Total** | 678 | 126 | **115** (≈38/race) | **1** | **15** |
+| Dutch GP | 257 | 48 | 43 | **41** | 1 |
+| Hungarian GP | 239 | 39 | 38 | **38** | 0 |
+| Belgian GP | 182 | 39 | 34 | **32** | 0 |
+| **Total** | 678 | 126 | 115 | **111** | **1** |
+
+**Full season, built 2026-08-26** (`overtake_build.py`, all 12 completed 2026 rounds):
+**432 on-track overtakes**, 428,511 sampled rows, **1,714 positives (0.40%)**. Rounds 13–23 have
+no archive because those races have not happened yet, which the builder reports as `[future]`
+rather than as a failure.
 
 The raw→filtered collapse is the pit-cycle filter: most single-place "gains" happen because the
 car ahead pitted, which is not an overtake. Excluding lap 1, and any event where **either** driver
@@ -86,6 +91,18 @@ is structurally explicable; **the exact semantic of each form, and of the 31 non
 UNVERIFIED.** Required handling: never coerce to numeric, never silently drop. Treat "no car ahead"
 as its own state, and treat an unrecognised form as schema drift and fail loud (`03` §10), rather
 than guessing a meaning — which is the failure `lib/invariants.py` exists to prevent.
+
+### 2.4 Not every overtake can be anticipated — a measured recall ceiling
+
+Only **67% (Dutch), 74% (Hungarian) and 88% (Belgian)** of on-track overtakes are preceded by a
+tracked pursuit episode — a stretch where the pursuer was within 2.0s of that specific car. The
+rest arrive without one: the interval stream jumps from out-of-range straight to a completed pass,
+or the pursuer arrives on an out-lap, or the car ahead has a problem.
+
+**This is a hard ceiling on recall, not a tuning parameter.** Between roughly 12% and 33% of real
+overtakes cannot be anticipated from this feature set at any horizon, because there is no
+approach to observe. It shows up directly in §12's calibration: those passes land in the
+lowest-probability bins by construction and hold the observed rate there above zero.
 
 ---
 
@@ -153,7 +170,12 @@ order in the feed's `Position` stream inverts, subject to all of:
 - the event is after the lap-1 timestamp (start-lap churn is a different process);
 - **neither** driver is inside a pit window, padded ±10s (`PitInTime`/`PitOutTime` from
   `session.laps`);
-- the new order persists — a swap that reverts within the debounce window is feed jitter.
+- the new order persists — a swap that reverts within the debounce window is feed jitter;
+- **and the event is not itself the reversion of a swap the same pair made moments earlier.**
+  Added at implementation, found by a synthetic fixture rather than by reading: feed jitter
+  produces a phantom pass *and* a phantom re-pass, and the persistence check rejects only the
+  first of the two while silently keeping the second. This drops a further 4 events across the
+  three reference races (115 → 111).
 
 Measured yield of exactly this procedure: §2.1's table.
 
