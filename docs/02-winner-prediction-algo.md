@@ -408,7 +408,12 @@ let a season of Brier scores (§7) decide whether it is real overconfidence.
 ## 10. Open items
 
 1. **Track overtaking multipliers are hand-set judgements**, not measurements. Replace with
-   per-circuit overtake counts once A3 has the data.
+   per-circuit overtake counts once A3 has the data. **Partial payment now available from an
+   unexpected direction (2026-08-27):** `09` §5.4's background per-lap transition model enters
+   circuit as `m` rather than as a free per-circuit parameter, so fitting it produces a per-circuit
+   residual against `m` as a by-product. `09` §2.3 already measures the raw per-lap adjacent-pair
+   swap rate across 12 races — about 6% at the front of the field and 7–8% in the midfield, which
+   is a **flatter gradient than `02` §5.1's multipliers assume.**
 2. **`T` is calibrated on a grid-only synthetic field, and the real field is *flatter*, not
    sharper.** This item previously said the calibration "understates the score spread of a real,
    correlated field." Measured against §9's own reference run, the sign is the other way round:
