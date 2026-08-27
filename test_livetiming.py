@@ -234,6 +234,41 @@ def test_replay_roundtrip():
 
 
 # --------------------------------------------------------------- repo guards
+def test_verify_script():
+    print("livetiming_verify -- 03 sec13 acceptance check against a synthetic capture")
+    import livetiming_verify as V
+    with tempfile.TemporaryDirectory() as d:
+        rawdir = os.path.join(d, "raw"); os.makedirs(rawdir)
+        lines = [json.dumps({"recv_wall": "2026-09-04T11:30:00Z", "recv_mono": 0.0,
+                             "msg": {"type": 3,
+                                     "subscribe_snapshot_channels": list(
+                                         __import__("lib.livetiming_client", fromlist=["CHANNELS"]).CHANNELS),
+                                     "missing": []}})]
+        t = 1.0
+        for i in range(60):
+            for ch, data, dt in [
+                ("DriverList", {"44": {"Tla": "HAM"}, "1": {"Tla": "VER"}}, 0.0),
+                ("Heartbeat", {}, 0.0),
+                ("CarData.z", make_z(car_payload({"44": {"0": 11000, "2": 300, "3": 5, "4": 80, "5": 0, "45": 0},
+                                                  "1": {"0": 10500, "2": 280, "3": 4, "4": 60, "5": 0, "45": 0}})), 0.24),
+                ("Position.z", make_z({"Position": [{"Entries": {
+                    "44": {"X": i, "Y": 2 * i, "Z": 0}, "1": {"X": i + 1, "Y": 2 * i, "Z": 0}}}]}), 0.24),
+            ]:
+                lines.append(json.dumps({"recv_wall": "x", "recv_mono": t, "msg": {
+                    "type": 1, "target": "feed", "arguments": [ch, data, ""]}}))
+                t += dt
+            t += 0.5
+        open(os.path.join(rawdir, "seg00.jsonl"), "w").write("\n".join(lines))
+        ticks = os.path.join(d, "t.jsonl")
+        open(ticks, "w").write("\n".join(json.dumps({"t_local": float(i), "t_wall": "2026-09-04T11:%02d:00Z" % i})
+                                         for i in range(30)))
+        log = os.path.join(d, "l.log")
+        open(log, "w").write("AWSALBCORS cookie present\n"
+                             "segment closed: 400 WS frames, 3 carried >1 message (sec13 item 1b)\n")
+        rc = V.verify(rawdir, ticks, log)
+    check("verify passes on a clean synthetic capture", rc == 0, "rc=%s" % rc)
+
+
 def test_no_live_data_in_git():
     print("03 sec12.13 -- nothing under data/live/ is tracked by git")
     out = subprocess.run(["git", "ls-files", "data/live"], capture_output=True, text=True)
@@ -265,8 +300,8 @@ def main():
     for fn in (test_split_frames, test_decompress_z, test_parse_cardata, test_parse_position,
                test_merge_timing_delta, test_track_status, test_assembler_tick,
                test_assembler_degraded, test_assembler_latch_and_join, test_gear_tripwire,
-               test_replay_roundtrip, test_no_live_data_in_git, test_no_interpolation_code_path,
-               test_headers_are_constant):
+               test_replay_roundtrip, test_verify_script, test_no_live_data_in_git,
+               test_no_interpolation_code_path, test_headers_are_constant):
         fn()
     print()
     if FAILURES:

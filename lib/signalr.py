@@ -136,6 +136,7 @@ class SignalRClient:
         self._buffer = ""
         self._multi_message_frames = 0   # 03 sec13 item 1b instrumentation
         self._frames_received = 0
+        self.alb_cookie_seen = None      # 03 sec13 item 1: was the ALB replay needed
 
     @property
     def multi_message_frames(self):
@@ -168,6 +169,7 @@ class SignalRClient:
         except requests.RequestException as e:
             raise TransientError("negotiate POST failed: %s" % e)
         self._check_status(resp, "negotiate POST")
+        self.alb_cookie_seen = bool(alb)
 
         try:
             body = resp.json()

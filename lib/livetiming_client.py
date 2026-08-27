@@ -154,10 +154,14 @@ class LiveTimingClient:
             try:
                 self._log("connect: negotiate + subscribe, %d channels" % len(self.channels))
                 snapshot = client.connect(self.channels)
+                self._log("negotiate: AWSALBCORS cookie %s (03 sec6.2 / sec13 item 1)"
+                          % ("present" if client.alb_cookie_seen else "NOT FOUND -- ALB behaviour changed"))
                 self._on_snapshot(snapshot)
                 delays = _backoff_delays()  # success resets backoff (sec9.3)
                 ended = self._consume(client, source="live")
                 self._multi_frame_seen += client.multi_message_frames
+                self._log("segment closed: %d WS frames, %d carried >1 message (sec13 item 1b)"
+                          % (client.frames_received, client.multi_message_frames))
                 if ended:
                     self._log("session reached an end state -- disconnecting cleanly")
                     return
@@ -179,6 +183,9 @@ class LiveTimingClient:
                 raise StopClass("sec9.3", "backoff ceiling of %d reached (Exhausted)"
                                 % BACKOFF_CEILING)
             self._log("backoff %.1fs" % delay)
+            if self._capture:
+                self._capture.raw(_utc_now_iso(), time.monotonic(),
+                                  {"type": "reconnect", "backoff_s": round(delay, 1)})
             time.sleep(delay)
             self._pending_reconnect_marker = True
             if self._capture:
@@ -269,6 +276,15 @@ class LiveTimingClient:
         if self._capture is None:
             self._capture = Capture(self.capture_root, session_key)
             self._log("capture opened for session %r" % session_key)
+        # 03 sec13 item 1: record which channels the subscribe completion
+        # carried, and flag any sec6.3 channel that is missing. Written into
+        # the raw capture so livetiming_verify.py can check it after the fact.
+        got = sorted(snapshot.keys())
+        missing = [c for c in self.channels if c not in snapshot]
+        self._capture.raw(_utc_now_iso(), time.monotonic(),
+                          {"type": 3, "subscribe_snapshot_channels": got, "missing": missing})
+        self._log("subscribe completion carried %d channels; missing from sec6.3 set: %s"
+                  % (len(got), missing or "none"))
         self._assembler.apply_snapshot(
             {ch: snapshot[ch] for ch in snapshot if ch in self._assembler.TICK_CHANNELS})
         hb = snapshot.get("Heartbeat")
