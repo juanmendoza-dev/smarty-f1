@@ -402,20 +402,53 @@ Polymarket Gamma `/events?tag_slug=f1` (all nested markets, `outcomePrices` + `s
 `yes_ask_dollars` / `volume_fp` / `open_interest_fp`). Not a recommendation to trade anything —
 §2's edge blocker and `welcome.md`'s approval rule both still stand.
 
-### 11.1 The market map, by venue
+### 11.1 The market map — the two venues are *different catalogs*, not the same markets
 
-| Market type | Polymarket | Kalshi | Project has a model? |
+Polymarket and Kalshi are separate venues with **separate order books, separate prices, separate
+fee schedules, and — the part that matters most here — different lists of market types.** They
+cover the same underlying events (same races, same drivers) but do not offer the same bets. A
+cross-venue price comparison is only possible for the market types both venues list (winner,
+podium, constructors' champion, fastest lap, pole); for everything else there is exactly one
+book or none.
+
+**Polymarket (Gamma) — F1 catalog, measured 2026-08-26:**
+
+| Market | Liquidity | Model? |
+|---|---|---|
+| **Drivers' Champion** (season) — *Polymarket-only* | **$201M vol, $14.3M liq, 0.1–1.1% spreads** | No |
+| Constructors' Champion (season) | $28.5M vol, ~0.1–1% spreads | No |
+| Per-race **Driver Winner** | ~$48k/race, 1–2¢ on ~5 contenders, $5–12k liq/leg | **Yes (A1)** |
+| Per-race Driver Podium Finish | ~$2.5k, spreads 6–86¢ — most legs absent | Yes (A4) |
+| Head-to-Head (finish higher) | **$22 total**, spreads 43–93¢ — dead | Yes (A1 teammate feature) |
+| Which Constructor Scores 1st | ~$470 — near-zero | Partial (A4 points sim) |
+| Driver / Constructor Pole | $100–600 — near-zero | No |
+| Driver / Constructor Fastest Lap (race) | ~$45 — near-zero | Yes (A4) |
+| Practice 1/2/3 Fastest Lap | ~$100–170 — near-zero | No |
+| **Safety Car** (per race) — *Polymarket-only* | ~$5.5k Dutch — real small book | No |
+| **Red Flag** (per race) — *Polymarket-only* | small | No |
+| "Will it rain during the GP" | novelty | (F7 weather, not traded) |
+| No per-driver **points / top-N** market | — | — |
+
+**Kalshi (`external-api` / `elections` host) — F1 catalog, measured 2026-08-26:**
+
+| Series | Market | Liquidity | Model? |
 |---|---|---|---|
-| **Drivers' Champion** (season) | **$201M vol, $14.3M liq, 0.1–1.1% spreads** | *not listed* | **No** |
-| Constructors' Champion (season) | $28.5M vol, ~0.1–1% spreads | $2.5M+ OI, MER 2¢ spread, FER/MCL 1¢ | No |
-| **Per-race winner** | $48k/race, 1–2¢ on 5 contenders, $5–12k liq/leg | **1¢ on 5 contenders 10 days out**, OI 5k–50k contracts/leg | **Yes (A1)** |
-| Per-race podium | $2.5k, spreads 6–86¢ (mostly absent) | listed, thin | Yes (A4 exact top-3) |
-| Head-to-head (finish higher) | **$22 total vol**, spreads 43–93¢ — dead | *not listed* | Yes (A1 teammate-H2H feature) |
-| Points / top-10 / top-5 | *not listed* | listed, thin | Yes (A4) |
-| Fastest lap (race) | ~$45, near-zero | listed, thin | Yes (A4) |
-| Pole / practice fastest lap | $100–600, near-zero | pole listed | No |
-| Safety car / red flag | **real book** (~$5.5k Dutch SC market) | *not listed for F1* | No (A4 reliability feature is nearest) |
-| Constructor-scores-1st | $470, near-zero | — | Partial (A4 points sim) |
+| — | **No Drivers' Champion market at all** | — | — |
+| `KXF1CONSTRUCTORS` | Constructors Champion (season) | FER $579k / MER $421k / MCL $319k vol; MER 2¢ spread, FER/MCL 1¢ | No |
+| `KXF1RACE` | Race **Winner** | **1¢ spreads on ~5 contenders ~10 days out**; OI ANT 50k / NOR 13k / HAM 8.5k / VER 7.7k / LEC 5.2k contracts | **Yes (A1)** |
+| `KXF1RACEPODIUM` | Podium finish | thinner than winner | Yes (A4) |
+| `KXF1TOP10` / `KXF1TOP5` | Top-10 / Top-5 finish — *Kalshi-only* | thin | Yes (A4 points sim) |
+| `KXF1FASTLAP` | Fastest lap (race) | thin | Yes (A4) |
+| `KXF1POLE` | Pole position | thin, closes evening before race | No |
+| `KXF1TOPCONSTRUCTOR` | Constructor scores most points that race | thin | Partial (A4) |
+| `KXF1BIGGESTMOVER` | Grid-to-flag position change — *Kalshi-only*, one-race pilot (§10.2) | ~17.5k contracts lifetime, no Monza event | Yes (A1 could price it) |
+| `KXF1RETIRE` | Career-retirement speculation — **not** a per-race DNF market (`04` §2) | n/a | No |
+| — | **No safety-car or red-flag market for F1** | — | — |
+
+**Where the venues overlap (cross-venue comparison possible):** winner, podium, constructors'
+champion, fastest lap, pole. **Polymarket-only:** drivers' champion, safety car, red flag,
+head-to-head, practice fastest laps. **Kalshi-only:** top-5 / top-10 finish, biggest-mover,
+per-race top-constructor.
 
 ### 11.2 Championship markets are deep — and that's the problem, not the opportunity
 
