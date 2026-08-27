@@ -229,6 +229,23 @@ Status: not started.
   of when rather than whether — and if one of those closes the anonymous path instead of moving
   it, the options (pay for F1TV / pay OpenF1 / stop Lane B) are the owner's and are recorded in
   `03` §16.
+- **New 2026-08-26 (gate 4, `07` §10.6):** **which of Lane B's two justifications governs —
+  trading or learning?** Lane B has carried both at once without either being tested. Gate 4
+  answers them differently: it removes the corner-level-overtake *trading* rationale (no such
+  market exists on either venue), points at a different one (Kalshi's winner market, liquid
+  throughout the race), and gates nothing at all if Lane B is a learning/portfolio goal. Until
+  this is picked, "is Lane B worth building" has no determinate answer. Owner's call — the honest
+  options (defer Lane B; build it as a learning piece with no trading rationale; or repoint it at
+  live win-probability) are genuinely different projects.
+- **New 2026-08-26 (gate 4, `07` §10.6):** **does the in-race winner market replace corner-level
+  overtakes as Lane B's target?** If yes, `03`'s model layer needs rewriting — live win
+  probability given positions/gaps/laps-remaining is a different model from corner-level overtake
+  probability, and gate 3 changes shape with it. Depends on the item above.
+- **New 2026-08-26 (gate 4, `07` §10.6):** **two read-only market-data scope questions.** Whether
+  to fold Kalshi's unauthenticated `candlesticks` endpoint into the locked scope (used once under
+  an explicit flag to measure *when* volume traded), and whether to reopen Polymarket CLOB/Data
+  read-only for the same measurement — the only way to close the UNVERIFIED in `07` §10.4.
+  Distinct from Phase C2's CLOB-for-execution question.
 - **New 2026-08-26:** **whether Lane B's output may ever feed Lane C.** `03` §4.3 turns this from
   a sequencing detail into an explicit interlock: no Lane C module imports from the Lane B
   client, and the Lane B client has no path to an order interface. Flipping that switch is the
