@@ -95,6 +95,10 @@ def main():
     fastf1.Cache.enable_cache(CACHE_DIR)
 
     schedule = fastf1.get_event_schedule(args.season, include_testing=False)
+    # A round whose race date is in the future has no archive, and skipping it
+    # is correct behaviour, not a failure -- reporting it as one buries a real
+    # error among ten expected ones.
+    today = pd.Timestamp.utcnow().tz_localize(None)
     if args.rounds:
         wanted = {int(x) for x in args.rounds.split(",")}
     else:
@@ -106,6 +110,10 @@ def main():
         if rnd not in wanted:
             continue
         name = ev["EventName"]
+        if pd.notna(ev["EventDate"]) and ev["EventDate"] > today:
+            print("  [future] R%-2d %-28s race is %s, no archive yet"
+                  % (rnd, name, ev["EventDate"].date()), flush=True)
+            continue
         try:
             rows, s = build_race(args.season, rnd, name)
         except Exception as e:                      # noqa: BLE001
@@ -139,7 +147,7 @@ def main():
 
     npos = sum(r["label"] for r in all_rows)
     print("\nwrote %s" % args.out)
-    print("  races      : %d (%d failed)" % (len(summaries), len(failed)))
+    print("  races      : %d (%d failed to load)" % (len(summaries), len(failed)))
     print("  rows       : %d" % len(all_rows))
     print("  positives  : %d (%.2f%%)" % (npos, 100 * npos / len(all_rows)))
     print("  overtakes  : %d" % sum(s["passes"] for s in summaries))
