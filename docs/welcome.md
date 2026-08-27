@@ -55,6 +55,15 @@ The project is split into independent tracks. Don't conflate them — most confu
   rebuild and re-validate from cold, expected outputs, where to pick up, and the six corrections
   made during the build so they are not re-made
 - `docs/07-lane-c-trading-feasibility.md` — Lane C (trading bot) feasibility research (2026-08-26). **Not a build spec** — it finds the blocker is the *edge*, not the APIs (no measured edge in any market yet), and lays out a zero-budget path: build an edge-measurement + paper-trading harness first. §11 adds a live market-structure + book-depth survey across both venues. See also the roadmap's Lane C phases
+- `docs/10-live-viewer.md` — the local live viewer / debug UI for Lane B's captures (**specced
+  2026-08-27, not approved, not built**). Tooling, not a phase: it renders
+  `data/live/ticks/<slug>.jsonl` as a track map + timing tower + per-car telemetry, in replay and
+  live-tail modes, as a matplotlib window on the `macosx` backend. Local only and file-only — it
+  opens no socket, per `03` §11.3. **Building it is gated on `03` §13's acceptance run** (Monza FP1,
+  ~2026-09-04): the tick format is still `UNVERIFIED`, and §13 item 5 — whether `Position.z` is
+  broadcast at all — is a go/no-go for the track map. Its §13 flags one thing worth knowing before
+  anyone screenshots it: a screenshot of a real capture is live timing data under `03` §11.2, so it
+  cannot be published while `03` §16 item 4 is open
 - `docs/quant/` — the quantitative / trading lane. `07` is the feasibility memo; this folder is the build spec that follows it. `quant/00-directional-trading-spec.md` specs the edge-measurement harness → paper trading → risk controls → gated live execution, plus a market-making extension as a later phase. Read `quant/README.md` first
 
 If a decision you need isn't documented, don't assume — it means it hasn't been locked in yet. Ask.

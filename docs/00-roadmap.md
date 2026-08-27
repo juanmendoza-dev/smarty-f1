@@ -171,6 +171,23 @@ on it remain gated on B1 and on `03` §4.3's interlock. The top open decision is
 **win-probability layer** gets specced next (`08` §12 item 5). `08` §13 is the cold-start handoff.
 Earlier status, for the record: **specced, not approved, not built.** Three things were measured before the spec was written: ≈38 on-track overtakes per race (115 across three 2026 races, so ≈450 labels a season); **one lead change across those three races**, which is why the model trains on all overtakes and lets the win-probability layer decide what matters; and a `Position`-stream label resolution of ~3.3s, which is why v1 is specced at a 10-second horizon and the owner's 5-second target is an open item rather than an assumption.
 
+**Lane B tooling — live viewer / debug UI (new 2026-08-27)**
+Specced in `10-live-viewer.md`. Not a phase and it gates nothing: a local matplotlib window
+(`macosx` backend, already in `.venv312`, no new dependency) that renders
+`data/live/ticks/<slug>.jsonl` as a track map, timing tower and per-car telemetry, in replay and
+live-tail modes. It exists because `livetiming_verify.py` can tell you position data arrived and
+cannot show you the cars are in the right places — `08` §13.6 correction 1, where ordering by
+integrated distance invented 828 phantom overtakes in one race, is the class of bug that is
+invisible in a summary statistic and obvious the moment you watch two markers move. Local and
+file-only: it opens no socket and never connects to F1 (`03` §11.3), and it reads captures
+read-only so it is safe to run alongside one.
+Status: **specced, not approved, not built — and gated on `03` §13's acceptance run at Monza FP1
+(~2026-09-04).** The tick format it renders is `UNVERIFIED` until then, and §13 item 5 (was
+`Position.z` broadcast at all — some 2026 sessions have been observed not to send it) is a go/no-go
+for the track map, not a footnote. One consequence worth carrying into the writeup decision: a
+screenshot of a real capture is per-car live timing data in image form, so `03` §11.2 covers it and
+nothing from this tool gets published while `03` §16 item 4 is open.
+
 **Phase B2b — Automated trigger recognition**
 Computer vision on screen-captured broadcast frames, targeting broadcast graphic overlays (pit boards, safety car flags, lights-out gantry) rather than raw scene content — a more tractable detection target. Requires reference footage of Apple's actual broadcast graphics first (their first season broadcasting F1 in the US, so no existing reference material).
 Status: blocked on B1. (Renumbered from B2 on 2026-08-26 when the overtake model took that slot.)
