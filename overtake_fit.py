@@ -94,15 +94,25 @@ def load_matrix(path):
     return rows
 
 
-def rule_score(r):
-    """sec7 stage 1: hand-weighted, explainable, no fitting."""
+def rule_score(r, bias=RULE_BIAS):
+    """sec7 stage 1: hand-weighted, explainable, no fitting.
+
+    `bias` is the intercept only. It is passed in from the training fold's log
+    odds rather than left at the hand-picked RULE_BIAS, because a hand-picked
+    intercept makes the Brier comparison against the model meaningless: -3.2
+    implies a ~4% baseline where the measured base rate is 0.40%, so baseline 1
+    would lose on Brier by an order of magnitude purely from where its
+    intercept was guessed, telling you nothing about whether the physics ranks.
+    The four feature weights stay hand-set -- those are the part that is
+    supposed to be explainable, and they are untouched by this.
+    """
     if r["under_caution"] >= 0.5:
         return 0.0
     close = max(0.0, (ov.EPISODE_INTERVAL_S - r["interval"]) / ov.EPISODE_INTERVAL_S)
     closing = max(-1.0, min(1.0, -r["closing_rate"] * 4.0))
     speed = max(-1.0, min(1.0, r["speed_delta"] / 25.0))
     sustained = min(1.0, r["time_in_range"] / 30.0)
-    z = (RULE_BIAS
+    z = (bias
          + RULE_WEIGHTS["close"] * close
          + RULE_WEIGHTS["closing"] * closing
          + RULE_WEIGHTS["speed"] * speed
@@ -250,16 +260,19 @@ def main():
 
     agg = {"rule": {"p": [], "y": []}, "logit": {"p": [], "y": []},
            "base": {"p": [], "y": []}}
+    fold_weights = []
     print("\nrace-forward folds (train on all earlier races, test on the next):")
     for rnd, tr, te in folds:
         ytr = [r["label"] for r in tr]
         yte = [r["label"] for r in te]
         Xtr, Xte, _ = standardize(tr, te, names)
         w, b = fit_logistic(Xtr, ytr)
+        fold_weights.append(w)
         final_w = w
         p_log = predict(Xte, w, b)
-        p_rule = [rule_score(r) for r in te]
         base = sum(ytr) / len(ytr)
+        rule_bias = math.log(base / (1.0 - base)) if 0.0 < base < 1.0 else RULE_BIAS
+        p_rule = [rule_score(r, rule_bias) for r in te]
         p_base = [base] * len(te)
         for k, p in (("rule", p_rule), ("logit", p_log), ("base", p_base)):
             agg[k]["p"].extend(p)
@@ -294,10 +307,23 @@ def main():
               % (c["bin"], c["n"], c["p_lo"], c["p_hi"], c["mean_pred"], c["observed"],
                  ("%.2f" % c["ratio"]) if c["ratio"] == c["ratio"] else "n/a"))
 
-    print("\nfitted weights on the final fold (standardized features, so these are")
-    print("comparable to each other):")
-    for nm, wt in sorted(zip(names, final_w), key=lambda kv: -abs(kv[1])):
-        print("  %-22s %+8.4f" % (nm, wt))
+    # Reporting one fold's weights invites exactly the mistake the roadmap
+    # already made once with grid_x_easy: calling a coefficient "small" when it
+    # is actually unidentified. Sign stability across folds is what separates
+    # "measured near zero" from "this corpus cannot tell".
+    print("\nfitted weights, standardized -- mean across folds, with sign stability:")
+    print("  %-22s %9s %9s %9s  %s" % ("feature", "mean", "min", "max", "sign"))
+    stability = {}
+    for j, nm in enumerate(names):
+        vals = [fw[j] for fw in fold_weights]
+        mean = sum(vals) / len(vals)
+        npos = sum(1 for v in vals if v > 0)
+        flips = not (npos == 0 or npos == len(vals))
+        stability[nm] = {"mean": mean, "min": min(vals), "max": max(vals), "flips": flips}
+    for nm, s in sorted(stability.items(), key=lambda kv: -abs(kv[1]["mean"])):
+        print("  %-22s %+9.4f %+9.4f %+9.4f  %s"
+              % (nm, s["mean"], s["min"], s["max"],
+                 "FLIPS -- unidentified" if s["flips"] else "stable"))
 
     rule_b, log_b, base_b = results[1]["brier"], results[2]["brier"], results[0]["brier"]
     print("\nverdict (sec8: beat BOTH baselines or the model is not worth having):")
@@ -331,7 +357,7 @@ def main():
     if not accept and good:
         print("        The failure is concentrated in the low-probability bins, where the"
               "\n        model says 'essentially zero' and the observed rate is a small but"
-              "\n        non-zero floor. Some of that floor is structural: 12-33%% of real"
+              "\n        non-zero floor. Some of that floor is structural: 12-33% of real"
               "\n        overtakes have no tracked pursuit episode before them at all"
               "\n        (measured, 08 sec2.4), so they cannot be anticipated from this"
               "\n        feature set and land in the bottom bins by construction."

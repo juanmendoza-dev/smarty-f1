@@ -323,14 +323,27 @@ rounds 1..n, test on n+1, ten folds.
 | Model | Brier (pooled, out-of-fold) | AUC |
 |---|---|---|
 | Base rate (baseline 2) | 0.003856 | n/a — constant, does not rank |
-| Rule scorer (baseline 1) | 0.023296 | 0.7958 |
+| Rule scorer (baseline 1) | 0.003996 | 0.7914 |
 | **Logistic regression** | **0.003715** | **0.9064** |
+
+The rule scorer's intercept is set to the training fold's log-odds rather than left at the
+hand-picked `RULE_BIAS = -3.2`. That matters: −3.2 implies ~4% baseline odds against a measured
+0.40% base rate, and scoring it that way gave it a Brier of 0.0233 — an order-of-magnitude loss
+that reflected only where its intercept was guessed, not whether its physics ranks. Its four
+feature weights remain hand-set and untouched. **Corrected before publication; the first draft of
+this section reported the unfair number.**
 
 **The model discriminates well and is not yet a usable probability. Both halves matter.**
 
 **Discrimination is real.** AUC 0.9064 pooled out-of-fold, race-forward, and it holds per-race:
-0.86–0.97 on nine of ten folds. The rule scorer's 0.7958 says the hand-weighted physics was a
-sound starting point; the regression beating it by ~0.11 AUC says the fitted weights found more.
+**0.86–0.97 on eight of ten folds** (0.859 on a ninth, 0.605 on Monaco). The rule scorer's 0.7914
+says the hand-weighted physics was a sound starting point; the regression beating it by ~0.12 AUC
+says the fitted weights found more.
+
+**Baseline 1 loses to baseline 2 on Brier, once fairly scored** — 0.003996 against the base rate's
+0.003856. The hand-weighted scorer *ranks* well (AUC 0.79) but its probabilities are worse than
+simply predicting the field-wide rate. That is a clean statement of what "algo before model" buys
+and does not buy here: the physics was the right shape and the wrong magnitude.
 
 **The single exception is instructive.** Round 6, Monaco, is the worst fold at AUC 0.605 — and
 Monaco produced only 14 on-track overtakes all race against a 33–50 range elsewhere. The model is
@@ -362,11 +375,30 @@ hidden this entirely — the regression "beats" the base rate 0.003715 vs 0.0038
 improvement that is almost meaningless at a 0.40% base rate. That is why §7 named calibration and
 not Brier as the acceptance criterion.
 
-**Feature weights** (standardized, final fold, so comparable to each other) are physically sensible,
-which is its own check that nothing leaked: `interval` −1.74 dominates, then `interval_min_recent`
-−0.71, `time_in_range` −0.38, `speed_delta` +0.30. Being close, having been close, and carrying a
-speed advantage are what the model uses. `closing_rate` at +0.03 is near-inert and was expected to
-matter more — a real surprise worth investigating (§13 item 3).
+**Feature weights** are reported as the **mean across all ten folds with sign stability**, not from
+one fold. Reporting a single fold would invite exactly the error the roadmap already made once with
+`grid_x_easy`: calling a coefficient "small" when it is really unidentified.
+
+| Feature | Mean | Range | Sign |
+|---|---|---|---|
+| `interval` | −1.7214 | −1.80 … −1.61 | stable |
+| `interval_min_recent` | −0.7604 | −0.85 … −0.69 | stable |
+| `time_in_range` | −0.3787 | −0.60 … −0.25 | stable |
+| `throttle_ahead` | +0.3767 | +0.25 … +0.53 | stable |
+| `speed_delta` | +0.2903 | +0.20 … +0.37 | stable |
+| `closing_rate` | +0.0389 | +0.02 … +0.13 | stable |
+| `position`, `laps_remaining`, `lap_number`, `throttle_pursuer`, `under_caution` | ≈0 | crosses zero | **FLIPS — unidentified** |
+
+Physically sensible, which is its own check that nothing leaked: being close, having been close,
+and carrying a speed advantage are what the model uses. Two findings worth separating:
+
+- **`closing_rate` is small but genuinely identified** (+0.0389 mean, never flips sign across ten
+  folds). It is not "inert" in the unidentified sense — this corpus does have an opinion, and the
+  opinion is that closing *rate* adds little once you know the *gap*. Counter-intuitive and real.
+- **Five features flip sign across folds and are unidentified from twelve races**, `under_caution`
+  among them — which is surprising, since overtaking is forbidden under safety car. The likely
+  cause is that episodes under caution are rare in this corpus rather than uninformative; the
+  honest statement is that this corpus cannot tell. **UNVERIFIED.**
 
 ### What would fix the calibration
 
@@ -388,9 +420,13 @@ Untried, in the order worth trying — none of these are done:
    v1 shipped at 10s. Accept that, or fund §5.2's sub-second refinement now?
 2. **Recalibrate, or restrict the domain?** §12 lists three routes and none is taken. This is the
    one decision blocking the model from being a probability rather than a ranker.
-3. **Why is `closing_rate` inert (+0.03)?** Either the feature is measurement noise at a 3.3s
-   update rate, or closing speed genuinely doesn't predict completion once you know the gap.
-   Those have different consequences and the spec does not know which it is — **UNVERIFIED**.
+3. **`closing_rate` is small but sign-stable across all ten folds** (+0.0389). So the question is
+   no longer "is it identified" — it is: does closing rate genuinely add little once the gap is
+   known, or is a 3s linear fit on a ~3.3s-update stream too noisy to carry the signal? §12's
+   third fix would answer it. Not urgent, but it is the most interesting thing the fit turned up.
+4. **Five features are unidentified from twelve races** (§12), including `under_caution`. More
+   seasons would settle them; dropping them now would be premature. No action needed unless the
+   owner wants the feature set trimmed for explainability.
 2. **Does the win-probability layer get specced next, or does the overtake model ship alone?**
    The trading rationale only closes with that layer; the portfolio/learning value does not need it.
 3. **`03` §4.3's interlock** — unchanged and still the owner's dated decision. Building this model
