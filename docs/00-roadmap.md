@@ -311,6 +311,19 @@ Status: not started.
 - Lane C: Kalshi's CFTC-regulated status vs. Polymarket's structure may carry different compliance obligations for an automated trader — unconfirmed
 - Lane C: realistic latency here is home network + broadcast delay, not co-located/exchange-proximity infrastructure — "HFT" in the goal statement means "fast relative to a slow-to-reprice retail market," not literal microsecond HFT; keep that honest in any future spec
 - Lane C: whether to scope the first cut to settled markets only (winner/podium, no live feed needed) before attempting live overtake markets — leaning yes, not decided
+- **New 2026-08-26 (`07` §11):** a live structure survey of every open F1 market on both venues
+  settles *which* market Lane C would trade if it ever does: **per-race winner, top ~5 drivers,
+  both venues** — the only market where a model output, a real book, and a spread tight enough
+  for an edge to survive all coincide. Kalshi's winner book is 1¢-spread and liquid ~10 days out
+  (contradicts A4's "only liquid near lights-out", which was Polymarket-specific). Three
+  corrections fall out: (a) `07` §5's "tens of dollars / not an income stream" ceiling is wrong
+  for the season Drivers'-Champion market ($201M vol, 0.1–1.1% spreads) — but that market is
+  efficient and the project has no championship model, so capacity and model-fit are in disjoint
+  markets; (b) H2H is the best structural fit for A1's teammate feature but the book is dead ($22
+  lifetime volume); (c) the §7 harness must compute edge against `bestBid`/`bestAsk`, never
+  Polymarket midpoints — wide-spread podium/H2H midpoints fabricate ~35pp fake edges on illiquid
+  midfield legs. Also an erratum for `01` §7.6: Kalshi's API fields are now `volume_fp` /
+  `yes_bid_dollars` etc., and the old names return null
 - ~~Phase A4: podium/points precision is Monte Carlo (±0.3pp) — revisit if an exact top-K
   marginal algorithm is worth the added complexity~~ Resolved 2026-08-23, split by K: **podium is
   now exact** (`lib/simulate.exact_top3_probabilities`, O(n³) ≈ 10k terms, ~2.5ms, sums to 3.0 as
