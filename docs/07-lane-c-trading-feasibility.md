@@ -385,6 +385,145 @@ component; that remains a separate dated decision.
 
 ---
 
+## 11. Which markets are actually worth trading? — live structure survey (measured 2026-08-26)
+
+Runs the question the owner asked directly: given this project's model and its roadmap, which
+F1 market is the one to trade? Measured by pulling every open F1 market on both venues live —
+Polymarket Gamma `/events?tag_slug=f1` (all nested markets, `outcomePrices` + `spread` +
+`liquidityNum`), Kalshi `/markets?series_ticker=KXF1*&status=open` (`yes_bid_dollars` /
+`yes_ask_dollars` / `volume_fp` / `open_interest_fp`). Not a recommendation to trade anything —
+§2's edge blocker and `welcome.md`'s approval rule both still stand.
+
+### 11.1 The market map, by venue
+
+| Market type | Polymarket | Kalshi | Project has a model? |
+|---|---|---|---|
+| **Drivers' Champion** (season) | **$201M vol, $14.3M liq, 0.1–1.1% spreads** | *not listed* | **No** |
+| Constructors' Champion (season) | $28.5M vol, ~0.1–1% spreads | $2.5M+ OI, MER 2¢ spread, FER/MCL 1¢ | No |
+| **Per-race winner** | $48k/race, 1–2¢ on 5 contenders, $5–12k liq/leg | **1¢ on 5 contenders 10 days out**, OI 5k–50k contracts/leg | **Yes (A1)** |
+| Per-race podium | $2.5k, spreads 6–86¢ (mostly absent) | listed, thin | Yes (A4 exact top-3) |
+| Head-to-head (finish higher) | **$22 total vol**, spreads 43–93¢ — dead | *not listed* | Yes (A1 teammate-H2H feature) |
+| Points / top-10 / top-5 | *not listed* | listed, thin | Yes (A4) |
+| Fastest lap (race) | ~$45, near-zero | listed, thin | Yes (A4) |
+| Pole / practice fastest lap | $100–600, near-zero | pole listed | No |
+| Safety car / red flag | **real book** (~$5.5k Dutch SC market) | *not listed for F1* | No (A4 reliability feature is nearest) |
+| Constructor-scores-1st | $470, near-zero | — | Partial (A4 points sim) |
+
+### 11.2 Championship markets are deep — and that's the problem, not the opportunity
+
+Polymarket's 2026 Drivers'-Champion market is the single most liquid F1 market on either venue by
+two orders of magnitude: **$201M lifetime volume, $14.3M live liquidity, spreads of 0.1–1.1%** on
+every real contender (NOR 0.0915, ANT 0.7495, RUS 0.0585, HAM 0.068, LEC 0.018). The YES legs sum
+to ≈1.006 — a ~0.6% book, i.e. essentially no vig to fade. Constructors' is the same shape at
+smaller size, and Kalshi's constructors market agrees with Polymarket's to within 1–2pp on every
+team (MER 0.865 vs 0.87/0.89, FER 0.1105 vs 0.10/0.11, MCL 0.986 vs 0.97/0.98).
+
+This **corrects §5's capacity ceiling** — "tens of dollars, learning exercise not income stream"
+is wrong for *this* market type; you could put real money to work here. But the logic runs the
+other way from how that reads:
+
+- A $201M book with a 10bp spread and cross-venue agreement to 1pp is the textbook definition of
+  an **efficient market**. There is no structural vig to harvest and no reason to expect a
+  hand-set or lightly-fitted model to beat that crowd.
+- **The project has no championship model at all.** A1/A3/A4 are per-race. The only bridge is a
+  season simulation (see §11.5), which is a *derivative* of the per-race model and inherits its
+  calibration — and A1's one measured per-race result was a **loss to the market mean** (§2).
+
+So capacity and model-fit are in **disjoint markets**: the deep market is one we can't model and
+probably couldn't beat anyway; the market we can model is thin.
+
+### 11.3 Per-race winner is the only real overlap — and Kalshi is the better venue for it
+
+Per-race winner is the one market where all three of {a model output exists, a real book exists,
+the spread is tight enough for an edge to survive} are true at once.
+
+- **Kalshi, Monza, measured 10 days out (2026-08-24 open):** NOR 0.31/0.32, RUS 0.27/0.28,
+  ANT 0.08/0.09, HAM 0.11/0.12, LEC 0.09/0.10, VER 0.04/0.05, PIA 0.04/0.05 — **1¢ spreads** on
+  all seven, with open interest already at NOR 12.7k / ANT 49.6k / HAM 8.5k / VER 7.7k / LEC 5.2k
+  contracts. This **contradicts A4's "markets are only liquid close to lights-out"** — that
+  observation was Polymarket-specific (`00-roadmap.md` Phase A4, Monza podium). Kalshi's per-race
+  winner book is live and tight well before the weekend.
+- **Polymarket, Monza:** $48k event volume, NOR/RUS 0.29 mid at 2¢ spread, ANT 0.08, HAM 0.115,
+  $6–12k liquidity per contender leg. Tradeable at tens of dollars, as §5 says.
+- **Cross-venue divergences exist but are inside the round-trip cost:** NOR is Polymarket 0.29
+  vs Kalshi 0.315; RUS is Polymarket 0.29 vs Kalshi 0.275. A 2–3pp gap — but crossing both spreads
+  plus Kalshi's mid-price fee (§4, ~1.75¢/contract each way) eats it. Worth *monitoring* as the
+  most edge-shaped thing on the board; not an arb today.
+- **Kalshi vig is concentrated exactly where §2 warned.** The Monza winner ask-side legs sum to
+  ≈1.26 — ~26% overround — almost all of it in the 1¢ tail (17 no-hope drivers at 0.01 ask).
+  Confirms `01` §7.7 and §2: only ever price the ~5 contenders, never the tail, and prefer prices
+  away from 50¢ where the fee also bites less.
+
+### 11.4 The wide-spread trap, now measured, not predicted
+
+§2 predicted proportional de-vig would "manufacture systematic fake edges in the longshot tail."
+Here is the same failure arriving through a **second door — the midpoint**:
+
+Polymarket's podium and H2H markets report an `outcomePrices` midpoint even when the book is
+empty. Monza podium examples, live: Gasly 0.368 (**spread 0.724**), Ocon 0.3685 (0.723),
+Lindblad 0.431 (0.858), Hadjar 0.4035 (0.801) — every one a near-coin-flip midpoint sitting on a
+book whose best bid is ~0.01. Computing `edge = p_algo − midpoint` on these would "find" a
+~35pp edge on Gasly making the Monza podium, entirely a spread artifact, and precisely on the
+midfield legs a naive bot most wants to bet.
+
+**Rule for the §7 harness:** every edge number is computed against `bestBid`/`bestAsk` (Kalshi:
+`yes_bid_dollars`/`yes_ask_dollars`), with the spread printed next to it, and any leg with spread
+> ~5¢ is marked "no book" and excluded from strategy evaluation — not fed in with a midpoint.
+
+H2H deserves a specific note: it is the **best structural fit for A1** (A1 already computes a
+teammate head-to-head feature, and H2H removes the softmax-normalisation problem entirely), but
+the Polymarket book is **dead** — $22 lifetime volume across all 24 pairs, spreads 43–93¢. Good
+model fit, no market. "Watch at Monza," not a candidate.
+
+### 11.5 Season simulator — the bridge, and why it isn't a shortcut
+
+`lib/simulate`'s Plackett-Luce machinery (already built for A4 podium/points) could be run
+forward over the remaining calendar to produce championship probabilities, which would put a
+project number next to the one deep, liquid market (§11.2). Worth knowing the shape of, but:
+
+- It is a **derivative of A1**. Each simulated race draws from A1's win-strength scores, so a
+  season sim **compounds** A1's per-race calibration error rather than escaping it. It is
+  downstream of fixing per-race calibration, not a route around it.
+- If it is ever tried, the leg to test is the **tail** — NOR 0.0915, HAM 0.068, RUS 0.0585,
+  LEC 0.018 — not the ANT favourite, and the check is whether the sim's tail probability differs
+  from the market by **more than the ~1% spread**. Do not assume it does; there is no evidence
+  yet either way.
+
+### 11.6 Adjacency worth naming: safety-car / red-flag markets
+
+Polymarket lists per-race **safety-car** and **red-flag** markets with a genuine (if small) book
+— the Dutch GP safety-car market carried ~$5.5k. Kalshi lists neither for F1. The project has no
+model for these; A4's DNF reliability feature is the nearest relative, and there is no second
+venue to corroborate a price against. Named here as a modelling adjacency the roadmap doesn't
+mention, not a recommendation.
+
+### 11.7 Recommendation, layered
+
+1. **If Lane C ever trades, the first and possibly only market is per-race winner, top ~5
+   drivers, both venues.** It is the only place model + book + tight spread coincide. Kalshi's
+   book is live earlier; Polymarket adds the cross-venue check. Still gated on everything in §2
+   (no measured edge), §7 (harness first), §3 (jurisdiction), §6 (risk controls).
+2. **Build the §7 edge-measurement harness against winner markets specifically**, pulling both
+   venues' `bestBid`/`bestAsk` (not midpoints) at snapshot time, logging `p_a1` vs both books
+   vs realised result, accumulating `n`. This is the missing evidence and it is free.
+3. **Watch at Monza, don't trade:** per-race podium (Norris podium leg has a real 11¢-spread
+   book; most legs don't), and whether `KXF1BIGGESTMOVER` relists (§10.2).
+4. **Not candidates:** H2H (dead book), constructor/pole/practice/fastest-lap (near-zero
+   volume), championships (efficient, and unmodelled).
+5. **De-vig choice (§2, `01` §9.2) is now urgent for winner markets**, because Kalshi's 26%
+   tail-heavy overround is exactly the pathology proportional de-vig mishandles. Decide it
+   against harness data before any strategy number is quoted.
+
+### 11.8 Erratum for `01` — Kalshi API field names have changed
+
+`01` §7.6 documents Kalshi market fields as `volume`, `yes_bid`, `yes_ask`, `open_interest`,
+`liquidity`. As of 2026-08-26 the `/markets` and `/markets/{ticker}` endpoints return those as
+**`null`**; the live values are under `volume_fp`, `yes_bid_dollars`, `yes_ask_dollars`,
+`open_interest_fp`, `liquidity_dollars` (and `last_price_dollars`). Any code written against
+`01` §7.6's names will silently read nothing. `01` §7 should be re-verified and updated.
+
+---
+
 ## 9. Sources
 
 - Polymarket US / CFTC / QCEX: [Cryptobriefing](https://cryptobriefing.com/polymarket-us-regulatory-approval-cftc/),
