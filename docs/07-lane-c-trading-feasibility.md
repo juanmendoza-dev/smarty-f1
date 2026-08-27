@@ -20,6 +20,7 @@ design — those belong in a Lane C spec written after the blockers below are re
 | Do we **have** a measured edge to trade on? | **No.** In every market type, for both venues, the evidence is either absent or negative (see §2). This is the tightest constraint on Lane C, ahead of any API question. |
 | Can we **paper-trade** a strategy end to end? | **Yes, now** for Lane A markets — off the Gamma/Kalshi reads `snapshot.py` already makes, plus (for order mechanics) Kalshi's public demo host. Zero budget. |
 | Can we **place live trades** off Lane A predictions (winner, podium)? | **Blocked**, not on tech but on: (a) no measured edge, (b) venue access depends on the owner's jurisdiction (§3), (c) real-money approval per `welcome.md`, (d) risk controls must be built first (§6). |
+| Which market is the best **trade candidate** if an edge is ever shown? | **Per-race winner, both venues** — the only market where a model output, a real book, and a spread tight enough for an edge to survive all coincide today (§11.3). Everything else is thin, efficient, or unmodelled. |
 | Can we trade **in-race** markets (overtakes, corner-level)? | **The overtake market does not exist** — measured 2026-08-26 across both venues, open and closed (§10.1). What *does* exist is a race-winner market that trades heavily through the race (48.5% of lifetime volume inside the 2h window, §10.3). This row's original answer — "blocked behind Lane B" — was wrong about *why*: the blocker was never only the feed. |
 
 The short version: **the trading layer is not the hard part — the edge is.** Lane C's premise,
@@ -121,6 +122,13 @@ where the measured edge is large and the price is away from 50¢, or don't take 
 ---
 
 ## 5. Liquidity / capacity
+
+> **Partly corrected 2026-08-26 by §11.** The "tens of dollars / learning exercise, not an
+> income stream" ceiling holds for the *per-race* markets this project has a model for. It does
+> **not** hold across all F1 markets: Polymarket's season Drivers'-Champion market runs
+> $201M lifetime volume / $14.3M live liquidity / 0.1–1.1% spreads (§11.2). Capacity there is
+> real — but the project has no championship model, and a book that deep and tight is efficient
+> by construction. Capacity and model-fit sit in disjoint markets. See §11.
 
 Even with an edge, there may be nothing to win at this project's scale:
 
