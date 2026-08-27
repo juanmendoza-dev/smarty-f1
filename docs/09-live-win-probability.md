@@ -979,9 +979,18 @@ rather than leaving them to be discovered.
 ## 15. Reproducing §2's measurements
 
 The probes are measurement scripts, not implementation — no code for this layer exists or is
-authorized to exist before this spec is approved (`welcome.md`). They were run from a scratchpad
-against the warm archive and the existing training matrix, and each is reproducible from what is
-already in the repo.
+authorized to exist before this spec is approved (`welcome.md`). **They are committed under
+`probes/`**, so the numbers below are re-derivable rather than taken on trust, and so are the ones
+that have since propagated into `08`'s status banner, `00-roadmap.md`'s Phase B4 and `welcome.md`.
+`probes/README.md` carries the expected output for each.
+
+```bash
+# environment: .venv312, run from the repo root (08 sec13.2)
+.venv312/bin/python probes/09_race_dynamics.py           # sec2.2, sec2.3, sec2.6
+.venv312/bin/python probes/09_leadchange_attribution.py  # sec2.1, sec2.5
+.venv312/bin/python probes/09_domain_bands.py            # sec2.4, position bands
+.venv312/bin/python probes/09_theta_front.py             # sec2.4, theta_front
+```
 
 **Environment**: `.venv312`, per `08` §13.2 — `fastf1` is not installed anywhere else. Cache at
 `data/cache/fastf1/` (`08` §13.4), warm.
