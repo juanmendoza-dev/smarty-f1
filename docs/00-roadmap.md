@@ -122,14 +122,14 @@ enough to its lights-out to have priced markets — not guaranteed to be Monza s
 Tick-based state per car (position, speed, gap, brake/throttle, and whatever channel 45 turns out to carry — see below), then trigger conditions (approaching a known corner/braking zone) and scoring logic for overtake probability. See `03-live-telemetry-overtakes.md`, which is now a build spec rather than a research memo.
 Status: **source decided and specced 2026-08-26. Client build authorized; the prediction layer on top of it is not.**
 
-The data-source question that blocked this phase is closed: Lane B connects **directly to F1's own live timing feed** over the legacy unauthenticated SignalR endpoint at `livetiming.formula1.com/signalr` — `03` §2.4's fourth row, chosen with the ToS and IP-blocking findings in `03` §2.3 in full view and knowingly accepted (`03` §5). Not FastF1's live module, which can't parse live at any budget; not OpenF1, whose free tier has no live access at all and whose paid tier costs money that hasn't been approved.
+The data-source question that blocked this phase is closed: Lane B connects **directly to F1's own live timing feed** over the unauthenticated SignalR Core endpoint at `livetiming.formula1.com/signalrcore` — `03` §2.4's fourth row, chosen with the ToS and IP-blocking findings in `03` §2.3 in full view and knowingly accepted (`03` §5). Not FastF1's live module, which can't parse live at any budget; not OpenF1, whose free tier has no live access at all and whose paid tier costs money that hasn't been approved.
 
 `03` §4.2 draws the scope tightly and the tightness is part of the decision: personal research and development only — capture, parse, shadow-mode predictions logged locally and read by nobody else. No hosted or public deployment (the one documented F1 enforcement action was against a *hosted* instance), no redistribution, and a hard interlock against Lane C consuming any of it (`03` §4.3). `03` §9 specs graceful backoff and a hard stop on any 401/403/429, explicitly not aggressive retry; `03` §10 specs fail-loud on schema drift via `lib/invariants.require`, the same convention `fit.py`/`backfill.py` use; `03` §11 keeps every capture local and gitignored.
 
 **Gate:** the client and B1's delay measurement may be built now. The overtake model on top of them may not, until B1 comes back with a workable gap (`03` §4.4). A multi-minute broadcast delay kills the premise no matter how good the feed is.
 
 Two things `03` turned up while being written into a spec, neither of them in the original memo:
-- **F1 added an authenticated endpoint in 2025.** `livetiming.formula1.com/signalrcore` needs an F1TV Access/Pro/Premium subscription token; FastF1 ≥3.7.0 moved to it (their issue #753). The legacy unauthenticated endpoint still works — a third-party client last pushed 2026-08-07 uses exactly it — so that's what B0 targets, with a stop-loudly rule if it ever closes. What to do *if* it closes is a new open decision below.
+- **The feed moved endpoints, and is still unauthenticated.** F1 introduced `/signalrcore` in May 2025 and retired the legacy `/signalr` around June 2026 (it returns 401 now). The new one is a different wire protocol — SignalR Core, `\x1e`-framed — but needs **no account, no F1TV subscription, no token**: measured token-less vs. garbage-token during Zandvoort FP1 with byte-identical results, and corroborated against `slowlydev/f1-dash`, a 1,907-star public dashboard with no login whose client contains no auth code at all (`03` §6.4). Zero-budget survives intact and the risk acceptance in `03` §5 is unaffected — it was always a decision to connect anonymously. **This was initially specced against the dead legacy endpoint and corrected the same day**; see `03`'s correction banner for what the bad inference was.
 - **DRS doesn't exist in 2026.** The FIA replaced it with active aero. Channel 45 in the telemetry feed used to carry DRS state and now carries active-aero state with an encoding nobody has confirmed from live data, so B0 carries it as an opaque integer rather than guessing (`03` §7.3). The old description line on this phase said "brake/throttle/DRS" and was wrong.
 
 **Phase B1 — Delay/sync investigation**
@@ -215,20 +215,17 @@ Status: not started.
   See the Locked decisions entry above for what was accepted and on what conditions, and `03`
   §§4–13 for the spec that came out of it. The four open items that survive are below and in
   `03` §16.
-- **New 2026-08-26:** **if the unauthenticated live timing endpoint closes, what replaces it?**
-  (`03` §6.4.) Found while writing `03`'s spec, not in the original research: F1 changed the
-  service in May 2025 and now runs a second endpoint (`/signalrcore`) behind an **F1TV
-  Access/Pro/Premium subscription token** — FastF1 moved to it in v3.7.0 (their issue #753). The
-  legacy unauthenticated endpoint B0 targets still works (a third-party client last pushed
-  2026-08-07 uses exactly it), so this isn't blocking today, but it's one deprecation away from
-  being blocking. The spec's answer to hitting the gate is to stop loudly, never to fall back or
-  retry. The owner's options at that point: **(a)** buy an F1TV subscription — paid, so explicit
-  approval is needed under `welcome.md`'s zero-budget constraint, *and* it's a materially worse
-  legal posture than today's, because a subscription binds a named account holder to F1's terms
-  directly and removes the "separate host, different agreement" caveat the current risk
-  acceptance leans on; **(b)** revisit OpenF1's €9.90/mo tier, which at least is ToS-clean;
-  **(c)** stop Lane B. This is a genuinely different decision from the one already taken and
-  shouldn't be treated as covered by it.
+- ~~**New 2026-08-26:** if the unauthenticated live timing endpoint closes, what replaces it?~~
+  **Downgraded to a standing contingency the same day — not a live decision** (`03` §6.4, §16
+  item 1). It was filed on the belief that F1 had put live timing behind an F1TV subscription
+  token. That was wrong: the 401 belongs to the *retired* legacy endpoint, and the current
+  `/signalrcore` endpoint accepts unauthenticated connections — verified by controlled measurement
+  during Zandvoort FP1 and against a large public dashboard that connects with no login. No money
+  decision is needed, and no account gets bound to F1's terms. Kept on the books because F1 has
+  now migrated this feed once (2025 introduce, 2026 retire), so a future migration is a question
+  of when rather than whether — and if one of those closes the anonymous path instead of moving
+  it, the options (pay for F1TV / pay OpenF1 / stop Lane B) are the owner's and are recorded in
+  `03` §16.
 - **New 2026-08-26:** **whether Lane B's output may ever feed Lane C.** `03` §4.3 turns this from
   a sequencing detail into an explicit interlock: no Lane C module imports from the Lane B
   client, and the Lane B client has no path to an order interface. Flipping that switch is the
