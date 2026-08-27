@@ -140,7 +140,14 @@ Status: **unblocked as of 2026-08-26 — B0's source is decided, and B1 is now t
 
 **Phase B2 — Overtake model (new 2026-08-26)**
 Specced in `08-overtake-model.md`. The owner decided to build it and gave the rationale that closes Lane B's trading-vs-learning fork: the overtake model is an **intermediate signal feeding a live win-probability model**, which trades the race-winner market `07` §10.3 measured as liquid throughout a race (48.5% of lifetime volume in-race, a trade in all 120 race minutes). `03` §4.4's gate is amended accordingly — the **offline** model is authorized; running it live and trading on it stay gated on B1 and on `03` §4.3's interlock.
-Status: **specced, not approved, not built.** Three things were measured before the spec was written: ≈38 on-track overtakes per race (115 across three 2026 races, so ≈450 labels a season); **one lead change across those three races**, which is why the model trains on all overtakes and lets the win-probability layer decide what matters; and a `Position`-stream label resolution of ~3.3s, which is why v1 is specced at a 10-second horizon and the owner's 5-second target is an open item rather than an assumption.
+Status: **built and validated 2026-08-26** (`lib/overtakes.py`, `lib/overtake_features.py`,
+`overtake_build.py`, `overtake_fit.py`, `test_overtakes.py`). Result in `08` §12: on 12 races /
+428,511 rows / 432 on-track overtakes, the fitted model reaches **AUC 0.906** race-forward
+out-of-fold but **fails `08` §7's calibration bar** — it is a usable *ranker*, not yet a
+probability the win-probability layer can multiply. One owner decision (recalibrate, or restrict
+the model's domain) stands between it and being a probability; see `08` §13. Offline only —
+running it live and trading on it remain gated on B1 and on `03` §4.3's interlock.
+Earlier status, for the record: **specced, not approved, not built.** Three things were measured before the spec was written: ≈38 on-track overtakes per race (115 across three 2026 races, so ≈450 labels a season); **one lead change across those three races**, which is why the model trains on all overtakes and lets the win-probability layer decide what matters; and a `Position`-stream label resolution of ~3.3s, which is why v1 is specced at a 10-second horizon and the owner's 5-second target is an open item rather than an assumption.
 
 **Phase B2b — Automated trigger recognition**
 Computer vision on screen-captured broadcast frames, targeting broadcast graphic overlays (pit boards, safety car flags, lights-out gantry) rather than raw scene content — a more tractable detection target. Requires reference footage of Apple's actual broadcast graphics first (their first season broadcasting F1 in the US, so no existing reference material).
