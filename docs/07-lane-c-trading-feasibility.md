@@ -195,6 +195,189 @@ item 2 says — it's the same scarce resource (live-snapshotted races with outco
 
 ---
 
+## 10. Gate 4 — do in-race / overtake markets actually exist? (measured 2026-08-26)
+
+Run as **Lane B gate 4** (`00-roadmap.md`'s Lane B gate list): the roadmap assumed in-race
+overtake markets exist and merely "need Lane B's live feed to exist first." Nobody had checked the
+markets themselves. This section is that check, run the same way `04` §2 ran the Phase A4
+market-coverage check — by fetching real events and reading real rules text, not by assuming a
+name implies a market.
+
+**Headline: the answer splits in two, and the two halves point opposite ways.**
+
+| Question | Answer |
+|---|---|
+| Does a **corner-level / overtake** market exist on either venue? | **No.** Neither venue, never, on any race. Evidenced negative (§10.1). |
+| Do F1 markets **trade during the race**, with real volume? | **Yes on Kalshi — measured.** 48.5% of the Dutch GP winner market's entire lifetime volume traded inside the 2-hour race window (§10.3). |
+
+So Lane B's stated trading rationale — *corner-level overtake probability, traded on Polymarket or
+Kalshi* — is aimed at a market that does not exist. But the premise underneath it ("fast-moving
+in-race information can outpace how quickly these markets reprice") turns out to be **more**
+supported than the roadmap assumed, just against a different market. See §10.5.
+
+### 10.1 No overtake market exists — the evidenced negative
+
+Absence today would not prove absence (it is between race weekends: Dutch GP was 2026-08-23,
+Monza is 2026-09-04/06), so both sweeps deliberately included closed/settled/historical markets.
+
+**Polymarket (Gamma only, per `01` §6.2).** Swept `/events` by `tag_slug` across `f1`,
+`formula-1`, `formula1`, `motorsports`, `sports`, each at `closed=true`, `closed=false`, and with
+no `closed` filter, paginating on `offset`. Pagination was verified rather than assumed
+(`offset=0` vs `offset=100` return disjoint id sets). **985 unique events pulled, 387 of them F1,
+including 333 closed ones, spanning 2023–2026.** Market types found, by frequency:
+
+> winner (49), safety-car (23), red-flag (20), driver/constructor pole (38), driver/constructor
+> fastest lap (38), practice 1/2/3 fastest lap (43), h2h (30), constructor-scores-1st (22),
+> driver podium (17), most-constructor-points (11), sprint winner (9), winning margin (1),
+> championship//season props, plus novelty markets ("will it rain during the…").
+
+No overtake, position-change, positions-gained, lead-change, or lap-level market at any point in
+the corpus. A keyword scan over title + slug + description for `overtake / overtak / pass /
+position change / lead change / lap 1 / first lap / opening lap / gain position / places gained /
+most positions / corner / DRS / in-race` returned **zero** F1 hits (the `DRS` and `live` hits were
+cricket — DRS is cricket's Decision Review System). Gamma `/public-search` for `overtake`,
+`overtakes`, `f1 overtake`, `position change`, `lead change`, `first lap` likewise returned no
+such F1 market; `f1 overtake` just fuzzy-matches championship and race-winner events.
+
+**Kalshi (`external-api.kalshi.com`, per `01` §7.2).** Enumerated **all 13,545 series** via
+`GET /series` and filtered titles/tickers for F1 — 51 candidates, of which ~30 are genuinely
+Formula 1 (the rest are College Football `KXNCAAF1H*`, Turkish football `KXTFF1LIG*`, and the
+`F1` movie's Rotten Tomatoes score). Then pulled `GET /markets` **across all statuses** for the
+F1 series. A keyword scan over all 13,545 series titles for `overtake / overtaking / pass /
+position / lead change / lap / corner / safety car / red flag / yellow flag / pit / margin /
+in-play / live / in-game` returned, for motorsport, only pole-position and fastest-lap series.
+Kalshi does list `corner` markets (22 series) — all soccer. **No F1 overtake market, and, unlike
+Polymarket, no F1 safety-car or red-flag market either.**
+
+This matches the prior the task flagged as worth testing: corner-level overtake trading resembles
+in-play sportsbook micro-betting (bet365, DraftKings), and neither prediction-market venue lists
+anything of that shape for F1.
+
+### 10.2 The closest thing that does exist — `KXF1BIGGESTMOVER`, and it's a one-race pilot
+
+Kalshi's `KXF1BIGGESTMOVER` ("F1 Biggest Mover") is the only position-change market found on
+either venue. Rules text read in full, per the `KXF1RETIRE` discipline (`04` §2):
+
+> "If {driver} has the largest positive differential between their starting grid position and
+> their finishing position in the main race at the 2026 Dutch Grand Prix … then the market
+> resolves to Yes."
+
+That is **net grid-to-flag position change, settled after the race** — one number per driver per
+race. It is not an overtake market, carries no corner-level or lap-level component, and a Lane B
+live feed is not required to trade it. `rules_secondary` is careful (dead-heat $1/N payout,
+pit-lane starts treated as one below the last gridded driver, DNF/DSQ resolves No unless
+classified), so it is a well-formed market — just not the one Lane B was aimed at.
+
+**It is a single-race experiment, not a standing series.** All 22 markets in the series are
+`DUTGP26`; `created_time` is 2026-08-19, five days pre-race; and `GET /events?status=open` for
+`KXF1BIGGESTMOVER` returns **no Monza event** while `KXF1RACE`, `KXF1RACEPODIUM`, `KXF1TOP10`,
+`KXF1TOP5`, `KXF1FASTLAP`, and `KXF1TOPCONSTRUCTOR` all have `ITAGP26` open. Whether it ever
+relists is **UNVERIFIED**. Liquidity was thin: 17,524 contracts lifetime across all 22 legs
+(≈1% of the winner market's 1,703,263), and its most-traded leg, `-NOR`, recorded **zero** trades
+across the entire race. Polymarket has no equivalent market of any kind.
+
+### 10.3 Kalshi F1 markets trade *during* the race — measured, not inferred
+
+The discriminating question for Lane B is not "is there a market about an in-race event" but
+"is a book open and trading while the cars are running." Measured against the Dutch GP, whose
+timestamps are final. Lights-out is **2026-08-23T13:00:00Z**, taken from this project's own frozen
+snapshot (`data/snapshots/2026-12-race-20260823T031058Z.json`, `meta.race_start_utc`), not assumed.
+
+Kalshi books did not close at lights-out. Across the Dutch GP, `close_time` sits **+5.05h** past
+lights-out for every race-outcome series (`KXF1RACE`, `KXF1RACEPODIUM`, `KXF1TOP10`, `KXF1TOP5`,
+`KXF1FASTLAP`, `KXF1BIGGESTMOVER`, `KXF1TOPCONSTRUCTOR`) — i.e. ~3h after the chequered flag —
+while the qualifying-dependent series closed the evening before (`KXF1POLE` at −17.58h).
+
+Volume, per one-minute candle, `KXF1RACE-DUTGP26`, **all 22 driver legs**:
+
+| | contracts |
+|---|---|
+| Lifetime volume (`volume_fp` on the market record) | 1,703,263 |
+| Recovered by the candlestick sweep (open_time → close_time) | 1,703,816 (**100.0%** coverage) |
+| Traded **inside the 13:00–15:00Z race window** | **826,229 = 48.5% of lifetime** |
+| Race minutes with ≥1 trade | **120 of 120** |
+
+Nearly half the market's entire life-of-contract volume traded while the race was running, and
+there was not a single silent minute. Prices moved accordingly — `-NOR` went 0.37 → 0.32 → 0.16
+→ 0.28 → 0.48 → 0.82 → 0.96 across the two hours, with 25,895 contracts in the 14:53Z minute
+alone. Every other F1 market type traded in-race too (in-race share of the ±6h window, top-4 legs:
+winner 75.5%, top-constructor 72.8%, biggest-mover 58.7%, fastest lap 48.4%, podium 47.7%, top-5
+41.6%, top-10 35.8%).
+
+> **Scope note — this used an endpoint outside the locked decision.** `01`'s locked decision scopes
+> Kalshi to `GET /markets`. The measurement above uses
+> `GET /series/{series}/markets/{ticker}/candlesticks` (same host, read-only, credential-free,
+> unauthenticated). It is what turned this finding from inference into measurement, so it is
+> flagged here rather than left for a future reader to discover. The claim rests on **`volume_fp`
+> per one-minute candle = executed contracts**; the `price` OHLC block is corroborating colour, not
+> load-bearing. Whether to fold this endpoint into the locked scope is an open item (§10.6).
+
+### 10.4 Polymarket: books stay open past lights-out, but in-race *execution* is UNVERIFIED
+
+Split deliberately, because only the first half is measured.
+
+**Verified — the book does not close at lights-out.** Across 4,132 F1 markets carrying both
+`gameStartTime` and `closedTime`, the median `closedTime − gameStartTime` is **+6.88h**. The
+Dutch GP safety-car market is the clean single case: `acceptingOrders: true`, `closed: false`,
+bestBid 0.002 / bestAsk 0.008, **three days after** its `gameStartTime` of 2026-08-23T13:00Z. A
+book cannot be pre-race-only while accepting orders 72 hours past race start. Every F1 market
+carries `clearBookOnStart: true` and a `secondsDelay` of 1–3s — the latter being a live-trading
+latency guard, which is only meaningful if a book trades live.
+
+**UNVERIFIED — whether trades actually executed during the race window, and at what volume.**
+Gamma exposes no timestamped series (only lifetime/24h/1wk aggregates), and Polymarket's
+timestamped trade history lives on the CLOB/Data APIs, which `01` §6.2's locked decision scopes
+out. Total `volumeNum` on a settled market does not say when the volume arrived, so it is not
+substitutable. This is measurable, but only by reopening that scope — see §10.6.
+
+For scale, Polymarket's Dutch GP winner event turned over **$566,791** (Gamma `volume` is USD;
+Kalshi `volume_fp` is contract count at $1 notional, so the two venues' numbers are not directly
+comparable without that conversion).
+
+### 10.5 What this means for Lane B — flagged, not decided
+
+Gate 4 does not come back as a clean pass or fail, and the reframing belongs to the owner:
+
+- **The corner-level overtake premise has no market.** Nothing on either venue settles on
+  overtakes, position at a corner, or lap-level position change. If Lane B's justification is
+  trading, gate 3's "corner-level overtake model" has nothing to trade into, and no amount of
+  Lane B feed quality changes that.
+- **But the liquid in-race market is `race winner`,** and it is very liquid exactly when Lane B's
+  feed would be live — 826k contracts inside two hours, repricing every single minute. Trading
+  that needs a **live win-probability model** (given current positions/gaps/laps remaining, who
+  wins?), which is a different and arguably simpler model than corner-level overtake probability.
+  Lane B's *feed* is directly useful to it; Lane B's *specced model layer* is not.
+- **Gate 2 (broadcast delay) gets sharper, not weaker.** Against a market repricing every minute
+  for two hours, a delay of seconds vs. minutes is precisely the discriminator, and the Kalshi
+  book stays open ~3h past the flag. Gate 2 was already next in the owner's order; this finding
+  raises its value rather than changing its place.
+- **The unresolved fork still decides this.** Lane B has been carrying two justifications at once
+  — *it's for trading* and *it's for learning streaming architecture / a portfolio piece*. Gate 4
+  answers them differently: it kills the corner-level-overtake **trading** rationale while
+  strengthening a different trading rationale, and it gates nothing at all if Lane B is a learning
+  goal. That fork has not been picked and is not picked here.
+
+Consistent with `03` §4.3's interlock, none of the above authorizes Lane B output reaching a Lane C
+component; that remains a separate dated decision.
+
+### 10.6 Open items from gate 4
+
+1. **Which Lane B justification governs — trading or learning?** Unpicked. Gate 4's result only
+   bites under the first. Owner's call; see §10.5.
+2. **Does the in-race *winner* market replace corner-level overtakes as Lane B's trading target?**
+   If yes, gate 3 changes shape (live win-probability, not corner-level overtake) and `03`'s model
+   layer needs rewriting. Not decided here.
+3. **Fold Kalshi's `candlesticks` endpoint into the locked market-data scope?** It is
+   unauthenticated, read-only, same host, and is the only way to measure *when* volume traded.
+   Used once here under an explicit flag (§10.3).
+4. **Reopen Polymarket CLOB/Data read-only, for measurement?** It is the only way to close the
+   UNVERIFIED in §10.4. Distinct from §8 item 3, which is about CLOB for *execution*.
+5. **Does `KXF1BIGGESTMOVER` relist?** UNVERIFIED — one race, no Monza event. Worth re-checking at
+   Monza; if it becomes a standing series it is a genuine (if illiquid) position-change market that
+   Lane A could price without any live feed at all.
+
+---
+
 ## 9. Sources
 
 - Polymarket US / CFTC / QCEX: [Cryptobriefing](https://cryptobriefing.com/polymarket-us-regulatory-approval-cftc/),
