@@ -144,7 +144,7 @@ Status: **specced, not approved, not built.** Three things were measured before 
 
 **Phase B2b — Automated trigger recognition**
 Computer vision on screen-captured broadcast frames, targeting broadcast graphic overlays (pit boards, safety car flags, lights-out gantry) rather than raw scene content — a more tractable detection target. Requires reference footage of Apple's actual broadcast graphics first (their first season broadcasting F1 in the US, so no existing reference material).
-Status: blocked on B1.
+Status: blocked on B1. (Renumbered from B2 on 2026-08-26 when the overtake model took that slot.)
 
 **Phase B3 — Second test window: Italian GP (Monza), 2026-09-04 to 09-06**
 Target date for a live-ish test of the Lane B pipeline, once B1/B2 groundwork exists.
@@ -233,28 +233,16 @@ Status: not started.
   of when rather than whether — and if one of those closes the anonymous path instead of moving
   it, the options (pay for F1TV / pay OpenF1 / stop Lane B) are the owner's and are recorded in
   `03` §16.
-- ~~**New 2026-08-26 (gate 4, `07` §10.6):** **which of Lane B's two justifications governs —
-  trading or learning?**~~ **Decided 2026-08-26 the same day: trading**, via overtake probability →
-  live win probability → the race-winner market. The owner's reasoning is recorded in `08` §1, and
-  it repoints the lane rather than merely picking a side — the original corner-level-overtake
-  trading case is dead (`07` §10.1, no such market on either venue), and this replaces it with one
-  aimed at a market that measurably trades in-race. Superseded text below for the record:
-  **which of Lane B's two justifications governs —
-  trading or learning?** Lane B has carried both at once without either being tested. Gate 4
-  answers them differently: it removes the corner-level-overtake *trading* rationale (no such
-  market exists on either venue), points at a different one (Kalshi's winner market, liquid
-  throughout the race), and gates nothing at all if Lane B is a learning/portfolio goal. Until
-  this is picked, "is Lane B worth building" has no determinate answer. Owner's call — the honest
-  options (defer Lane B; build it as a learning piece with no trading rationale; or repoint it at
-  live win-probability) are genuinely different projects.
-- ~~**New 2026-08-26 (gate 4, `07` §10.6):** **does the in-race winner market replace corner-level
-  overtakes as Lane B's target?**~~ **Answered 2026-08-26: yes, and the overtake model survives as
-  the feature generator feeding it** (`08` §3) rather than as the thing traded directly. What
-  remains open is whether the win-probability layer gets specced next — `08` §11 item 2.
-  Superseded text: **does the in-race winner market replace corner-level
-  overtakes as Lane B's target?** If yes, `03`'s model layer needs rewriting — live win
-  probability given positions/gaps/laps-remaining is a different model from corner-level overtake
-  probability, and gate 3 changes shape with it. Depends on the item above.
+- ~~**New 2026-08-26 (gate 4, `07` §10.6):** which of Lane B's two justifications governs —
+  trading or learning?~~ **Decided 2026-08-26, same day: trading**, via overtake probability →
+  live win probability → the race-winner market. Recorded in `08` §1. This repoints the lane
+  rather than merely picking a side: the original corner-level-overtake trading case is dead
+  (`07` §10.1 — no such market on either venue), and this replaces it with one aimed at a market
+  measured to trade in-race.
+- ~~**New 2026-08-26 (gate 4, `07` §10.6):** does the in-race winner market replace corner-level
+  overtakes as Lane B's target?~~ **Answered 2026-08-26: yes** — and the overtake model survives
+  as the feature generator feeding it (`08` §3), not as the thing traded directly. What stays
+  open is whether the win-probability layer gets specced next (`08` §11 item 2).
 - **New 2026-08-26 (gate 4, `07` §10.6):** **two read-only market-data scope questions.** Whether
   to fold Kalshi's unauthenticated `candlesticks` endpoint into the locked scope (used once under
   an explicit flag to measure *when* volume traded), and whether to reopen Polymarket CLOB/Data

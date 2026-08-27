@@ -731,7 +731,9 @@ The roadmap's B0 line is corrected accordingly (§15).
 ### 7.5 What B0 does not do
 
 No corner detection, no braking-zone geometry, no overtake probability, no trigger conditions, no
-market interaction. Those are B2+ and, per §4.4, are not authorized until B1 clears. B0 ends at
+market interaction. Those are B2+ and, per §4.4, are not authorized until B1 clears — **except the
+offline overtake model, which §4.4's 2026-08-26 amendment authorizes and `08-overtake-model.md`
+specs.** Live use and trading stay gated. B0 ends at
 "here is a correct, timestamped, per-car tick, and here is an honest statement of what was missing
 from it."
 
@@ -1098,7 +1100,8 @@ Anything the run contradicts is a spec bug to fix here first, before more code.
 Listed so a future reader can tell "not built yet" from "decided against":
 
 - Corner geometry, braking-zone definitions, trigger conditions, overtake probability — B2+, and
-  gated by §4.4.
+  gated by §4.4. The **offline** overtake model is now specced separately in `08-overtake-model.md`
+  under §4.4's amendment; it is still not part of B0.
 - Broadcast delay *compensation*. B1 measures the delay; nothing here corrects for it. The prior
   art's three-minute manual buffer is a spoiler-avoidance feature for human viewers and is the
   opposite of what a prediction pipeline wants (§3).

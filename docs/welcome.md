@@ -46,6 +46,12 @@ The project is split into independent tracks. Don't conflate them — most confu
 - `docs/05-trained-model.md` — the trained winner model (Phase A3, **current focus**). Read `02` first; A3's whole design turns on the fact that `02`'s scorer is already a conditional logit with hand-set coefficients
 - `docs/03-live-telemetry-overtakes.md` — Lane B's live data source and tick client (Phase B0). **Now a build spec** (2026-08-26), with the original source research preserved as §§1–3. Read §§4–5 before touching anything in this lane: they set the authorized scope (personal research/development only, no hosted deployment, no Lane C hookup) and record the ToS risk the owner identified and knowingly accepted. The client may be built; the prediction layer on top of it is gated on B1's delay measurement
 - `docs/06-weather-ensemble-signal.md` — multi-model weather ensemble spec. **Verified against 44 races, not approved, not implemented** — queries four named weather models instead of one blend, and uses their disagreement to flag when our own forecast can't be trusted. Blocked on one owner decision: whether a 0.1mm trace should keep counting as a wet race (§6.1)
+- `docs/08-overtake-model.md` — the overtake model (Phase B2), **specced 2026-08-26, not approved,
+  not built**. Load-bearing for Lane B: it records the decision that Lane B is for *trading* via
+  overtake probability → live win probability → the race-winner market, and the measurements that
+  shape it (≈38 on-track overtakes/race, but **one lead change across three races**, and a label
+  time-resolution of ~3.3s against a 5-second target horizon). Read `03` §4.4's amendment first —
+  the offline model is authorized, live use and trading are not
 - `docs/07-lane-c-trading-feasibility.md` — Lane C (trading bot) feasibility research (2026-08-26). **Not a build spec** — it finds the blocker is the *edge*, not the APIs (no measured edge in any market yet), and lays out a zero-budget path: build an edge-measurement + paper-trading harness first. See also the roadmap's Lane C phases
 
 If a decision you need isn't documented, don't assume — it means it hasn't been locked in yet. Ask.
