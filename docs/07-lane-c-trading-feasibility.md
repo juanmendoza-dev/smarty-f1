@@ -565,7 +565,7 @@ mention, not a recommendation.
 
 ---
 
-## 9. Sources
+## 12. Sources
 
 - Polymarket US / CFTC / QCEX: [Cryptobriefing](https://cryptobriefing.com/polymarket-us-regulatory-approval-cftc/),
   [dropstab: Is Polymarket Legal 2026](https://news.dropstab.com/research/is-polymarket-legal),
