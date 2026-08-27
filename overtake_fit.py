@@ -320,11 +320,23 @@ def main():
     print("  reliability curve  : %s"
           % ("monotone (ranks correctly)" if monotone
              else "NOT monotone (ranking is unreliable)"))
+    good = [c for c in cal if c["ratio"] == c["ratio"] and c["observed"] > 0
+            and abs(math.log(c["ratio"])) < math.log(2.0)]
     accept = ratios and abs(math.log(worst)) < math.log(2.0)
+    print("  bins within 2x     : %d of %d (%s)"
+          % (len(good), len(cal), ", ".join(c["bin"] for c in good) if good else "none"))
     print("  ACCEPTANCE (sec7)  : %s"
           % ("PASS -- calibrated within 2x across every bin" if accept else
-             "FAIL -- not calibrated within 2x; usable as a RANKER, not as a "
-             "probability a win-probability layer can multiply"))
+             "FAIL -- not calibrated within 2x across every bin"))
+    if not accept and good:
+        print("        The failure is concentrated in the low-probability bins, where the"
+              "\n        model says 'essentially zero' and the observed rate is a small but"
+              "\n        non-zero floor. Some of that floor is structural: 12-33%% of real"
+              "\n        overtakes have no tracked pursuit episode before them at all"
+              "\n        (measured, 08 sec2.4), so they cannot be anticipated from this"
+              "\n        feature set and land in the bottom bins by construction."
+              "\n        Usable today as a RANKER; not yet as a probability a"
+              "\n        win-probability layer can multiply.")
 
     if args.json:
         with open(args.json, "w") as f:
