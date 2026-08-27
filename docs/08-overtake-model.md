@@ -434,8 +434,11 @@ isotonic (hand-rolled PAV) and Platt (1-D logistic on the log-odds). The domain 
 > everywhere else. Restricted to in-domain rows with the pursuer in P2–P6 (n = 10,836, 137
 > overtakes) the calibration is **4 of 5 quintile bins within 2×, worst ratio 2.33 — a FAIL of §7's
 > bar in that band**, where the pooled figure passes at 1.71. The PASS below is real and it is a
-> midfield PASS. A consumer working at the front of the field needs the extra restriction `09`
-> §5.3 imposes.
+> midfield PASS. A consumer working at the front of the field needs a **second serve-time constant**,
+> computed the same way θ is: `09` §2.4 measures **θ_front = 0.0105** (per-fold range
+> 0.0095–0.0116, from train+calib predictions only), which keeps 77.4% of front-of-field in-domain
+> overtakes in 41% of the rows and takes that band to **3/3 bins within 2×, worst ratio 1.31 — a
+> PASS**. If this model is retrained, `overtake_fit.py` should report θ_front alongside θ.
 
 **The domain gate is the load-bearing half.** It retains **89.2% of real overtakes in 20.6% of
 pairs** — the bottom ~80% of the score distribution holds only ~11% of overtakes, and those are
@@ -500,8 +503,10 @@ per-fold θ and Platt `(a,b)`; `data/live/overtakes/fit_recal.json` records it (
    that bear directly on this model: pit stops cause **71% of lead changes** and on-track passes at
    most 27% (`09` §2.1), so `08` is the *fourth* largest mover of P(win) rather than the engine;
    and this model's average in-domain contribution to P(win) at the front of the field works out at
-   **~0.4 points against a 1-point market tick** (`09` §3). `09` §10's ablation baseline is designed
-   to measure that offline, before B1, which is `09` §13 item 3's recommended sequencing.
+   **~0.4 points against a 1-point market tick and a 0.5-point Monte Carlo standard error** — rising
+   to ~1.0 point above `09` §2.4's second gate θ_front and ~1.9 points on the strongest third
+   (`09` §3, all observed rates). `09` §10's ablation baseline is designed to measure that offline,
+   before B1, which is `09` §13 item 3's recommended sequencing.
 6. **`03` §4.3's interlock** — unchanged and still the owner's dated decision. Building this model
    does not trip it.
 7. **Gate 2 (B1) is still unrun** and still the owner's stated next step. Note that as written

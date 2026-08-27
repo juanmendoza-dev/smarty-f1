@@ -217,13 +217,39 @@ this layer cares about**, where the pooled in-domain figure passes at 1.71. The 
 *lowest* one, which is the same structural floor `08` §2.4 identified (overtakes with no tracked
 pursuit episode land in the bottom bins by construction) — but it fails there nonetheless.
 
-**Required consequence, stated as a rule this spec imposes on itself (§5.3):** `08`'s probability
-may be consumed at the front of the field only above the bin where it is calibrated. Concretely,
-the layer applies `08` only for pairs at `p_raw ≥ 0.0037` **and** — when the pursuer is inside the
-top six — only in the top two quintiles of the in-domain score distribution, where the measured
-ratios are 1.71 and 1.19. Below that, the front-of-field pair falls back to the background rate.
-This is the same shape of decision as `08` §11.1's domain gate, applied one level down, and it is
-made because the measurement forced it rather than because it is tidy.
+**Required consequence, and it was measured rather than asserted.** `08`'s probability may be
+consumed at the front of the field only above the level where it is calibrated, so a **second
+serve-time constant** is needed alongside θ. It is computed exactly the way `08` §11.1 computes θ
+and for exactly the same reason — from the **train+calibration** predictions only, never the test
+fold, because a live consumer sees one tick at a time and cannot take a percentile over a race in
+progress.
+
+**θ_front = the 60th percentile of the calibration folds' predictions, restricted to rows that are
+already in-domain and have the pursuer inside the top six.** Measured per fold across R5–R12:
+**mean 0.0105, range 0.0095–0.0116** — a much tighter range than θ's own 0.0023–0.0059, which is
+itself a small piece of evidence that the front-of-field score distribution is stable. The layer
+hard-codes **θ_front = 0.0105** and refits it whenever `08` is retrained.
+
+What it costs and what it buys, on the same held-out test folds:
+
+| | rows | overtakes | observed rate |
+|---|---|---|---|
+| Front-of-field, in-domain (`p_raw ≥ θ`, pursuer P2–P6) | 10,836 | 137 | 0.01264 |
+| **After `p_raw ≥ θ_front`** | **4,448 (41.0%)** | **106 (77.4%)** | **0.02383** |
+
+| Bin | predicted | observed | ratio |
+|---|---|---|---|
+| q1 | 0.01242 | 0.01012 | **1.23** |
+| q2 | 0.01942 | 0.01484 | **1.31** |
+| q3 | 0.05891 | 0.04650 | **1.27** |
+
+**Three of three bins within 2×, worst ratio 1.31 — a PASS of `08` §7's bar**, against the 2.33
+FAIL above it, at the cost of 22.6% of front-of-field overtakes and 59% of the rows. Three bins
+rather than ten because 106 positives will not support ten and pretending otherwise is how a
+calibration table becomes decoration.
+
+Pairs below θ_front fall back to the background rate. This is the same shape of decision as `08`
+§11.1's domain gate, applied one level down, and it was made because the measurement forced it.
 
 ### 2.5 Retirement hazard is mildly front-loaded, not constant
 
@@ -289,14 +315,21 @@ in the newest 10-second window: P(win) begins moving *before* the position chang
 reprices on. That is exactly the edge claim in `08` §1 ("we are ahead of it"), now stated as a
 mechanism rather than a hope.
 
-**What it does not buy, with the arithmetic done in advance.** For a pursuer in the P1–P3 band,
-in-domain, the measured 10-second pass rate is **0.95% on average and 4.7% in the top quintile**
-(§2.4). Multiplying by the P(win) difference between the two cars — call it 40 points for a
-front-running pair — gives an effect on P(win) of roughly **0.4 points on an average in-domain
-pursuit and ~2 points on a genuinely threatening one.** Kalshi's tick is 1 point. So the average
-case is *below* the tick and the strong case is worth about two of them. **The signal is real and
-it is small**, and §10's ablation baseline is designed to measure whether it survives Monte Carlo
-noise at all.
+**What it does not buy, with the arithmetic done in advance.** All three figures below are
+**observed** rates from §2.4's held-out folds, not predicted ones, and the band each comes from is
+named because they differ:
+
+| Front-of-field pursuit | observed 10 s pass rate | × 40-point P(win) gap ≈ effect |
+|---|---|---|
+| In-domain, pursuer P1–P3 (`p_raw ≥ θ`) | **0.95%** | **~0.4 pt** |
+| In-domain and above θ_front, pursuer P2–P6 | **2.38%** | **~1.0 pt** |
+| Strongest third of those | **4.65%** | **~1.9 pt** |
+
+Kalshi's tick is 1 point and §7.3's Monte Carlo standard error is 0.5 points at the spec'd `N`. So
+an *average* in-domain pursuit moves P(win) by less than one tick and barely more than the
+estimator's own noise; only the pairs that clear θ_front are worth a tick or more, and only the
+strongest third are worth about two. **The signal is real and it is small**, and §10's ablation
+baseline exists to measure whether it survives Monte Carlo noise at all.
 
 **The three things that actually move P(win), in order, per §2:** pit-cycle track position (§2.1's
 71%), retirement (§2.5), and laps simply running out (§2.2). `08` is fourth. A spec that presented
@@ -392,18 +425,21 @@ A pair `(pursuer, ahead)` gets its step-0 swap probability from `08` if **all** 
   `track_frac`);
 - `p_raw ≥ θ`, with **θ = 0.0037** hard-coded as a serve-time constant, per `08` §11.1. It is
   refit whenever `08` is retrained and is never a percentile computed over a race in progress;
-- **and, if `pursuer` is inside the top six, `p_raw` is also in the top two quintiles of the
-  in-domain score distribution** — the extra restriction §2.4 forces, because the lower in-domain
-  quintiles fail `08` §7's bar in that band (worst ratio 2.33).
+- **and, if `pursuer` is inside the top six, `p_raw ≥ θ_front`, with θ_front = 0.0105** hard-coded
+  as a second serve-time constant. §2.4 forces this: the lower in-domain range fails `08` §7's bar
+  in that band (worst ratio 2.33), and above θ_front it passes (worst 1.31). Like θ, θ_front is
+  computed by `overtake_fit.py` from train+calibration predictions only and refit whenever `08` is
+  retrained — **never a percentile taken over a race in progress**, which is the defect `08` §11.1
+  ruled out for θ and which applies here identically.
 
 The consumer may take `p_raw` directly or the damped-Platt map of it (`08` §11.1: worst in-domain
 ratio 1.71 → 1.28). **v1 takes `p_raw` directly** — it already passes pooled in-domain, the Platt
 gain is small, and one fewer fitted object between the model and the estimate is worth more than
 0.4 of a ratio point. The Platt map stays available behind a flag and §10 reports both.
 
-Every pair not meeting all four conditions runs on the background rate. That includes the great
-majority of pairs: §2.4 measured the gate admitting ~20% of rows overall and only 12.6% of
-front-of-field rows (3,358 of 26,636).
+Every pair not meeting all five conditions runs on the background rate. That includes the great
+majority of pairs: §2.4 measured θ admitting ~20% of rows overall and only 12.6% of front-of-field
+rows (3,358 of 26,636), and θ_front then keeps 41% of what survives at the front.
 
 ### 5.4 The background per-lap transition model
 
@@ -737,8 +773,15 @@ exercised offline rather than first meeting a degraded tick during a race.
 
 ### 9.2 Scoring: race-forward, at checkpoints, against the classified result
 
+- **The scoreable set is eight races, not twelve — R5 through R12.** `08`'s out-of-fold
+  predictions exist only there (its nested folds need two races to fit the calibrator and two more
+  before them to fit the logistic — `08` §11.1, and §2.4's table is over exactly those eight), and
+  §5.4/§5.5 fit the background rate and hazard race-forward on top of that. Rounds 1–4 are training
+  material and are never scored. **This is named here, before approval, rather than clarified once
+  numbers exist** — `05` §6.4.1's erratum documents what happens when a validation protocol gets
+  adjusted mid-run.
 - **Checkpoints**: one estimate per lap boundary per race, plus one at lights-out. ~62 per race,
-  ~745 across the corpus. Lap boundaries rather than fixed wall-clock intervals, so a 78-lap Monaco
+  ~500 across the eight scoreable races. Lap boundaries rather than fixed wall-clock intervals, so a 78-lap Monaco
   and a 44-lap Belgian GP contribute comparably.
 - **Outcome**: the driver classified first in `session.results`, from the archive.
 - **Metrics**, matching `05` §6.2 and `02` §7 so the numbers are comparable to everything else in
@@ -754,14 +797,14 @@ exercised offline rather than first meeting a degraded tick during a race.
 
 ### 9.3 The power problem, which is severe and must not be hidden
 
-**Twelve races means twelve winner events.** Scoring 745 checkpoints does not give 745
+**Eight scoreable races means eight winner events.** Scoring ~500 checkpoints does not give 500
 observations: within one race the checkpoints are massively autocorrelated, and a race in which the
 favourite led wire-to-wire contributes ~60 near-identical wins. This is the same trap `05` §6.4
 names ("one race, or one season, settles nothing") and §2.2's ladder already exhibits.
 
 Three requirements follow, all pre-registered:
 
-1. **Report per-race won/lost out of 12** alongside any pooled number, exactly as `05` §6.4.1's
+1. **Report per-race won/lost out of 8** alongside any pooled number, exactly as `05` §6.4.1's
    per-season breakdown does. A pooled improvement carried by one race is not a result.
 2. **Never quote a p-value or a confidence interval computed as if checkpoints were independent.**
    If an interval is wanted, block-bootstrap over whole races — 12 blocks — and report how wide it
@@ -802,7 +845,8 @@ is why `05` §6.4.1 is a usable negative result rather than a rationalization.
 **Success, defined in advance:**
 
 - The layer **succeeds** if it beats baseline 1 on pooled log-loss *and* beats baseline 2 on pooled
-  log-loss, *and* wins on the per-race breakdown in at least 8 of 12 races. Beating baseline 1 alone
+  log-loss, *and* wins on the per-race breakdown in at least **6 of the 8 scoreable races**
+  (§9.2). Beating baseline 1 alone
   is not success: baseline 1 ignores the race entirely and clearing it proves only that positions
   are informative.
 - **`08` earns its place in this layer** only if baseline 3's ablation is measurably worse than the
@@ -811,7 +855,7 @@ is why `05` §6.4.1 is a usable negative result rather than a rationalization.
   measurable to it at this corpus size** — which, given §2.1 (pit stops cause 71% of lead changes),
   §2.4 (32 in-domain front-of-field positives), and §3's ~0.4-point average effect, is a live
   possibility that must be nameable before the run rather than argued about after it.
-- **Reported regardless of outcome**: the realised `tradeable = False` fraction over the 12 races
+- **Reported regardless of outcome**: the realised `tradeable = False` fraction over the eight races
   (§5.7), and the fraction of checkpoints where the model-vs-market difference exceeds `se_mc`
   (§7.3). A layer that is silent or noise-limited through most of the race is a finding about the
   trading premise, not a bug.
@@ -846,8 +890,9 @@ a plausible wrong number is the failure mode this project has been bitten by.
    with its flag values fails.
 9. **The interlock import check (§8.2)** — a static test over the module graph.
 10. **Probabilities in [0,1]; `08` inputs in-domain only.** Any pair fed to step 0 with
-    `p_raw < 0.0037` is a bug, and at the front of the field the §2.4 quintile restriction applies
-    on top.
+    `p_raw < θ = 0.0037` is a bug, and any pair whose pursuer is inside the top six fed to step 0
+    with `p_raw < θ_front = 0.0105` is a bug (§2.4, §5.3). Both constants are read from `08`'s fit
+    output, not re-derived here, and both fail loudly if the fit no longer reports them.
 
 ---
 
@@ -947,6 +992,7 @@ already in the repo.
 | 2.2 | leader-conversion ladder | same laps + `session.results` | bucket each lap by laps remaining; leader vs. eventual winner |
 | 2.3 | per-lap adjacent swap rate | same laps | for each adjacent (P*k*, P*k+1*) at lap *L*, did the order invert by *L+1* |
 | 2.4 | in-domain counts by position band | `data/live/overtakes/training.csv` + `overtake_fit.py` | reruns `recalibration_pass`'s nested folds (R5–R12), buckets test rows by the `position` feature at θ = 0.0037 |
+| 2.4 | θ_front = 0.0105 (range 0.0095–0.0116) | same | 60th percentile of each **calibration** fold's predictions, restricted to in-domain rows with the pursuer in the top six — train+calib only, never the test fold |
 | 2.5 | retirement lap distribution | `session.results.Status` + last completed lap | `Status == "Retired"` only — **`"Lapped"` is a finish**, and treating it as a retirement inflates the count from 4.2/race to 6.6/race, which was caught by checking against `04` §5.1's measured 12.5% 2025 DNF rate |
 | 2.6 | pit-cycle lap fraction | `session.laps.PitInTime` | laps on which ≥1 car pitted, over total race laps |
 

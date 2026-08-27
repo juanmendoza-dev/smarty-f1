@@ -61,7 +61,7 @@ The project is split into independent tracks. Don't conflate them — most confu
   was written and two of them reshape the lane: **pit stops cause 71% of lead changes** (`09` §2.1),
   so `08` is the fourth-biggest mover of P(win) rather than the engine; and **`08`'s calibrated
   domain is thinnest exactly at the front of the field** (`09` §2.4), which qualifies `08` §11.1's
-  headline. §3 states plainly what the overtake model is worth here in market ticks, and §10
+  headline and needs a second gate, θ_front, to recover a calibration PASS there. §3 states plainly what the overtake model is worth here in market ticks, and §10
   pre-registers the ablation that measures it — offline, before B1
 - `docs/07-lane-c-trading-feasibility.md` — Lane C (trading bot) feasibility research (2026-08-26). **Not a build spec** — it finds the blocker is the *edge*, not the APIs (no measured edge in any market yet), and lays out a zero-budget path: build an edge-measurement + paper-trading harness first. §11 adds a live market-structure + book-depth survey across both venues. See also the roadmap's Lane C phases
 - `docs/10-live-viewer.md` — the local live viewer / debug UI for Lane B's captures (**specced
