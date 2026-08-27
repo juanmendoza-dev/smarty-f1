@@ -307,6 +307,23 @@ measurement needs a working client to measure against. **The prediction layer on
 overtake model, trigger conditions, scoring — is not authorized until B1 returns a workable gap.**
 "Workable" is the owner's threshold to set, but the spec's own bar is: seconds, not minutes.
 
+> **Amended 2026-08-26 by owner decision.** The gate above is narrowed, not reinterpreted. The
+> owner has decided to build the overtake model, and has given the rationale that resolves Lane B's
+> long-standing trading-vs-learning fork: the overtake model is an **intermediate signal feeding a
+> live win-probability model**, which trades the race-winner market that `07` §10.3 measured as
+> liquid throughout a race. The amended gate:
+>
+> - **Authorized now:** building and validating the overtake model **offline, against archived
+>   races** (`08-overtake-model.md`). This needs no live connection, so B1's delay measurement
+>   cannot bear on whether the model is correct.
+> - **Still gated on B1:** running that model against a *live* feed, and any trading on its output.
+>   B1's original reasoning is untouched here — if the delay is minutes, live corner-level
+>   prediction against a live market is still dead.
+> - **Still gated on §4.3:** the interlock. Building the model does not trip it; wiring it to an
+>   order interface does. That remains a separate dated decision.
+>
+> The bar for the live half stays: seconds, not minutes.
+
 Building the client first is the cheapest ordering, not a way around the gate. §13's acceptance
 run and B1's measurement are close to the same exercise.
 
