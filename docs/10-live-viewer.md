@@ -37,7 +37,7 @@ It is not a product, not a dashboard for anyone else, and not part of the predic
 reads files and draws pixels.
 
 **What it is explicitly not, restated because Lane B's history is that scope creeps through
-plausible next steps:** not a live-prediction display (`03` §4.4 — see §15), not a broadcast
+plausible next steps:** not a live-prediction display (`03` §4.4 — see §14), not a broadcast
 companion, not a hosted anything (`03` §4.2 item 2 / §11.3), and not a second consumer of the feed
 (it never connects; see §3).
 
@@ -96,7 +96,7 @@ appending to them right now.
 **Zero budget** (`welcome.md`). Reuse `.venv312`. §4 picks a stack that adds no dependency at all.
 
 **Redistribution.** `03` §11.2 — no capture, no tick file, and no per-tick or per-car derived series
-is ever committed. §14 works out what that means for screenshots, which is not obvious and is the
+is ever committed. §13 works out what that means for screenshots, which is not obvious and is the
 one genuinely new question this document raises.
 
 ---
@@ -510,7 +510,7 @@ positions establishes nothing about the live wire.
 **The check that settles it:** take the X/Y range and shape from `03` §13's *live acceptance capture*
 and compare it against the archive envelope for the same circuit. Same frame, same scale, or not.
 Until that comparison exists, §10.1 is the only outline drawn — and if the frames turn out to differ,
-that is a finding worth recording in `03` §13, not a transform to quietly apply. Filed as §17 item 1.
+that is a finding worth recording in `03` §13, not a transform to quietly apply. Filed as §16 item 1.
 
 ---
 
@@ -539,7 +539,10 @@ ones that exist are the ones that would let it show something untrue.
 1. The viewer opens **no network connection of any kind**. Structurally: no import of
    `lib/signalr.py`, and no import of `lib/livetiming_client.py`'s live path. (`03` §4.2, §11.3.)
 2. The viewer **binds no socket or port**, on localhost or anywhere else. (`03` §11.3.)
-3. The viewer **writes nothing under `data/live/`** and opens every file read-only. (§3.)
+3. The viewer **never writes to, moves, truncates, or rotates any file the capture owns** — anything
+   under `data/live/raw/`, `data/live/ticks/`, or `data/live/logs/` — and opens all of them
+   read-only. Any file the viewer itself ever produces (§13) goes under `data/live/viewer/`, which
+   is covered by the same `.gitignore:16` line and is not a path the client touches. (§3.)
 4. **No displayed value is interpolated, extrapolated, smoothed, or forward-filled** from another
    tick. Structurally, as in `lib/livetiming_tick.py`: there is no such code path. (`03` §9.4,
    `03` §12 assertion 7, §5.2.)
@@ -584,7 +587,8 @@ The consequence, which follows from rules already in force rather than from a ne
   README, or any writeup, until `03` §16 item 4 is decided.** Not as an illustration, not in a
   docs folder, not in a commit message.
 - **The viewer writes no files by default.** If a screenshot/export feature is ever added, it writes
-  under `data/live/` (already gitignored, `.gitignore:16`) and nowhere else — §12 assertion 11.
+  under `data/live/viewer/` and nowhere else — already gitignored by `.gitignore:16`, and a path
+  the capture client does not own, so §12 assertion 3 is satisfied as well as §12 assertion 11.
 - What *may* be committed from this lane is unchanged (`03` §11.2): code, specs, and fitted model
   artifacts. This document is one of those.
 
