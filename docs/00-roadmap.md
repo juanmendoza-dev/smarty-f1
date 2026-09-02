@@ -298,10 +298,10 @@ Status: not started.
   way — see the Phase A3 entry for the result.
 - **New 2026-08-24:** multi-model weather ensemble spec drafted, then revised and verified against
   44 races the same day (`06-weather-ensemble-signal.md`) — queries Open-Meteo with an explicit
-  `models=` list (ECMWF IFS, GFS, ICON, GEM) instead of the provider's blended default. **Not
-  approved, not implemented.** No self-hosted ML weather model (GraphCast/Pangu-Weather rejected as
-  out of scope/zero-budget-incompatible); Open-Meteo's real 50-member ensemble API considered and
-  deferred, since its ~93-day past window can't be backtested (`06` §8).
+  `models=` list (ECMWF IFS, GFS, ICON, GEM) instead of the provider's blended default. **§6.1/§6.2
+  decided 2026-09-01, not yet implemented.** No self-hosted ML weather model (GraphCast/Pangu-Weather
+  rejected as out of scope/zero-budget-incompatible); Open-Meteo's real 50-member ensemble API
+  considered and deferred, since its ~93-day past window can't be backtested (`06` §8).
   - The draft's motivation — Zandvoort's market under-pricing rain risk — is **withdrawn**. It
     asserted the race was wet; the roadmap's own open items and `02` §10.4 both say it was dry, it
     ran full distance, and the observation archive shows 0.0–0.1mm. Neither venue exposes
@@ -310,11 +310,17 @@ Status: not started.
     concentrate in the 43% of races where the four models disagreed by ≥15pp — **5 of 6 under the
     wet rule in force, 9 of 9 under a ≥0.5mm rule.** The value of querying several models is the
     disagreement, not the average. Reproduce with `weather_backtest.py`.
-  - The agreement threshold (15pp) and race window (`snapshot.py:320`, lights-out local ±2h) are
-    both settled. **One blocking item is left, and it's the owner's:** `snapshot.py:288` calls a
-    0.1mm trace a wet race, and which aggregate feeds F7's gate flips on that definition —
-    `p_max` if `>0.0mm` stays, `p_mean` if it tightens to `≥0.5mm`. `06` §6.1 recommends
-    tightening and deliberately does not act on it.
+  - **The wet-race definition is decided (2026-09-01): `≥0.5mm`**, up from `snapshot.py:288`'s
+    `>0.0mm`. Paired with `p_mean` as F7's gate input, per `06` §6.2's requirement that the two move
+    together. Not yet wired into `snapshot.py` — the decision is locked, the code isn't written.
+  - **Four other candidate variables were spiked the same day and all came back null** on the full
+    264-race corpus, tested against the algo's own Brier score, not a proxy: wind (speed/gusts),
+    temperature, humidity, and generalizing `p_spread`'s disagreement-marks-unreliability finding
+    beyond rain. None cleared the bar `02`'s weight budget would need them to clear — see `06` §12
+    for the full numbers. Reproduce with `wind_spike.py` and `temp_humidity_spike.py`. A
+    corner-level directional wind model (FastF1-telemetry-derived heading × wind vector
+    decomposition) was scoped as the natural follow-on if wind had shown a real-world effect; it
+    didn't, so that design stays shelved without different evidence.
 - Track overtaking multipliers (`02` §5.1) are hand-set judgements, not measurements. A3 **drops `m` entirely in v1** and tests the claim instead of assuming it: a fitted `s_grid` × circuit-tier interaction on `02`'s existing three tiers costs two parameters, not 33 (a per-circuit term would fit noise at ~8 races per circuit). Ordered as predicted → replace the hand-set numbers with the fitted ones; flat or inverted → drop the multiplier. Either result closes this (`05` §3.5)
 - ~~`T=0.1168` needs recalibrating against outcomes in A3~~ **Resolved 2026-08-23: `T` dissolves.** It existed only because `02` constrains the weights to sum to 1.0, which fixes their ratios but discards their scale — `T` put the scale back. A fitted `β` carries both, so there is no `T` left to recalibrate and no separate calibration step (`05` §3.1). The observation this entry recorded stands and is still the reason A1 alone runs flat: averaging eight partly-disagreeing features compresses top-of-field gaps (0.0774 synthetic vs. 0.0032 real P1−P2, `02` §10.2), which is precisely the compression a fit absorbs into coefficient scale
 - The 0.42 pole-conversion anchor (`02` §10.3) is a rounded historical figure — **no longer needs recomputing**, A3 doesn't use it at all (`05` §3.1)

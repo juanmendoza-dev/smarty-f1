@@ -1,15 +1,13 @@
 # 06 — Multi-Model Weather Ensemble Signal
 
-Status: **drafted 2026-08-23; revised and verified live 2026-08-24; not approved, not
-implemented.** Still a spec only — no code gets written against it until the owner locks it in,
-per `welcome.md`'s "no implementation without an approved spec" rule. Read `welcome.md` and
+Status: **drafted 2026-08-23; revised and verified live 2026-08-24; §6.1/§6.2 decided
+2026-09-01; not yet implemented.** No code gets written against it until this document is fully
+locked, per `welcome.md`'s "no implementation without an approved spec" rule. Read `welcome.md` and
 `01-data-pipeline.md` §5 first.
 
-**Blocked on one decision that is not this document's to make:** the wet-race definition
-(§6.1). `snapshot.py:288` counts a 0.1 mm trace as a wet race, and that rule turns out to gate the
-whole document — not just §6.2's choice of aggregate, which flips on it, but the strength of §5.3's
-central result too. Everything here is verified; what it recommends is conditional on that one
-call.
+**§6.1 decided 2026-09-01: wet is `≥ 0.5 mm`, tightened from `snapshot.py:288`'s `> 0.0 mm`.** This
+unblocks §6.2: the gate input is **`p_mean`**. Both changes move together, as §6.2 already required.
+See §12 for what else was tried and ruled out the same day.
 
 The first draft's factual errors are corrected in place rather than quietly deleted, since the
 project's specs are also its decision record: §1 (the Zandvoort premise was invented), §2 (the
@@ -342,32 +340,27 @@ That is the honest ceiling on §5.2's gains: **a better point estimate buys one 
 
 Three, in dependency order. The first is not this document's to make.
 
-### 6.1 The wet definition is the blocking question — owner's call
+### 6.1 The wet definition — decided 2026-09-01: `≥ 0.5 mm`
 
-`snapshot.py:288` calls a race wet at `max mm > 0.0`, and `02` §4's F7 builds each driver's
-wet-weather rating from races meeting that rule. A 0.1 mm trace therefore counts as a wet race,
-both for the historical feature and, by §5.2, for anything we tune a gate against.
+`snapshot.py:288` called a race wet at `max mm > 0.0`, and `02` §4's F7 builds each driver's
+wet-weather rating from races meeting that rule. A 0.1 mm trace therefore counted as a wet race,
+both for the historical feature and, by §5.2, for anything a gate is tuned against.
 
-**This spec does not change it.** That rule lives in `01`, `02` and `snapshot.py`; changing it
-would silently redefine F7's active-branch feature for every driver, and `welcome.md` is explicit
-that undocumented decisions get asked about rather than assumed. What §5.2 establishes is that the
-rule is now load-bearing in a way it wasn't when it was written, and that it has to be settled
-before the rest of this spec can be locked.
+**Decided: tighten to `≥ 0.5 mm`.** A trace that leaves the track dry is not the phenomenon F7
+exists to model, and §5.4 shows the races that actually matter clear 0.5 mm by a wide margin. This
+changes `snapshot.py:288`'s rule and, by §7.1, F7's wet-branch activation rate — implementation is
+the next step, not yet done.
 
-The recommendation, offered for that decision and not acted on here: **tighten to ≥ 0.5 mm.**
-A trace that leaves the track dry is not the phenomenon F7 exists to model, and §5.4 shows the
-races that actually matter clear 0.5 mm by a wide margin.
+### 6.2 Gate input — decided: `p_mean`
 
-### 6.2 Gate input — conditional on §6.1
-
-| if the wet rule is… | then F7's gate reads… | because |
+| the wet rule is… | so F7's gate reads… | because |
 |---|---|---|
-| `> 0.0 mm` (today) | **`p_max`** | 82% vs 65% recall against today's blended call; `p_mean` at 59% would be a regression on what already runs |
-| `≥ 0.5 mm` (recommended) | **`p_mean`** | 75%/60% recall/precision, beating today's 62%/45%; `p_max` collapses to 38% precision |
+| `≥ 0.5 mm` (decided) | **`p_mean`** | 75%/60% recall/precision, beating today's 62%/45%; `p_max` would collapse to 38% precision |
 
-**These have to move together.** Adopting `p_mean` while the code still calls 0.1 mm wet ships a
-gate tuned for material rain against a history feature built on traces — the same "different
-quantities wearing the same name" failure `01` §5.6 spends a page rejecting for the backfill.
+**These move together, as required.** Adopting `p_mean` while the code still called 0.1 mm wet
+would have shipped a gate tuned for material rain against a history feature built on traces — the
+same "different quantities wearing the same name" failure `01` §5.6 spends a page rejecting for the
+backfill. Both changed in the same decision.
 
 `p_max`, `p_mean` and `p_spread` are all persisted either way (§4.4); this decides only which one
 is compared against 40.
@@ -503,13 +496,15 @@ Resolved since the first draft, kept visible so the trail is readable:
   pre-2024 null gap, and a 44-race backtest are all verified (§3.1, §5). Reproduce with
   `weather_backtest.py`.
 
+Resolved 2026-09-01:
+
+- ~~**The wet-race definition — blocking, owner's call (§6.1).**~~ Decided: `≥ 0.5 mm`, paired with
+  `p_mean` as the gate input (§6.2). See §12 for the additional variables tested and ruled out the
+  same day.
+
 Still open:
 
-1. **The wet-race definition — blocking, owner's call (§6.1).** `> 0.0 mm` counts a 0.1 mm trace
-   as a wet race. Recommend tightening to `≥ 0.5 mm`. **§6.2's gate choice cannot be locked until
-   this is settled**, because the two answers point at different aggregates. This is the one item
-   holding up the whole document.
-2. **Rate-limit weighting (§3.3).** Whether four models counts as one weighted call or twenty
+1. **Rate-limit weighting (§3.3).** Whether four models counts as one weighted call or twenty
    against the 10,000/day free allowance is unverified — no quota headers are returned. Immaterial
    for Lane A's one call per race; worth knowing before an A3 backfill.
 3. **`p_spread`'s downstream consumer (§7.3).** The proposed minimum is a snapshot flag plus a
@@ -532,3 +527,64 @@ Still open:
 - [GraphCast (Google DeepMind, GitHub)](https://github.com/google-deepmind/graphcast)
 - [Pangu-Weather (Huawei, GitHub)](https://github.com/198808xc/Pangu-Weather)
 - `weather_backtest.py` (this repo) — reproduces every figure in §5
+- `wind_spike.py`, `temp_humidity_spike.py` (this repo) — reproduce every figure in §12
+
+## 12. Other variables tested and ruled out (2026-09-01)
+
+Before adding any variable beyond rain to this spec, each was spiked against the same bar the rest
+of this project holds itself to: does it move something real in the 264-race corpus
+(`data/training/winner.csv`), not just plausible in principle. All four came back null. Recorded
+here rather than left unwritten, same reasoning as the corrected first draft in §§1–4 — a tested
+and rejected idea is worth more to the next reader than a silently dropped one.
+
+### 12.1 Wind — speed and gusts, full corpus
+
+Hypothesis: wind gusts unsettle the car, so windy races should show more DNFs and more grid-to-
+finish churn than calm ones. `wind_speed_10m`/`wind_gusts_10m` are on the same free archive
+endpoint already in use, confirmed live back to 2014 — no coverage gap like the four-model
+ensemble's 2024-05 start.
+
+Result: no signal. Spearman correlation of max gust against DNF rate is **+0.012**, against churn
+**+0.079** — both indistinguishable from noise (n=264, 0 skipped). The calmest and windiest
+quartiles (3–27 km/h vs. 41–73 km/h gusts) have near-identical DNF rate (0.169 vs. 0.168) and
+literally identical favorite-win-rate (0.545 vs. 0.545). Even the single windiest race on record
+(Baku 2018, 73 km/h gusts, 0.35 DNF rate) is better explained by Baku being a wall-lined street
+circuit than by the wind. **Not pursued.** A corner-level directional model (wind vector decomposed
+against per-corner heading, itself derivable from FastF1 position telemetry) was scoped in
+conversation as the natural next step if this had hit — it did not, so that design is shelved
+without a different kind of evidence.
+
+### 12.2 Temperature — race-window max, full corpus
+
+Hypothesis: heat drives tire degradation, so hot races should show more DNFs, more churn, and a
+worse algo Brier score than cool ones — a stronger mechanism prior than wind, since tire
+degradation is a well-established real effect in F1. `temperature_2m` is already a Tier-1 field
+(`01` §5.2), confirmed on the archive endpoint back to 2014.
+
+Result: no signal, and what little movement exists points the wrong way. Max temperature vs. DNF
+rate: **−0.042**. Vs. the algo's own Brier score (`p_a1` against `label`, a sharper test than a
+proxy — it asks directly whether A1 is more often wrong under these conditions): **+0.012**. Coldest
+quartile (8.7–20.0°C) mean Brier **0.602**; hottest quartile (27.6–34.8°C) mean Brier **0.624** —
+hot races are *very slightly worse* predicted, the opposite of a real degradation signal, and the
+gap is well within noise anyway. **Not pursued.**
+
+### 12.3 Humidity — race-window max, full corpus
+
+Weaker mechanism prior than temperature (engine cooling, minor tire effect), tested cheaply
+alongside it on the same pulled field. Max humidity vs. DNF rate **−0.007**, vs. Brier **−0.064**,
+vs. churn **+0.092** — all noise. **Not pursued**, as expected going in.
+
+### 12.4 Cross-model disagreement, generalized beyond rain
+
+§5.3's real finding was not "the average forecast is better," it was "model disagreement marks
+where our own forecast is unreliable" — `p_spread ≥ 15pp` catches 9 of 9 of the blended gate's
+errors under the `≥0.5mm` rule. Hypothesis: the same mechanism should generalize to temperature and
+humidity, flagging races where the algo's Brier error is worse.
+
+Bounded to the ~2024-05+ window the four-model historical-forecast endpoint covers (§3.3), same
+constraint as the rest of this document — n=60, not 264. Result: no signal. Temperature-spread vs.
+Brier: **−0.032**; humidity-spread vs. Brier: **−0.051**. Splitting races at the median spread finds
+essentially the same mean Brier in the agreeing and disagreeing buckets (0.612 vs. 0.598). Whatever
+makes rain-forecast disagreement predictive of unreliability (§5.3) does not carry over to
+temperature or humidity in this corpus. **Not pursued** — §7.3's `p_spread` reliability flag stays
+scoped to precipitation only.
