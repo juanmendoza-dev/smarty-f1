@@ -582,7 +582,7 @@ Per race, then averaged, with the per-season breakdown kept:
   `02` §7 already uses, so A1 and A3 numbers are directly comparable and comparable to the market
   numbers already persisted for the Dutch GP.
 - **Log-loss** of the winner's assigned probability. More sensitive than Brier to confident misses,
-  which is the failure mode that matters for a predictor a trading layer might later consume.
+  which is the failure mode that matters most for a calibration comparison against the market.
 - **Top-1 accuracy** — reported, but not optimized for and not used to choose between models. It
   is nearly uninformative at this sample size and it ignores calibration entirely, which is the
   thing the project actually cares about.

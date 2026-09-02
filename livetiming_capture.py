@@ -7,9 +7,9 @@ feed into immutable per-car ticks (sec7), and writes raw frames + parsed ticks
 + a run log under data/live/ (gitignored, sec11.2).
 
 Read 03 sec4-5 before running this: the authorized scope is personal
-research/development only -- no hosted deployment, no Lane C hookup, no running
-outside a live session window (sec6.5.2). A 401/403/429 is a Stop: the client
-exits and does not retry (sec9.3). No evasion, ever (sec5).
+research/development only -- no hosted deployment, no running outside a live
+session window (sec6.5.2). A 401/403/429 is a Stop: the client exits and does
+not retry (sec9.3). No evasion, ever (sec5).
 
   # environment: use the 3.12 venv -- requests + websockets live there
   .venv312/bin/python livetiming_capture.py --session-start 2026-09-04T11:30:00Z

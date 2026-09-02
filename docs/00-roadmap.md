@@ -2,12 +2,6 @@
 
 Read `docs/welcome.md` first if you haven't. This doc tracks phases, status, and what's locked vs. still open. Keep it up to date as decisions get made — this is the single source of truth for "where are we."
 
-## Ultimate goal (updated 2026-08-23)
-
-The project's endpoint is no longer just "predict and compare against the market." It's an **automated trading bot** that trades YES/NO shares on Polymarket + Kalshi F1 markets — race winner, podium/placement, and (once live data supports it) in-race overtake markets — using this project's own prediction pipeline as its edge. The thesis: fast-moving, high-information moments (a driver closing on a braking zone, a grid or weather change) can outpace how quickly retail-priced prediction markets reprice, and Lane A/B's output is what would drive the trade decision.
-
-Lanes A and B remain the prediction engine, unchanged in scope. **Lane C** (new, below) is the trading layer built on top of them — it does not get built until its own blocking questions are resolved and, per the zero-budget hard constraint in `welcome.md`, any paid dependency it needs is explicitly approved first. This is a goal/roadmap-level change, not a build authorization — no Lane C code until it has its own approved spec, same as any other phase.
-
 ## Structure: Lane A vs Lane B
 
 | | Lane A — Batch predictions | Lane B — Live predictions |
@@ -16,8 +10,6 @@ Lanes A and B remain the prediction engine, unchanged in scope. **Lane C** (new,
 | **Data pattern** | Pull once before a session, compute, done | Continuous stream during a session, react in real time |
 | **Complexity driver** | Feature quality, market comparison | Latency, broadcast delay-sync, event detection |
 | **Status** | Active — current focus (Phase A3) | Source decided and specced (`03`); client build authorized, model layer gated on B1 |
-
-Lane C (trading, see below) sits downstream of both: it can trade Lane A's settled-market predictions (winner, podium) without waiting on Lane B, but in-race overtake markets need Lane B's live feed to exist first. **Corrected 2026-08-26 (`07` §10):** the second clause assumed a market that does not exist. Measured across both venues, open and closed, there is **no overtake market on Polymarket or Kalshi** — so no feed makes it tradeable. What the same measurement did find is that Kalshi's *race winner* market trades heavily while the race runs (48.5% of its lifetime volume inside the two-hour window, a trade in all 120 race minutes), which is a live-feed trading case aimed at a different market and a different model. It's tracked as its own lane rather than a sub-phase of either.
 
 ## Lane A phases
 
@@ -138,7 +130,7 @@ same capture (`03` §13).
 
 The data-source question that blocked this phase is closed: Lane B connects **directly to F1's own live timing feed** over the unauthenticated SignalR Core endpoint at `livetiming.formula1.com/signalrcore` — `03` §2.4's fourth row, chosen with the ToS and IP-blocking findings in `03` §2.3 in full view and knowingly accepted (`03` §5). Not FastF1's live module, which can't parse live at any budget; not OpenF1, whose free tier has no live access at all and whose paid tier costs money that hasn't been approved.
 
-`03` §4.2 draws the scope tightly and the tightness is part of the decision: personal research and development only — capture, parse, shadow-mode predictions logged locally and read by nobody else. No hosted or public deployment (the one documented F1 enforcement action was against a *hosted* instance), no redistribution, and a hard interlock against Lane C consuming any of it (`03` §4.3). `03` §9 specs graceful backoff and a hard stop on any 401/403/429, explicitly not aggressive retry; `03` §10 specs fail-loud on schema drift via `lib/invariants.require`, the same convention `fit.py`/`backfill.py` use; `03` §11 keeps every capture local and gitignored.
+`03` §4.2 draws the scope tightly and the tightness is part of the decision: personal research and development only — capture, parse, shadow-mode predictions logged locally and read by nobody else. No hosted or public deployment (the one documented F1 enforcement action was against a *hosted* instance), no redistribution. `03` §9 specs graceful backoff and a hard stop on any 401/403/429, explicitly not aggressive retry; `03` §10 specs fail-loud on schema drift via `lib/invariants.require`, the same convention `fit.py`/`backfill.py` use; `03` §11 keeps every capture local and gitignored.
 
 **Gate:** the client is built; B1's delay measurement runs off it at the next live session. The
 overtake model on top of them may not run live until B1 comes back with a workable gap (`03` §4.4)
@@ -149,14 +141,22 @@ Two things `03` turned up while being written into a spec, neither of them in th
 - **The feed moved endpoints, and is still unauthenticated.** F1 introduced `/signalrcore` in May 2025 and retired the legacy `/signalr` around June 2026 (it returns 401 now). The new one is a different wire protocol — SignalR Core, `\x1e`-framed — but needs **no account, no F1TV subscription, no token**: measured token-less vs. garbage-token during Zandvoort FP1 with byte-identical results, and corroborated against `slowlydev/f1-dash`, a 1,907-star public dashboard with no login whose client contains no auth code at all (`03` §6.4). Zero-budget survives intact and the risk acceptance in `03` §5 is unaffected — it was always a decision to connect anonymously. **This was initially specced against the dead legacy endpoint and corrected the same day**; see `03`'s correction banner for what the bad inference was.
 - **DRS doesn't exist in 2026, and nothing replaced it in the feed.** The FIA replaced DRS with active aero. Channel 45 used to carry DRS state; **measured against the full 2026 Dutch GP from the archive, it is constant zero — 944,196 samples, 22 drivers, no other value** (`03` §7.3). So there is no DRS analogue available to an overtake model this season, not merely an unknown encoding. B0 carries the field opaque as a drift tripwire. The old description line on this phase said "brake/throttle/DRS" and was wrong.
 
-**Gate 4 (tradeable in-race markets) — run 2026-08-26, result split.** See `07` §10. No overtake market exists on Polymarket or Kalshi (387 F1 events incl. 333 closed swept on Polymarket; all 13,545 Kalshi series enumerated), so Lane B's corner-level trading rationale has no market. But Kalshi's F1 books stay open through the race and its winner market traded 826,229 of its 1,703,263 lifetime contracts inside the 2h race window. Gate 4 therefore kills the *overtake* trading case and strengthens a *winner* trading case. It does not decide Lane B's fate, and the trading-vs-learning fork behind Lane B remains unpicked — `07` §10.5/§10.6.
+**Gate 4 — market survey, run 2026-08-26.** No overtake market exists on Polymarket or Kalshi
+(387 F1 events incl. 333 closed swept on Polymarket; all 13,545 Kalshi series enumerated). Kalshi's
+F1 books stay open through the race and its winner market traded 826,229 of its 1,703,263 lifetime
+contracts inside the 2h race window — corner-level overtakes settle far more precisely than any
+market resolves on, so a live win-probability model built on them is the more meaningful live
+output regardless.
 
 **Phase B1 — Delay/sync investigation**
 Determine the real gap between live data feed timing and broadcast timing for the owner's actual watching setup (Apple TV app, either on Mac directly or the physical Apple TV box). Approach: auto-record the broadcast + auto-log the data feed in parallel, compare after the fact — not manual real-time comparison.
-Status: **unblocked, and now has a client to run against as of 2026-08-27.** B0's source is decided and the capture client is built; B1 is the gate on everything above it. `03` §4.4 makes the overtake model conditional on this measurement rather than merely informed by it, and `03` §13's first-connection acceptance run is designed so the same capture serves both. **Runs at the next live session (Monza FP1, ~2026-09-04)** — it cannot run today because there is no track running until then. `03` §3 found that one existing hobbyist project solves broadcast sync manually — the viewer sets a delay buffer (up to three minutes) from their own experience, not from measurement — which isn't rigorous enough to reuse but is a useful sanity check that real delay can run into the low minutes on some setups. The check itself, unchanged now that the source is settled: a single manual side-by-side observation (start a live source and the Apple TV broadcast together, compare one clearly-timestamped event like lights-out) to see whether the gap is roughly seconds or roughly minutes. A multi-minute gap would close B0 outright, independent of which data source gets chosen, since Lane B's whole premise needs the gap to be workable for a real-time trade. Not run yet.
+Status: **unblocked, and now has a client to run against as of 2026-08-27.** B0's source is decided and the capture client is built; B1 is the gate on everything above it. `03` §4.4 makes the overtake model conditional on this measurement rather than merely informed by it, and `03` §13's first-connection acceptance run is designed so the same capture serves both. **Runs at the next live session (Monza FP1, ~2026-09-04)** — it cannot run today because there is no track running until then. `03` §3 found that one existing hobbyist project solves broadcast sync manually — the viewer sets a delay buffer (up to three minutes) from their own experience, not from measurement — which isn't rigorous enough to reuse but is a useful sanity check that real delay can run into the low minutes on some setups. The check itself, unchanged now that the source is settled: a single manual side-by-side observation (start a live source and the Apple TV broadcast together, compare one clearly-timestamped event like lights-out) to see whether the gap is roughly seconds or roughly minutes. A multi-minute gap would close B0 outright, independent of which data source gets chosen, since Lane B's whole premise needs the gap to be workable for a real-time prediction. Not run yet.
 
 **Phase B2 — Overtake model (new 2026-08-26)**
-Specced in `08-overtake-model.md`. The owner decided to build it and gave the rationale that closes Lane B's trading-vs-learning fork: the overtake model is an **intermediate signal feeding a live win-probability model**, which trades the race-winner market `07` §10.3 measured as liquid throughout a race (48.5% of lifetime volume in-race, a trade in all 120 race minutes). `03` §4.4's gate is amended accordingly — the **offline** model is authorized; running it live and trading on it stay gated on B1 and on `03` §4.3's interlock.
+Specced in `08-overtake-model.md`. The owner decided to build it: the overtake model is an
+**intermediate signal feeding a live win-probability model**, a standalone live-prediction
+feature. `03` §4.4's gate is amended accordingly — the **offline** model is authorized; running it
+live stays gated on B1.
 Status: **built and validated 2026-08-26; calibrated within its domain 2026-08-27** (`lib/overtakes.py`,
 `lib/overtake_features.py`, `overtake_build.py`, `overtake_fit.py`, `test_overtakes.py`). On 12
 races / 428,511 rows / 432 on-track overtakes the fitted model reaches **AUC 0.906** race-forward
@@ -166,8 +166,8 @@ out-of-fold. It **fails `08` §7's calibration bar across its whole range** (str
 `p_raw ≥ 0.0037` (top ~20% of pairs by score, holding **89% of overtakes**) the raw model clears
 the bar outright — 10/10 calibration bins within 2× (`08` §11.1); a light damped-Platt map tightens
 the worst-bin ratio 1.71 → 1.28 on top. So it is a usable in-domain probability the win-probability
-layer can multiply, not just a ranker. Offline only — running it live and trading
-on it remain gated on B1 and on `03` §4.3's interlock. **The win-probability layer this model was
+layer can multiply, not just a ranker. Offline only — running it live remains gated on B1.
+**The win-probability layer this model was
 built to feed is now specced — `09-live-win-probability.md`, 2026-08-27, not approved (Phase B4
 below).** `08` §13 is the cold-start handoff.
 Earlier status, for the record: **specced, not approved, not built.** Three things were measured before the spec was written: ≈38 on-track overtakes per race (115 across three 2026 races, so ≈450 labels a season); **one lead change across those three races**, which is why the model trains on all overtakes and lets the win-probability layer decide what matters; and a `Position`-stream label resolution of ~3.3s, which is why v1 is specced at a 10-second horizon and the owner's 5-second target is an open item rather than an assumption.
@@ -190,13 +190,13 @@ screenshot of a real capture is per-car live timing data in image form, so `03` 
 nothing from this tool gets published while `03` §16 item 4 is open.
 
 **Phase B4 — Live win probability (new 2026-08-27)**
-Specced in `09-live-win-probability.md`. The consumer `08` was built to feed and the piece that closes the trading chain in `08` §1: a state estimator that carries Lane A's pre-race distribution forward through a race by Monte Carlo forward simulation, using `03` §7's tick stream and `08`'s calibrated in-domain overtake probabilities. It trains no new predictive model.
+Specced in `09-live-win-probability.md`. The consumer `08` was built to feed, per `08` §1: a state estimator that carries Lane A's pre-race distribution forward through a race by Monte Carlo forward simulation, using `03` §7's tick stream and `08`'s calibrated in-domain overtake probabilities. It trains no new predictive model.
 Status: **specced 2026-08-27, not approved, not built.** Six measurements were run against the 12-race archive before the spec was written, and two of them reshape the lane:
 - **Pit stops cause 71% of lead changes** (34 of 48 changes of the car in P1 across 12 races), the leader's retirement 2%, and on-track passes at most 27% — so `08` is the *fourth* biggest mover of P(win), behind pit-cycle track position, retirement, and laps simply running out (`09` §2.1). This is consistent with `08` §2.1's one on-track lead change in three races rather than a contradiction of it: the two count different things and bound the same quantity.
 - **`08`'s calibrated domain is thinnest exactly at the front of the field** — 32 in-domain overtakes at P1–P3 across eight test races, 68% coverage against 88–95% elsewhere, and a worst calibration ratio of 2.33 in the P2–P6 band against the pooled 1.71 (`09` §2.4). The fix is a second serve-time constant measured the same way θ was: **θ_front = 0.0105**, which takes that band to 3/3 bins within 2× (worst 1.31) while keeping 77% of its overtakes. `08` §11.1 is qualified accordingly.
 
 `09` §3 works the arithmetic through: `08`'s average contribution to P(win) at the front of the field is **~0.4 points against Kalshi's 1-point tick and a 0.5-point Monte Carlo standard error** — rising to ~1.0 point above θ_front and ~1.9 points on the strongest third of those pursuits (all observed rates, `09` §3). `09` §10 pre-registers an ablation baseline that measures this **offline, before B1** — `09` §13 item 3's recommended sequencing, because if the ablation comes back at zero then B1's result stops mattering for this chain.
-**Gate:** the *offline* layer would be authorized by approving `09`, which **extends** `03` §4.4's 2026-08-26 amendment — that amendment names `08` explicitly, so this is a new dated decision rather than an inheritance (`09` §1.2). Running it live stays gated on B1; any Lane C consumption stays gated on `03` §4.3's interlock, which `09` §8.2 restates as an enforced import check rather than an intention.
+**Gate:** the *offline* layer would be authorized by approving `09`, which **extends** `03` §4.4's 2026-08-26 amendment — that amendment names `08` explicitly, so this is a new dated decision rather than an inheritance (`09` §1.2). Running it live stays gated on B1.
 
 **Phase B2b — Automated trigger recognition**
 Computer vision on screen-captured broadcast frames, targeting broadcast graphic overlays (pit boards, safety car flags, lights-out gantry) rather than raw scene content — a more tractable detection target. Requires reference footage of Apple's actual broadcast graphics first (their first season broadcasting F1 in the US, so no existing reference material).
@@ -204,40 +204,6 @@ Status: blocked on B1. (Renumbered from B2 on 2026-08-26 when the overtake model
 
 **Phase B3 — Second test window: Italian GP (Monza), 2026-09-04 to 09-06**
 Target date for a live-ish test of the Lane B pipeline, once B1/B2 groundwork exists.
-Status: not started.
-
-## Lane C phases
-
-**The build spec for this lane now lives in `docs/quant/`** (`quant/00-directional-trading-spec.md`,
-started 2026-08-26). `07` stays the feasibility record; `docs/quant/` is the plan that follows
-from it. The phase names below (C0–C3) map onto the quant spec's Q1–Q5; the quant doc is
-authoritative for scope and sequencing, this section is the pointer. Owner directed the
-reframe 2026-08-26: the lane is now understood as **directional trading on per-race markets
-first** (winner + podium + points/top-N, both venues), with market making as a documented later
-phase (`quant/00` §Q5) rather than the near-term goal.
-
-**Phase C0 — Goal statement**
-Auto-trade YES/NO shares on Polymarket + Kalshi F1 markets (race winner, podium/placement, and eventually in-race overtake markets) off this project's own prediction pipeline.
-Status: goal adopted (2026-08-23). Feasibility researched 2026-08-26 — see `07-lane-c-trading-feasibility.md`. Headline finding: the blocker is the **edge, not the APIs**. A1 lost to the market mean on the one live race, A3 is a closed negative result, and podium/points/fastest-lap have zero pre-race market comparisons — so there is no measured edge in any market, including the settled ones C1 would scope down to. Buildable now at zero budget: an edge-measurement + paper-trading harness (`quant/00` §Q1, was `07` §7), which produces exactly that missing evidence. No live-execution design until the edge question, the jurisdiction fork, and risk controls all resolve. **2026-08-26:** §11 of `07` added a live book-depth survey — Kalshi's per-race winner book is ~7× deeper at the touch than Polymarket's 10 days out, so the quant spec recommends Kalshi (demo host first) as the execution venue despite the owner's stated Polymarket preference; Polymarket winner markets are `negRisk` (linked legs) and carry live liquidity-rewards params.
-
-**Phase C1 — Real-time data feed (blocking)**
-The in-race trading case (driver closing on a braking zone, trade before the overtake resolves) needs sub-second telemetry.
-
-**Rewritten 2026-08-26.** This entry used to say the only live source considered was FastF1's live module, "with a ~2h connection cap." Both halves are superseded. B0 now has a real live source (the direct SignalR connection, `03` §6), and the ~2h cap turns out to be a *server-initiated disconnect that FastF1's client simply doesn't reconnect from* — its source carries a literal `# TODO: enable auto reconnect?` — not a property of the feed that a client has to live with (`03` §9.1). A client that reconnects doesn't have a 2h ceiling.
-
-What that does **not** mean is that C1 is unblocked. Two things still gate live in-race trading, and neither is a data-plumbing problem:
-- **`03` §4.3's interlock.** Lane B's spec explicitly does not authorize any Lane C component consuming its output — that's the line where "personal, non-commercial use" stops being an available reading of what this project is doing, and it needs its own decision with a date on it. See the open decisions below.
-- **B1's delay measurement**, still unrun. If the broadcast/feed gap is minutes, in-race trading is dead regardless.
-- **The market itself, checked 2026-08-26 (`07` §10).** C1's premise sentence above — "trade before the overtake resolves" — has no market behind it on either venue. The in-race market that *is* liquid is race winner. If C1 is ever unblocked, it is unblocked toward a live win-probability model, not toward corner-level overtakes. Owner's call, recorded in `07` §10.6. **That model is now specced — `09-live-win-probability.md` (2026-08-27, not approved).** `09` §8 defines the exact record a Lane C component would consume, and `09` §8.2 forbids the import in both directions — with a static test over the module graph, not merely a rule — until the interlock decision is dated.
-
-Status: not started. Still the first fork in Lane C. The remaining option if the above stays blocked: scope Lane C's first cut to markets that don't need corner-level timing (winner, podium — settled after the fact, no live feed required).
-
-**Phase C2 — Order execution**
-Both venues' *read* endpoints are public and credential-free (Lane A locked decision). Placing orders is a different API surface entirely and needs real authentication: Polymarket order flow goes through CLOB, which Lane A's locked decisions explicitly scoped out ("Gamma only, not CLOB/Data") — that decision is now reopened for Lane C, see Locked decisions below. Needs account/API key setup on both venues, order placement + fill confirmation, and a mapping from the algo's probability output to trade size and price.
-Status: not started.
-
-**Phase C3 — Risk controls**
-Position sizing per market, a max loss per race/session, and a kill switch, decided and built before any order-placement code runs against real money — an auto-trading bot with no cap on it is the actual failure mode here, independent of prediction quality.
 Status: not started.
 
 ## Locked decisions
@@ -249,7 +215,7 @@ Status: not started.
   podium and fastest lap on **both** venues; points on **Kalshi only** (no per-driver Polymarket
   market); DNF on **neither** venue (Kalshi's `KXF1RETIRE` is career-retirement speculation, not a
   per-race DNF market — do not use it as one)
-- Market data access: Polymarket **Gamma** API only (not CLOB/Data); Kalshi `GET /markets` on `external-api.kalshi.com`. This was a *read-only* scoping decision for Lane A/B. Lane C's order execution needs Polymarket's CLOB (or equivalent) for placing trades — reopened, not yet decided, see Phase C2
+- Market data access: Polymarket **Gamma** API only (not CLOB/Data); Kalshi `GET /markets` on `external-api.kalshi.com`. This is a *read-only* scoping decision for Lane A/B.
 - Canonical driver key across all sources: **FIA three-letter code** (`ANT`, `NOR`), sourced from Jolpica `Driver.code`
 - Phase A3 model shape: **conditional logit over driver-races**, race as the choice set (`05` §3.1). Follows from `02` being one already with hand-set coefficients — not a free choice
 - Phase A3 F7: **train-dormant**, F7 excluded from the design matrix (`01` §5.6, `05` §3.3)
@@ -262,7 +228,7 @@ Status: not started.
 - Phase A3 track multiplier `m`: **stays dropped for v1.** The fitted tier interaction (`05` §3.5) was tested on dev folds, per-fold rather than on one fold: `grid_x_hard` is negative in all 7 folds (a stable inversion of `02` §5.1's predicted ordering), `grid_x_easy` flips sign three times (not identified from this corpus either direction). Not a permanent close the way F7 or `T` are — revisit the easy-tier side if more seasons accumulate at its five circuits (decided 2026-08-26)
 - Odds normalization for A1: proportional de-vig; raw + normalized both persisted
 - ~~Live data (when needed): **FastF1's free live module**, not OpenF1's paid live tier (€9.90/month) — avoided per the zero-budget constraint.~~ **Superseded 2026-08-26 — this was never a real choice.** FastF1's live module doesn't provide live data at any budget; it can't parse in real time, full stop. It was never the zero-budget alternative to OpenF1's paid tier, because it doesn't do the thing the paid tier does. See `03-live-telemetry-overtakes.md` §2.4 for what the real options were. **Replaced 2026-08-26 by the entry immediately below.**
-- **Lane B live data source (decided 2026-08-26, specced in `03`): a direct connection to F1's own live timing feed**, legacy unauthenticated SignalR at `livetiming.formula1.com/signalr`, `clientProtocol=1.5`, hub `Streaming`. Zero-budget and genuinely live; the other three candidates in `03` §2.4 are each disqualified on one of those two. The decision was taken **with the ToS and enforcement risk in `03` §2.3 identified and knowingly accepted** — F1's legal notices name "live timing data" as protected and restrict it to personal, non-commercial use, and a hobbyist project's hosted deployment has already been IP-blocked. `03` §5 records the acceptance; don't re-litigate it, hold the conditions it came with. Those conditions are part of the decision, not commentary on it: personal research/development scope only (`03` §4.2), no hosted or networked deployment, no redistribution, all captures local and gitignored (`03` §11), graceful backoff and a hard stop on any refusal rather than retry or evasion (`03` §5, §9.3), and a hard interlock against Lane C consuming Lane B output without a separate decision (`03` §4.3)
+- **Lane B live data source (decided 2026-08-26, specced in `03`): a direct connection to F1's own live timing feed**, legacy unauthenticated SignalR at `livetiming.formula1.com/signalr`, `clientProtocol=1.5`, hub `Streaming`. Zero-budget and genuinely live; the other three candidates in `03` §2.4 are each disqualified on one of those two. The decision was taken **with the ToS and enforcement risk in `03` §2.3 identified and knowingly accepted** — F1's legal notices name "live timing data" as protected and restrict it to personal, non-commercial use, and a hobbyist project's hosted deployment has already been IP-blocked. `03` §5 records the acceptance; don't re-litigate it, hold the conditions it came with. Those conditions are part of the decision, not commentary on it: personal research/development scope only (`03` §4.2), no hosted or networked deployment, no redistribution, all captures local and gitignored (`03` §11), and graceful backoff and a hard stop on any refusal rather than retry or evasion (`03` §5, §9.3)
 - Lane B tick client scope (`03` §7): parse the feed down to per-car position, gap/interval, in-pit/retired, speed/throttle/brake/gear/rpm, and X/Y — keyed on the FIA three-letter code, same canonical key as Lane A (`01` §8.2). Twelve channels subscribed, not the ~30 the feed carries; media, weather, and presentational channels deliberately left out. Channel 45 (DRS pre-2026) is carried as an **opaque integer** — measured constant-zero across a full 2026 race, so it carries no signal this season and no model may treat it as a DRS analogue (`03` §7.3)
 - No paid capture hardware for Lane B — Apple TV app runs natively on Mac, so screen capture of the app window is the plan, not an HDMI capture card
 
@@ -277,10 +243,9 @@ Status: not started.
   than paraphrased (`03` §2.3): they name "live timing data" as protected, restrict site
   materials to personal/non-commercial use, and prohibit reverse-engineering "the site" — with a
   real caveat that those are the *website's* terms and the live timing feed is a separate host,
-  so how far they reach isn't fully settled by that page alone. What isn't ambiguous: this
-  project's end goal (an automated trading bot) is about as far from "personal, non-commercial
-  use" as a use case gets, and one hobbyist client already had its hosted deployment IP-blocked
-  by F1 for doing exactly this. Owner's call: approve the paid tier, accept the legal/stability
+  so how far they reach isn't fully settled by that page alone. What isn't ambiguous: one
+  hobbyist client already had its hosted deployment IP-blocked by F1 for doing exactly this.
+  Owner's call: approve the paid tier, accept the legal/stability
   risk of the direct connection (worth an actual legal read, not a default), or leave Lane B
   blocked.~~ **Decided and closed 2026-08-26: the direct connection, risk knowingly accepted.**
   See the Locked decisions entry above for what was accepted and on what conditions, and `03`
@@ -297,28 +262,15 @@ Status: not started.
   of when rather than whether — and if one of those closes the anonymous path instead of moving
   it, the options (pay for F1TV / pay OpenF1 / stop Lane B) are the owner's and are recorded in
   `03` §16.
-- ~~**New 2026-08-26 (gate 4, `07` §10.6):** which of Lane B's two justifications governs —
-  trading or learning?~~ **Decided 2026-08-26, same day: trading**, via overtake probability →
-  live win probability → the race-winner market. Recorded in `08` §1. This repoints the lane
-  rather than merely picking a side: the original corner-level-overtake trading case is dead
-  (`07` §10.1 — no such market on either venue), and this replaces it with one aimed at a market
-  measured to trade in-race.
-- ~~**New 2026-08-26 (gate 4, `07` §10.6):** does the in-race winner market replace corner-level
-  overtakes as Lane B's target?~~ **Answered 2026-08-26: yes** — and the overtake model survives
-  as the feature generator feeding it (`08` §3), not as the thing traded directly. What stays
+- ~~**New 2026-08-26 (gate 4):** which of Lane B's two justifications governs —
+  trading or learning?~~ **Decided 2026-08-26, same day: learning.** No overtake market exists on
+  either venue (388 F1 events swept on Polymarket, all 13,545 Kalshi series enumerated), so the
+  overtake model is repointed toward feeding a live win-probability model as a standalone
+  Lane B feature, via overtake probability → live win probability. Recorded in `08` §1.
+- ~~**New 2026-08-26 (gate 4):** does the in-race winner market replace corner-level
+  overtakes as Lane B's target?~~ **Answered 2026-08-26: yes, as the thing predicted** — and the overtake model survives
+  as the feature generator feeding it (`08` §3). What stays
   open is whether the win-probability layer gets specced next (`08` §12 item 2).
-- **New 2026-08-26 (gate 4, `07` §10.6):** **two read-only market-data scope questions.** Whether
-  to fold Kalshi's unauthenticated `candlesticks` endpoint into the locked scope (used once under
-  an explicit flag to measure *when* volume traded), and whether to reopen Polymarket CLOB/Data
-  read-only for the same measurement — the only way to close the UNVERIFIED in `07` §10.4.
-  Distinct from Phase C2's CLOB-for-execution question.
-- **New 2026-08-26:** **whether Lane B's output may ever feed Lane C.** `03` §4.3 turns this from
-  a sequencing detail into an explicit interlock: no Lane C module imports from the Lane B
-  client, and the Lane B client has no path to an order interface. Flipping that switch is the
-  moment "personal, non-commercial research" stops being an available description of what this
-  project does — so it should be a dated decision taken on that basis, not something that happens
-  because two modules both happened to finish. Related to, but separate from, the existing Lane C
-  item on venue ToS.
 - **New 2026-08-26:** **whether Lane B appears in the portfolio/LinkedIn writeup at all.**
   `welcome.md` says this project exists partly to be shown. Lane B is the one lane where being
   seen carries its own risk — the enforcement precedent in `03` §2.3 was against the most visible
@@ -374,25 +326,8 @@ Status: not started.
 - ~~FastF1 interpreter upgrade path: `brew install python@3.12` + venv vs. `uv`~~ Resolved 2026-08-24: went with `brew install python@3.12` + a project-local `.venv312/` (gitignored). `fastf1==3.8.3` installs clean and smoke-tested against the real 2023 Dutch GP session (`data/cache/fastf1/`, also gitignored under the existing `data/cache/` rule) — result matches Jolpica (VER/ALO/GAS podium). Not wired into `snapshot.py`/`score.py` yet; that's its own follow-up, not done here
 - ~~Lane B: FastF1's live module does **not** parse in real time (records raw for post-session parsing, ~2h connection cap) — the B0 premise needs revisiting.~~ Resolved 2026-08-26 by `03`: FastF1 is out as a live source entirely, B0 connects to the underlying feed directly (`03` §6), and the ~2h cap is a server-side disconnect FastF1 just never reconnects from rather than a hard limit (`03` §9.1)
 - Whether Apple's broadcast even displays a persistent on-screen data overlay worth targeting for Phase B2b (unknown until observed)
-- Hosting: owner has a homelab that could run this instead of a laptop-on-demand model — likely relevant for automating the pre-lights-out re-snapshot (cron) and for Lane B's continuous-during-a-session workload; doesn't help Lane B's screen-capture step as currently scoped, since that specifically targets the Apple TV app on the Mac. Zero-budget-compliant since it's already-owned hardware. Not decided, not needed yet — revisit when Lane B design actually starts. Made more relevant by the 2026-08-23 routine run: the cloud environment's default network access (Trusted) silently blocks any non-package-registry host, which cost real setup time to diagnose and fix — a homelab wouldn't have that failure mode. Directly relevant to Lane C too, if trading ever needs to run unattended.
+- Hosting: owner has a homelab that could run this instead of a laptop-on-demand model — likely relevant for automating the pre-lights-out re-snapshot (cron) and for Lane B's continuous-during-a-session workload; doesn't help Lane B's screen-capture step as currently scoped, since that specifically targets the Apple TV app on the Mac. Zero-budget-compliant since it's already-owned hardware. Not decided, not needed yet — revisit when Lane B design actually starts. Made more relevant by the 2026-08-23 routine run: the cloud environment's default network access (Trusted) silently blocks any non-package-registry host, which cost real setup time to diagnose and fix — a homelab wouldn't have that failure mode.
 - Whether future races' pre-lights-out snapshot + post-race score should run by default via scheduled cloud routines (now validated working on the `smarty-f1` environment), or stay manually triggered — not decided
-- Lane C: both venues' terms of service on automated/programmatic trading — unconfirmed, needs checking before Phase C2
-- Lane C: Kalshi's CFTC-regulated status vs. Polymarket's structure may carry different compliance obligations for an automated trader — unconfirmed
-- Lane C: realistic latency here is home network + broadcast delay, not co-located/exchange-proximity infrastructure — "HFT" in the goal statement means "fast relative to a slow-to-reprice retail market," not literal microsecond HFT; keep that honest in any future spec
-- Lane C: whether to scope the first cut to settled markets only (winner/podium, no live feed needed) before attempting live overtake markets — leaning yes, not decided
-- **New 2026-08-26 (`07` §11):** a live structure survey of every open F1 market on both venues
-  settles *which* market Lane C would trade if it ever does: **per-race winner, top ~5 drivers,
-  both venues** — the only market where a model output, a real book, and a spread tight enough
-  for an edge to survive all coincide. Kalshi's winner book is 1¢-spread and liquid ~10 days out
-  (contradicts A4's "only liquid near lights-out", which was Polymarket-specific). Three
-  corrections fall out: (a) `07` §5's "tens of dollars / not an income stream" ceiling is wrong
-  for the season Drivers'-Champion market ($201M vol, 0.1–1.1% spreads) — but that market is
-  efficient and the project has no championship model, so capacity and model-fit are in disjoint
-  markets; (b) H2H is the best structural fit for A1's teammate feature but the book is dead ($22
-  lifetime volume); (c) the §7 harness must compute edge against `bestBid`/`bestAsk`, never
-  Polymarket midpoints — wide-spread podium/H2H midpoints fabricate ~35pp fake edges on illiquid
-  midfield legs. Also an erratum for `01` §7.6: Kalshi's API fields are now `volume_fp` /
-  `yes_bid_dollars` etc., and the old names return null
 - ~~Phase A4: podium/points precision is Monte Carlo (±0.3pp) — revisit if an exact top-K
   marginal algorithm is worth the added complexity~~ Resolved 2026-08-23, split by K: **podium is
   now exact** (`lib/simulate.exact_top3_probabilities`, O(n³) ≈ 10k terms, ~2.5ms, sums to 3.0 as
@@ -446,8 +381,3 @@ Status: not started.
   train-dormancy or `T`'s dissolution, this is not treated as permanently closed — the easy-tier
   side specifically could resolve differently with more seasons at its five circuits. Closes the
   open item for now without touching the holdout.
-- Lane C: the illiquidity found at Monza (podium priced ~0.5 on $0–300 volume vs. the winner
-  market's $1,400–$14,000) is filed under Phase A4 as a snapshot-*timing* problem. For Lane C it
-  is also a **capacity** problem: a market priced at 0.5 on no volume is not mispriced, it is
-  absent, and no edge can be traded into a book that thin. The two readings need separating before
-  C1 picks a first market

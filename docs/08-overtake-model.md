@@ -4,34 +4,26 @@ Status: **built and validated 2026-08-26; recalibration + domain gate added 2026
 model reaches AUC 0.906 race-forward and — restricted to its top ~20% of pairs by score, which
 hold 89% of overtakes — clears §7's calibration bar (§11.1), so it is a usable in-domain
 probability, not just a ranker. **That PASS is pooled across the field and does not hold at the
-front of it** — see §11.1's 2026-08-27 qualification and `09` §2.4. Offline only: live use and trading stay gated on B1 and `03`
-§4.3's interlock. Read `welcome.md`,
-`00-roadmap.md` (Lane B), `03-live-telemetry-overtakes.md` (§4.4's amended gate, §7's tick
-contract, §7.3's DRS finding), and `07-lane-c-trading-feasibility.md` §10 (the market evidence
-this model's rationale rests on) first.
+front of it** — see §11.1's 2026-08-27 qualification and `09` §2.4. Offline only: live use stays
+gated on B1. Read `welcome.md`,
+`00-roadmap.md` (Lane B), and `03-live-telemetry-overtakes.md` (§4.4's amended gate, §7's tick
+contract, §7.3's DRS finding) first.
 
 ---
 
 ## 1. What this is, and the decision that authorizes it
 
-The owner decided on 2026-08-26 to build an overtake model, and gave the rationale that resolves
-Lane B's trading-vs-learning fork: **the overtake model is not a terminal product.** It is an
-intermediate signal feeding a live win-probability model, which trades the race-winner market.
-The chain, in the owner's words: predict an overtake ~5 seconds before it happens, and once it
-happens the race winner could change — so the winner market reprices and we are ahead of it.
-
-That chain is coherent and it is aimed at a market that demonstrably exists: `07` §10.3 measured
-826,229 of 1,703,263 lifetime contracts — **48.5%** — trading inside the Dutch GP's two-hour race
-window on Kalshi, with a trade in all 120 race minutes. This is the strongest form the Lane B
-rationale has ever had, and it is a real improvement on the roadmap's original premise, which
-aimed at an overtake market that `07` §10.1 proved does not exist on either venue.
+The owner decided on 2026-08-26 to build an overtake model as a standalone live-prediction
+feature: **the overtake model is not a terminal product.** It is an intermediate signal feeding a
+live win-probability model. The chain: predict an overtake ~5 seconds before it happens, and once
+it happens the race's win-probability distribution shifts — the model is ahead of the event, not
+reacting to it after the fact.
 
 `03` §4.4's gate is **amended, not reinterpreted** (see the banner in that section): the offline
-model specced here is authorized; running it live and trading on it are not.
+model specced here is authorized; running it live is not.
 
-**What this spec does not authorize:** any live connection (`03` §4.4), any Lane C hookup
-(`03` §4.3's interlock stays intact), and the win-probability layer itself, which is named here
-only as the consumer this model is shaped for.
+**What this spec does not authorize:** any live connection (`03` §4.4), and the win-probability
+layer itself, which is named here only as the consumer this model is shaped for.
 
 ---
 
@@ -294,7 +286,7 @@ a win-probability layer that multiplies it.
 
 - **The live win-probability model.** Named as the consumer, not specced here. **It now has
   its own doc: `09-live-win-probability.md`** (specced 2026-08-27, not approved).
-- **Any live connection or trading.** `03` §4.4 as amended, `03` §4.3's interlock.
+- **Any live connection.** `03` §4.4 as amended.
 - **Corner geometry as a first-class model.** v1 uses track position as a continuous feature;
   named braking zones are a later refinement.
 - **Predicting the *consequences* of an overtake** (position knock-ons, undercut chains).
@@ -353,7 +345,7 @@ and does not buy here: the physics was the right shape and the wrong magnitude.
 **The single exception is instructive.** Round 6, Monaco, is the worst fold at AUC 0.605 — and
 Monaco produced only 14 on-track overtakes all race against a 33–50 range elsewhere. The model is
 weakest exactly where overtaking barely happens, which is the right place to be weak but a real
-limit on a circuit where the winner market would still be trading.
+limit on a circuit that stays live-relevant regardless.
 
 **Calibration fails §7's acceptance criterion**, which is the criterion this spec set precisely so
 that a good-looking AUC could not carry the decision on its own:
@@ -507,12 +499,7 @@ per-fold θ and Platt `(a,b)`; `data/live/overtakes/fit_recal.json` records it (
    to ~1.0 point above `09` §2.4's second gate θ_front and ~1.9 points on the strongest third
    (`09` §3, all observed rates). `09` §10's ablation baseline is designed to measure that offline,
    before B1, which is `09` §13 item 3's recommended sequencing.
-6. **`03` §4.3's interlock** — unchanged and still the owner's dated decision. Building this model
-   does not trip it.
-7. **Gate 2 (B1) is still unrun** and still the owner's stated next step. Note that as written
-   (`03` §3) it measures feed-vs-*broadcast*, while the edge claim in §1 needs feed-vs-*market*.
-   Kalshi's book had a trade in all 120 race minutes (`07` §10.3), so someone is already fast.
-   Whether our feed leads *the market* is a different measurement from the one specced. **The B0
+6. **Gate 2 (B1) is still unrun** and still the owner's stated next step, per `03` §3. **The B0
    client it runs against is built as of 2026-08-27** (`03` §13); B1 runs at Monza FP1.
 
 ---
@@ -590,19 +577,10 @@ nothing is built from it; the decision in front of the owner is now approve/decl
 
 **Not started, and deliberately so:**
 - The **live win-probability layer** (§9) — the consumer this model was shaped for. **Now specced
-  in `09-live-win-probability.md` (2026-08-27), not approved and not built.** This is the piece
-  that closes the trading chain in §1.
+  in `09-live-win-probability.md` (2026-08-27), not approved and not built.**
 - **Gate 2 / B1**, the broadcast-delay measurement, still unrun and still the owner's stated next
-  step for the *live* half. Note `03` §3 specs it as feed-vs-*broadcast*, while §1's edge claim
-  needs feed-vs-*market* — a different measurement (`07` §10.3 measured a trade in all 120 race
-  minutes on Kalshi, so someone is already fast).
-- **Anything live or trading.** `03` §4.4's amendment authorizes the offline model only, and
-  `03` §4.3's interlock — no Lane B output reaching a Lane C component — is untouched by this work
-  and remains a separate dated decision.
-
-**Related lane, not this one:** `docs/quant/` holds the Lane C directional-trading spec, written in
-parallel on 2026-08-26. It consumes Lane A's per-race predictions, not this model's output, and the
-interlock above is why. Don't wire them together without that decision.
+  step for the *live* half, per `03` §3.
+- **Anything live.** `03` §4.4's amendment authorizes the offline model only.
 
 ### 13.6 Corrections made during this build, so they are not re-made
 

@@ -1,14 +1,14 @@
 # 09 — Live Win Probability (Phase B4)
 
 Status: **specced 2026-08-27, not approved, not built.** This is the consumer `08-overtake-model.md`
-was shaped for and the piece that closes the trading chain in `08` §1 — it is `08` §12 item 5, the
-top open decision for Lane B. It builds **no new predictive model**: it is a state estimator that
-carries Lane A's pre-race distribution forward through a race, using `03` §7's tick stream and
-`08`'s calibrated in-domain overtake probabilities as its inputs.
+was shaped for — it is `08` §12 item 5, the top open decision for Lane B. It builds **no new
+predictive model**: it is a state estimator that carries Lane A's pre-race distribution forward
+through a race, using `03` §7's tick stream and `08`'s calibrated in-domain overtake probabilities
+as its inputs.
 
-Read `welcome.md`, `00-roadmap.md` (Lane B and Lane C), `03-live-telemetry-overtakes.md`
-(§4.3's interlock, §4.4's amended gate, §7's tick contract), `08-overtake-model.md` (all of it,
-especially §2.1, §3, §11.1, §13), `07-lane-c-trading-feasibility.md` §10,
+Read `welcome.md`, `00-roadmap.md` (Lane B), `03-live-telemetry-overtakes.md`
+(§4.4's amended gate, §7's tick contract), `08-overtake-model.md` (all of it,
+especially §2.1, §3, §11.1, §13),
 `02-winner-prediction-algo.md` §§9–10, and `05-trained-model.md` §6 first.
 
 ---
@@ -17,15 +17,12 @@ especially §2.1, §3, §11.1, §13), `07-lane-c-trading-feasibility.md` §10,
 
 ### 1.1 The chain, and where this layer sits in it
 
-`08` §1 records the owner's rationale that resolved Lane B's trading-vs-learning fork:
+`08` §1 records the owner's rationale for this lane, as a standalone live-prediction feature:
 
-> overtake probability → **live win probability** → winner-market price → trade
+> overtake probability → **live win probability**
 
 `08` built the first link and stopped there deliberately (`08` §9: "the live win-probability model.
-Named as the consumer, not specced. It needs its own doc."). This is that doc. The market it aims
-at is the one `07` §10.3 measured rather than assumed: **826,229 of 1,703,263 lifetime contracts —
-48.5% — traded inside the Dutch GP's two-hour race window on Kalshi, with a trade in all 120 race
-minutes.**
+Named as the consumer, not specced. It needs its own doc."). This is that doc.
 
 **This layer is a state estimator, not a model.** It answers one question continuously: *given the
 field's observed positions, gaps, retirements, pit state and laps remaining right now, what is the
@@ -44,11 +41,6 @@ delay measurement cannot bear on whether the estimator is correct — the same r
 **Still gated on B1:** running this layer against a *live* feed. `03` §4.4's bar is unchanged —
 seconds, not minutes. B1 is still unrun; it runs at Monza FP1 (~2026-09-04) off the B0 client
 built 2026-08-27 (`03` §13).
-
-**Still gated on `03` §4.3's interlock:** any Lane C component consuming this layer's output, and
-any trade on it. §8 below *specifies* that interface precisely so that the future wiring is a
-short adapter written after a dated decision, rather than a refactor — but it does not write it,
-and it forbids the import in both directions.
 
 **One honest note on the authorization chain, because this project does not paper over these.**
 `03` §4.4's amendment names `08-overtake-model.md` explicitly, and `08` §1 says in terms: "What
@@ -69,12 +61,10 @@ log-loss over 48 held-out races, and **A1 itself barely clears a grid-only floor
 0.6054). On the one live race this pipeline has snapshotted, A1 lost to the market mean (`02` §9).
 
 So this layer starts from a prior that has never been shown to beat the crowd. **Its entire claim
-to edge is in the in-race divergence, not in the starting point.** That is a sharper claim than it
-sounds, and it is the right one: `07` §10.3's finding is that the winner market reprices every
-minute for two hours, and the thing a state estimator can plausibly do better than a crowd is
-integrate *mechanical* facts — a retirement, a pit cycle, a closing pursuit, laps running out —
-faster and more consistently than a human trader. It cannot fix a bad prior, and this spec does not
-claim it will.
+to being informative is in the in-race divergence, not in the starting point.** The thing a state
+estimator can plausibly track better than a static pre-race number is *mechanical* facts — a
+retirement, a pit cycle, a closing pursuit, laps running out — updated continuously rather than
+once. It cannot fix a bad prior, and this spec does not claim it will.
 
 Stated as a pre-registration: **if §10's validation shows this layer beating Lane A's static
 number but not the position-only ladder baseline, the honest finding is that the value is in
@@ -267,8 +257,8 @@ across the season are exactly the four `04` §5.1 measured from Jolpica — `Fin
 Median 0.440, mean 0.457. A **constant** hazard over race distance would put 25% in each quarter.
 The measured shape is mildly front-loaded: the first quarter runs ~1.4× the flat rate and the last
 quarter ~0.9×. So a constant-hazard model **overstates late-race retirement risk by roughly 10%
-relative** — which matters precisely in the closing laps where `07` §10.3 measured the market
-running 0.82 → 0.96, and where §2.2's ladder says the leader converts 100% of the time.
+relative** — which matters precisely in the closing laps where §2.2's ladder says the leader
+converts 100% of the time.
 
 **With n = 50 the shape is weakly determined**, and a four-bin histogram is not a hazard function.
 §5.5 specs a two-segment piecewise-constant hazard (first quarter elevated, remainder flat) as the
@@ -281,7 +271,7 @@ Laps on which at least one car pitted: **257 of 745 race-laps, 34.5%.** Per race
 (China) to 48% (Britain), with Barcelona 44%, Dutch 47%, Hungary 43%.
 
 This kills the obvious safe design. §2.1 says pit cycles are the dominant mechanism moving P1, so
-the naive protection — set `tradeable = False` whenever a pit cycle is in progress — **would
+the naive protection — set `reliable = False` whenever a pit cycle is in progress — **would
 silence the layer across a third to a half of exactly the window the market trades.** §5.7 states
 what is done instead, and states the resulting limitation plainly rather than hiding it behind a
 flag.
@@ -536,7 +526,7 @@ pretend a choice made on 50 events is closed.
 - **A safety car compresses gaps and materially changes the race.** A 20-second lead becomes zero.
   The layer does not model the compression's effect on subsequent pace, and the honest treatment is
   to widen rather than narrow: while `track_status != 1`, the estimate is emitted with
-  `tradeable = False` and a `caution` reason code (§8).
+  `reliable = False` and a `caution` reason code (§8).
 - **A red flag suspends the race.** `03` §9.5's session-change detection and §7.4's
   replace-on-snapshot rule govern; the layer discards its pursuit state, keeps `strengths` and
   `retired`, and re-derives everything else from the first tick after the restart.
@@ -560,11 +550,11 @@ leading and overstate his P(win). The error is largest exactly where the market 
 - The layer derives `stops_done` per car from `CarState.in_pit` / `pit_out` transitions and emits
   a **`pit_offset` field**: the spread in completed stops across the top ten. This is diagnostic
   information published to the consumer, not a correction.
-- **`tradeable = False` while `pit_offset > 0` among the top three** — narrow enough that §2.6's
+- **`reliable = False` while `pit_offset > 0` among the top three** — narrow enough that §2.6's
   34.5% figure is not the suppression rate, because most of those laps involve stops outside the
   podium fight. §10 must **measure the realised suppression fraction over the 12 replayed races
-  and report it**; if it lands anywhere near 34.5%, the layer is silent through most of the trading
-  window and that is a headline result, not a tuning detail.
+  and report it**; if it lands anywhere near 34.5%, the layer is silent through most of the race
+  and that is a headline result, not a tuning detail.
 - A real fix is an **undercut/pit-loss model** — expected time loss per stop per circuit, projected
   onto post-cycle track position. That is a genuine second model, it needs its own measurements,
   and building it inside this spec would be exactly the scope creep `welcome.md` warns against. It
@@ -684,12 +674,11 @@ give reproducibility *across updates* and not only across runs.
 
 ---
 
-## 8. The interface to a future Lane C component — specified, not wired
+## 8. The output interface — a stable record, not a live display
 
-`03` §4.3's interlock is intact and this section does not touch it. The interface is specified so
-that the eventual wiring, **if and when the owner makes that dated decision**, is a short adapter
-someone writes against a stable record — not a refactor that discovers the shape at the moment the
-decision is being made.
+This layer's output is specified as a stable record so that any future consumer — a debug view, a
+notebook, an analysis script — has a fixed shape to write against, rather than discovering it ad
+hoc.
 
 ### 8.1 The record
 
@@ -710,8 +699,8 @@ WinProbEstimate                    -- immutable once emitted, same rule as 03 se
   pit_offset     int      spread in completed stops across the top ten (sec5.7)
   degraded       set      inherited from the tick (03 sec8)
   stale          bool     inherited from the tick (03 sec9.4)
-  tradeable      bool     see below
-  reasons        list     why tradeable is false, if it is
+  reliable      bool     see below
+  reasons        list     why reliable is false, if it is
 ```
 
 **`t_wall` is load-bearing and it is here for the reason `03` §7.1 added it during B0's build:** a
@@ -719,30 +708,22 @@ monotonic clock has no epoch, so it cannot be subtracted from a market timestamp
 feed-versus-market comparison — which is the measurement `08` §12 item 7 notes B1 does *not*
 currently make — needs the wall clock.
 
-**`tradeable` is False, with a reason code, whenever any of:** `stale` (`03` §9.4), `degraded`
+**`reliable` is False, with a reason code, whenever any of:** `stale` (`03` §9.4), `degraded`
 non-empty (`03` §8), `track_status != 1` (§5.6), `pit_offset > 0` among the top three (§5.7),
 `gap_after_reconnect` on the source tick (`03` §9.4), the prior has not been reconciled (§5.5), or
 `max(se_mc)` exceeds half a market tick (§7.3). **It is never True by default** — it is computed,
 and a consumer that ignores it is out of contract.
 
-### 8.2 The interlock, as an implementation rule
+### 8.2 Where the output lives
 
-Inheriting `03` §4.3's shape verbatim, one layer up:
+Inheriting `03` §4.2's scope, one layer up:
 
-- **No module under `docs/quant/`'s implementation, or any Lane C component, may import this
-  layer.** No module in this layer may import from a Lane C component, and it must have **no code
-  path that writes to an order-placement interface** — not behind a flag, not behind a config key.
 - Output goes to a **local append-only JSONL log** under `data/live/winprob/`, gitignored,
   `03` §11.2's rule unchanged and for its unchanged reason: this is derived F1 timing data and the
   repo is public.
 - An in-process consumer may subscribe by callback within the same process. That is the extent of
-  the surface.
-- **This is enforced by a test, not by intention.** `test_livetiming.py`'s synthetic-fixture
-  discipline extends to a static import check: the layer's module graph must contain no Lane C
-  module, and no symbol matching an order/execution interface. A rule with no test is a comment.
-
-Crossing this line needs a new dated decision recorded in `00-roadmap.md`, exactly as `03` §4.3
-requires and as the roadmap's open-decisions list already carries.
+  the surface — no hosted or networked component, same boundary `03` §4.2 draws for the tick client
+  underneath it.
 
 ---
 
@@ -768,7 +749,7 @@ archive is post-processed and complete. The live feed is delta-encoded, lossy, h
 (`03` §8), reconnect gaps (`03` §9.4), and schema drift (`03` §10). **Replay validates the
 estimator. It does not validate the live plumbing, and every claim about live behaviour from a
 replay run is UNVERIFIED until `03` §13's acceptance run.** The replayer should deliberately be
-able to inject `03` §8's degraded modes and §9.4's gaps into a replay, so the `tradeable` logic is
+able to inject `03` §8's degraded modes and §9.4's gaps into a replay, so the `reliable` logic is
 exercised offline rather than first meeting a degraded tick during a race.
 
 ### 9.2 Scoring: race-forward, at checkpoints, against the classified result
@@ -835,9 +816,9 @@ is why `05` §6.4.1 is a usable negative result rather than a rationalization.
    machinery adds nothing to free information.
 3. **Ablation: the same simulator with `08` switched off** — step 0 replaced by the background
    rate. This isolates `08`'s entire contribution and it is **the most important number this
-   validation produces**, because it is the measurement on which Lane B's trading rationale
-   actually rests. §3's arithmetic predicts the effect is small; this is where that prediction gets
-   tested rather than asserted.
+   validation produces**, because it is the measurement Lane B's whole rationale for building the
+   overtake model actually rests on. §3's arithmetic predicts the effect is small; this is where
+   that prediction gets tested rather than asserted.
 4. **The market**, on the one race where this project holds live snapshotted prices (2026 Dutch
    GP). Reported as colour on a single race, never as a baseline — `05` §6.3's rule against
    backfilling historical market prices into a comparison column applies unchanged.
@@ -855,10 +836,10 @@ is why `05` §6.4.1 is a usable negative result rather than a rationalization.
   measurable to it at this corpus size** — which, given §2.1 (pit stops cause 71% of lead changes),
   §2.4 (32 in-domain front-of-field positives), and §3's ~0.4-point average effect, is a live
   possibility that must be nameable before the run rather than argued about after it.
-- **Reported regardless of outcome**: the realised `tradeable = False` fraction over the eight races
+- **Reported regardless of outcome**: the realised `reliable = False` fraction over the eight races
   (§5.7), and the fraction of checkpoints where the model-vs-market difference exceeds `se_mc`
   (§7.3). A layer that is silent or noise-limited through most of the race is a finding about the
-  trading premise, not a bug.
+  layer's usefulness, not a bug.
 
 ---
 
@@ -886,10 +867,9 @@ a plausible wrong number is the failure mode this project has been bitten by.
    retirement-driven position changes plus background swaps do not exceed the measured total.
 7. **`se_mc` is populated on every driver of every estimate.** An estimate without it is not
    emitted. §7.3 is not advisory.
-8. **`tradeable` is computed, never defaulted.** An estimate whose `reasons` list is inconsistent
+8. **`reliable` is computed, never defaulted.** An estimate whose `reasons` list is inconsistent
    with its flag values fails.
-9. **The interlock import check (§8.2)** — a static test over the module graph.
-10. **Probabilities in [0,1]; `08` inputs in-domain only.** Any pair fed to step 0 with
+9. **Probabilities in [0,1]; `08` inputs in-domain only.** Any pair fed to step 0 with
     `p_raw < θ = 0.0037` is a bug, and any pair whose pursuer is inside the top six fed to step 0
     with `p_raw < θ_front = 0.0105` is a bug (§2.4, §5.3). Both constants are read from `08`'s fit
     output, not re-derived here, and both fail loudly if the fit no longer reports them.
@@ -898,15 +878,13 @@ a plausible wrong number is the failure mode this project has been bitten by.
 
 ## 12. Out of scope
 
-- **Anything live, and anything trading.** `03` §4.4 as amended plus the extension §1.2 names, and
-  `03` §4.3's interlock.
+- **Anything live.** `03` §4.4 as amended plus the extension §1.2 names.
 - **Live pace/strength updating** (§6). §13 item 1.
 - **A pit-strategy / undercut model** (§5.7). §13 item 2, and the most valuable single addition.
 - **Re-applying `08` beyond step 0** (§5.2) — it would require simulating the telemetry channels
   `08`'s features are built from.
 - **Outcomes other than the winner.** Podium and top-10 are the same simulator asked a different
-  question and `04` §6.2 already has the machinery, but no market evidence motivates them in-race
-  (`07` §10.3 measured podium at 36,614 in-race contracts against the winner market's 649,575).
+  question and `04` §6.2 already has the machinery, but nothing here motivates building them yet.
   §13 item 4.
 - **Tyre degradation, fuel effect, weather transitions.** `06`'s ensemble is a pre-race signal and
   is not wired here.
@@ -928,23 +906,20 @@ a plausible wrong number is the failure mode this project has been bitten by.
    source in the layer and the largest available gain. It is a genuine second model and it should
    be a decision, not something that accretes.
 3. **Is a layer whose average `08` contribution is ~0.4 points, against a 1-point market tick and a
-   0.5-point Monte Carlo SE (§3, §7.3), worth trading on at all?** This is the sharpest form of
-   `08` §12 item 5 and it is answerable *before* any live connection: §10's baseline 3 measures it
+   0.5-point Monte Carlo SE (§3, §7.3), meaningfully informative at all?** This is the sharpest form
+   of `08` §12 item 5 and it is answerable *before* any live connection: §10's baseline 3 measures it
    offline. Recommended sequencing — **run §9's replay validation before B1, not after.** If the
    ablation comes back at zero, B1's result stops mattering for this chain and the owner has saved
    the live-connection risk entirely.
 4. **Does the layer also emit in-race podium / top-10 (§12)?** Free from the same simulator via
-   `04` §6.2's machinery. `07` §10.3's in-race volumes say the winner market is where the liquidity
-   is by an order of magnitude, so this is a portfolio/completeness call rather than a trading one.
+   `04` §6.2's machinery. A portfolio/completeness call, not yet motivated by anything measured.
 5. **`08` §12 item 1 (the 5s horizon) is now this layer's decision too.** §5.2 lets `08` enter at
    exactly its own horizon, so a shorter, better-timed `08` (via `08` §5.2's sub-second refinement)
-   translates directly into an earlier P(win) move — which §3 identifies as the entire mechanism of
-   edge. That reframes `08`'s open item from a modelling nicety into the thing the trade depends on.
-6. **B1 remains unrun and is unchanged by this document.** `08` §12 item 7's observation stands and
-   sharpens: `03` §3 specs B1 as feed-vs-*broadcast*, while this layer's edge claim needs
-   feed-vs-*market*. §8.1's `t_wall` is what makes the latter measurable when someone decides to.
-7. **`03` §4.3's interlock** — unchanged, still a separate dated decision. Specifying §8's
-   interface does not trip it.
+   translates directly into an earlier P(win) move. That reframes `08`'s open item from a modelling
+   nicety into the thing this layer's timeliness depends on.
+6. **B1 remains unrun and is unchanged by this document.** `08` §12 item 7's observation stands:
+   `03` §3 specs B1 as feed-vs-broadcast, and §8.1's `t_wall` is what makes any future
+   feed-vs-external comparison measurable when someone decides to make one.
 
 ---
 
@@ -966,8 +941,7 @@ rather than leaving them to be discovered.
   and finds the front of the field thinner (32 positives) and worse calibrated (worst ratio 2.33 in
   five bins). That belongs in `08` as a qualification on its headline, not only here.
 - **`00-roadmap.md`** — Lane B gains a **Phase B4** for this layer; Phase B2's status line points
-  at it; Lane C's **C1** entry, which already says that if it is ever unblocked it is "unblocked
-  toward a live win-probability model", now has that model specced.
+  at it.
 - **`welcome.md`** — the "Where to go next" list gains a line for `09`.
 - **`02` §10 item 1** — "Track overtaking multipliers are hand-set judgements, not measurements.
   Replace with per-circuit overtake counts once A3 has the data." §5.4's background-rate fit

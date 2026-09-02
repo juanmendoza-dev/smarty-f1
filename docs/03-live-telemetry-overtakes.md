@@ -179,13 +179,9 @@ live timing display, not necessarily the raw SignalR stream a third-party client
 independently, even though the underlying data is the same. Read most favorably to a builder,
 there's an argument this specific endpoint isn't squarely what the clause contemplated. Read
 plainly, F1 has named "live timing data" as protected, restricted use to personal/non-commercial,
-and prohibited reverse-engineering "the site" in the same document — and this project's stated
-endpoint is an **automated trading bot**, about as far from "personal, non-commercial use" as a
-use case gets. That combination is enough to treat this as a real legal question needing an
-actual answer, not a hobbyist grey area to route around by self-hosting quietly. It should be
-weighed the same way Lane C's own open item about venue ToS already is (`00-roadmap.md`'s Lane C
-open decisions) — except here it's the *data source's* terms, and it gates Lane B before Lane C
-is even reachable.
+and prohibited reverse-engineering "the site" in the same document. That combination is enough to
+treat this as a real legal question needing an actual answer, not a hobbyist grey area to route
+around by self-hosting quietly.
 
 **It is being actively enforced, not just theoretically prohibited.** `matteocelani/f1-telemetry`
 states plainly that F1 introduced IP-blocking measures against their hosted deployment, which is
@@ -202,7 +198,7 @@ between seasons" by the maintainers' own admission.
 | FastF1 live module | Yes | **No** — parses after the session only | Yes | Yes |
 | OpenF1 free tier | Yes | **No** — free tier is historical-only | Yes | Yes |
 | OpenF1 paid tier | **No** — €9.90/mo | Yes | Yes | Yes |
-| Direct SignalR client | Yes | Yes | **Likely not**, especially for Lane C's commercial use | **No** — actively IP-blocked elsewhere |
+| Direct SignalR client | Yes | Yes | **Likely not** | **No** — actively IP-blocked elsewhere |
 
 No option is zero-budget, genuinely live, ToS-clean, and stable all at once. That is a harder
 finding than `01` §9.5's original framing ("FastF1 doesn't satisfy this yet") — it says the
@@ -267,38 +263,23 @@ machine**. Nothing more. Concretely, in scope:
 
 Explicitly **not** authorized by this spec, each requiring its own separate approval:
 
-1. **Feeding any live prediction into a trade.** No Lane C component may consume Lane B output.
-   This is a hard interlock, not a sequencing preference (§4.3).
-2. **Any hosted or public deployment** — no VPS, no cloud runner, no homelab service reachable
+1. **Any hosted or public deployment** — no VPS, no cloud runner, no homelab service reachable
    from outside the LAN, no public dashboard, no shared WebSocket, no hosted demo. The only
    documented enforcement action in §2.3 was against a *hosted* deployment.
-3. **Redistributing the data** in any form — no committing captures to git, no publishing derived
+2. **Redistributing the data** in any form — no committing captures to git, no publishing derived
    per-tick series, no sharing recordings. See §11.
-4. **Running the client outside a live F1 session window**, or from more than one process at a
+3. **Running the client outside a live F1 session window**, or from more than one process at a
    time (§6.5).
 
 ### 4.3 Why the scope is drawn there, and why it is stated rather than assumed
 
 §2.3's central problem is that F1's terms restrict this material to "personal, non-commercial
-use" while this project's stated endpoint is a commercial trading bot. That tension is real and
-was accepted (§5) — but *when* it becomes concrete is a choice, and this spec makes it
-deliberately.
-
-A client capturing a feed to a laptop, in shadow mode, producing a number nobody acts on, is
-squarely inside the ordinary meaning of personal, non-commercial research. The same client wired
-to an order router is not, on any reading. Those are not the same activity and this spec does not
-let them blur into each other by default. Deferring the commercial step until it is separately
-approved keeps the defensible framing available for the entire build-and-test phase — which is
-most of the calendar — and costs nothing, because the model has to be built and validated before
-it could be traded on anyway.
-
-This is the same shape as `welcome.md`'s existing rule that an approved trading spec authorizes
-building the trader, not placing live trades. Here the interlock runs one layer earlier: an
-approved Lane B spec authorizes building the feed, not wiring it to anything that trades.
-
-**The interlock, stated as an implementation rule:** no module under Lane C may import from the
-Lane B client, and the Lane B client must have no code path that writes to an order-placement
-interface. Crossing that line needs a new decision recorded in `00-roadmap.md`, not a refactor.
+use." A client capturing a feed to a laptop, in shadow mode, producing a prediction nobody acts on
+beyond the owner reading it, is squarely inside the ordinary meaning of personal, non-commercial
+research. A hosted, redistributed, or continuously-running-unattended version is not, on any
+reading. Those are not the same activity and this spec does not let them blur into each other by
+default. §4.2's scope boundary is what keeps the defensible framing available for the entire
+build-and-test phase.
 
 ### 4.4 Implementation is gated on the B1 delay check
 
@@ -313,19 +294,15 @@ overtake model, trigger conditions, scoring — is not authorized until B1 retur
 "Workable" is the owner's threshold to set, but the spec's own bar is: seconds, not minutes.
 
 > **Amended 2026-08-26 by owner decision.** The gate above is narrowed, not reinterpreted. The
-> owner has decided to build the overtake model, and has given the rationale that resolves Lane B's
-> long-standing trading-vs-learning fork: the overtake model is an **intermediate signal feeding a
-> live win-probability model**, which trades the race-winner market that `07` §10.3 measured as
-> liquid throughout a race. The amended gate:
+> owner has decided to build the overtake model as a standalone live-prediction feature: the
+> overtake model is an **intermediate signal feeding a live win-probability model**. The amended
+> gate:
 >
 > - **Authorized now:** building and validating the overtake model **offline, against archived
 >   races** (`08-overtake-model.md`). This needs no live connection, so B1's delay measurement
 >   cannot bear on whether the model is correct.
-> - **Still gated on B1:** running that model against a *live* feed, and any trading on its output.
->   B1's original reasoning is untouched here — if the delay is minutes, live corner-level
->   prediction against a live market is still dead.
-> - **Still gated on §4.3:** the interlock. Building the model does not trip it; wiring it to an
->   order interface does. That remains a separate dated decision.
+> - **Still gated on B1:** running that model against a *live* feed. B1's original reasoning is
+>   untouched here — if the delay is minutes, live corner-level prediction is still dead.
 >
 > The bar for the live half stays: seconds, not minutes.
 >
@@ -358,8 +335,6 @@ What was accepted, in summary, with the sourced text in §2.3 rather than restat
 - Enforcement is real, not theoretical: `matteocelani/f1-telemetry`'s hosted deployment was
   IP-blocked by F1. Their README still carries the notice — re-read 2026-08-26: *"Due to IP
   blocking measures introduced by Formula 1, the hosted version is currently down."*
-- The project's end goal (Lane C, commercial automated trading) sits worst of all against
-  "personal, non-commercial."
 
 **Do not re-litigate this decision.** An agent reading this spec should not reopen it, argue
 against it, or refuse work on the grounds that §2.3 exists. What an agent *should* do is hold the
@@ -758,7 +733,7 @@ The roadmap's B0 line is corrected accordingly (§15).
 No corner detection, no braking-zone geometry, no overtake probability, no trigger conditions, no
 market interaction. Those are B2+ and, per §4.4, are not authorized until B1 clears — **except the
 offline overtake model, which §4.4's 2026-08-26 amendment authorizes and `08-overtake-model.md`
-specs.** Live use and trading stay gated. B0 ends at
+specs.** Live use stays gated. B0 ends at
 "here is a correct, timestamped, per-car tick, and here is an honest statement of what was missing
 from it."
 
@@ -1145,7 +1120,6 @@ Listed so a future reader can tell "not built yet" from "decided against":
 - Broadcast delay *compensation*. B1 measures the delay; nothing here corrects for it. The prior
   art's three-minute manual buffer is a spoiler-avoidance feature for human viewers and is the
   opposite of what a prediction pipeline wants (§3).
-- Any market or trading interaction (§4.2, §4.3).
 - Tyre/stint, pit-stop, and overtake-event channels (§6.3) — deferred, not rejected.
 - Decoding channel 45 (§7.3).
 - A live positioning model built on micro-sector segments (§8).
@@ -1160,9 +1134,6 @@ Listed so a future reader can tell "not built yet" from "decided against":
   the §4.2 scope limit stated as part of the decision, not as a footnote to it.
 - `00-roadmap.md` **Open decisions**: the 2026-08-26 Lane B data-source entry is resolved and
   closed. The F1TV question (§6.4) is filed as a new one.
-- `00-roadmap.md` **Phase C1**: stale twice over — it describes FastF1's live module as the only
-  live source considered and repeats the ~2h cap as a property of the feed. Both are superseded by
-  §§6 and 9.1.
 - `00-roadmap.md` **backlog**: the "Lane B: FastF1's live module does not parse in real time — the
   B0 premise needs revisiting" line is resolved by this document.
 - `welcome.md`: two corrections only. The zero-budget bullet's parenthetical ("we deliberately
@@ -1173,9 +1144,6 @@ Listed so a future reader can tell "not built yet" from "decided against":
 - **Added 2026-08-27:** §4.4's amendment is scoped to `08` by name, and `09-live-win-probability.md`
   needs it extended to cover a second offline model. Recorded as pending in §4.4 — not applied,
   because that is the owner's dated decision, not this document's.
-- **Added 2026-08-27:** §4.3's interlock gains a second thing to hold the line against. `09` §8.2
-  restates it one layer up, as an enforced static import check over the module graph plus a
-  "no code path to an order interface" rule, on the reasoning that a rule with no test is a comment.
 
 ## 16. Open items — genuinely the owner's call, not guessable
 
@@ -1194,11 +1162,7 @@ Listed so a future reader can tell "not built yet" from "decided against":
    with teeth: §4.4 makes B0's prediction layer *gated* on it, not merely informed by it. A
    multi-minute delay closes Lane B regardless of data source. Still not run; free; should be done
    at the first available session, alongside §13's acceptance run.
-3. **Whether Lane B output may ever feed Lane C.** §4.3 makes this an explicit interlock rather
-   than a sequencing detail. Turning it on is the moment the "personal, non-commercial" framing
-   §2.3 examined stops being available, and it needs to be a decision taken on that basis with a
-   date on it — not something that happens because two modules were both finished.
-4. **Whether this lane appears in the portfolio / LinkedIn writeup at all.** `welcome.md` says the
+3. **Whether this lane appears in the portfolio / LinkedIn writeup at all.** `welcome.md` says the
    project is built to be shown. Lane B is the one part where being seen carries its own risk, and
    the enforcement precedent in §2.3 was against the most *visible* instance of this behaviour.
    Options run from "omit Lane B entirely," through "describe the architecture without naming the

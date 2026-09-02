@@ -422,25 +422,6 @@ flag in the snapshot, and mark any prediction made under `disagree` as weather-u
 same way `01` §5.6 marks a wet race out-of-domain for A3. That is a data-quality guard, needs no
 market data, and is verified.
 
-### 7.4 Lane C — a plausible trading rationale, explicitly not verified
-
-Keep this separate from §7.3. Nothing in the backtest is evidence about market pricing; neither
-venue exposes historical odds, so the argument below is **unbacktested reasoning, not a result.**
-
-The first draft argued that high spread means the crowd is "more likely to be wrong in either
-direction, i.e. more likely to be exploitable." That doesn't close — direction-free wrongness isn't
-tradable on binary YES/NO shares. The better form of the argument is directional:
-
-> A wet race redistributes win probability away from whoever qualified well (`02` §5.1's grid
-> weight is 0.35, the largest in the model). A market that must settle on a single implied weather
-> assumption will, under genuine forecast uncertainty, tend to price closer to the dry case than
-> the probability-weighted blend of both. If so, the favourite is **over**-priced and the field
-> **under**-priced whenever `disagree` holds — which is a direction, and therefore a trade.
-
-Testing that needs snapshotted odds on high-spread races, which the project accumulates at n≈1 per
-wet weekend. It is a Lane C hypothesis to log and check, not a reason to build anything. Sizing and
-trade logic remain out of scope until Lane C has its own approved spec.
-
 ## 8. The real Ensemble API — considered, deferred
 
 The first draft called itself an ensemble spec without mentioning that Open-Meteo runs an actual
@@ -505,7 +486,6 @@ verify (§3.3).
 - **Does not change the wet-race definition** (`snapshot.py:288`, `02` §4). §6.1 argues it should
   change and hands the decision to the owner; nothing here acts on it.
 - Does not change F7's wet-branch logic — only the scalar that enters its gate (§7.1).
-- Does not implement trade logic. §7.4 is a labelled hypothesis. No Lane C code is authorized here.
 - Does not change the snapshot schema's top-level shape (`01` §8.3) — `weather` gains a `per_model`
   block and three aggregates, it doesn't become a new top-level key.
 
@@ -533,10 +513,8 @@ Still open:
    against the 10,000/day free allowance is unverified — no quota headers are returned. Immaterial
    for Lane A's one call per race; worth knowing before an A3 backfill.
 3. **`p_spread`'s downstream consumer (§7.3).** The proposed minimum is a snapshot flag plus a
-   weather-uncertain marker on predictions. Whether it ever becomes a feature in its own right, or
-   a Lane C gate, is not decided.
-4. **The Lane C hypothesis (§7.4) is untested** and needs snapshotted odds on high-spread races,
-   which accrue at roughly one per wet weekend. Log the data; don't build on it.
+   weather-uncertain marker on predictions. Whether it ever becomes a feature in its own right is
+   not decided.
 5. **`test_f7_wet_branch.py` is the shipping gate (§7.1).** Changing the gate input is what first
    fires a branch that has never run on a real race. That test existing is not the same as it
    having been exercised against the ensemble path.

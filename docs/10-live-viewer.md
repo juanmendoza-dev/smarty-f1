@@ -615,7 +615,8 @@ Listed so a future reader can tell "not built yet" from "decided against":
 - **Corner geometry, braking zones, sector overlays.** `03` §14 defers these; the viewer does not
   get to introduce them through the back door by drawing them. Corner *numbers* from FastF1's
   `get_circuit_info()` are labels, not geometry, and are allowed once §10.2's frame check passes.
-- **Any market, odds, or trading display.** `03` §4.2 item 1 / §4.3's interlock.
+- **Any market or odds display.** Out of scope for a Lane B debug tool; that comparison lives in
+  Lane A's own snapshot/score output.
 - **Team colours, driver photos, tyre compounds.** `03` §6.3 does not subscribe `TimingAppData`, so
   compound is not in the tick; the rest is presentation the tick does not carry.
 - **Video sync against the broadcast.** That is B1's measurement (`03` §13 item 8), and B1 is a
