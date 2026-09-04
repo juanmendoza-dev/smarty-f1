@@ -274,6 +274,15 @@ class WinProbLayer:
         counts = [self.stops_done.get(c, 0) for c in top]
         return max(counts) - min(counts)
 
+    @property
+    def pit_offset_top3(self):
+        """The raw spread in completed stops across the top three -- 09 sec5.7's
+        original suppression condition. Kept public and unchanged even with
+        `docs/12` active, because 12 sec6's outcome 1 is a comparison against
+        it: the fall from 28.5% has to be decomposable into what the projection
+        corrected and what the rule change simply stopped counting."""
+        return self._pit_offset_top3()
+
     def _pit_offset_top3(self):
         top = [c for c in self.order if c not in self.retired][:3]
         if len(top) < 2:

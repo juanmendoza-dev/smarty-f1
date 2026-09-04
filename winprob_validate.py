@@ -48,6 +48,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+from lib import pit_strategy as pitmod
 from lib import winprob as wp
 from lib import winprob_background as bgmod
 from lib import winprob_replay as wpr
@@ -158,7 +159,7 @@ def market_prices():
 
 
 def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, flat=False,
-               emit_jsonl=False, verbose=True):
+               emit_jsonl=False, verbose=True, pit_model=False):
     """Replay one race and score every arm at every lap boundary."""
     telemetry = (mode == "full")
     archive = wpr.RaceArchive(SEASON, rnd, telemetry=telemetry)
@@ -174,9 +175,13 @@ def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, flat=False,
     om = None
     if race_blob.get("overtake_model"):
         om = OvertakeModel.from_dict(race_blob["overtake_model"])
+    # 12 sec5.1: delta is served per (season, circuit) from the offline fit,
+    # never computed from the race being replayed.
+    projector = (pitmod.PitProjector(SEASON, archive.circuit_id)
+                 if pit_model else None)
     layer = wp.WinProbLayer(prior, background, overtake_model=om, m=m,
                             n_paths=n_paths, use_platt=use_platt,
-                            model_id="08:R%d" % rnd)
+                            model_id="08:R%d" % rnd, pit_projector=projector)
 
     static = dict(prior.p_algo)
     rows = []
@@ -204,6 +209,15 @@ def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, flat=False,
             "round": rnd, "lap": tick.lap_current, "progress": layer.progress,
             "reliable": est.reliable, "reasons": list(est.reasons),
             "pit_offset": est.pit_offset, "n_in_domain": len(est.in_domain),
+            # 12 sec6 outcome 1's decomposition, collected per checkpoint so the
+            # whole thing comes out of one run: the OLD rule's condition, the
+            # new rule's inputs, and whether the order actually moved.
+            "pit_offset_top3": layer.pit_offset_top3,
+            "n_pit_projected": len(est.pit_projected),
+            "pit_order_changed": est.pit_order_changed,
+            "pit_cycle_in_top3": est.pit_cycle_in_top3,
+            "pit_refused": [r for _, r in est.pit_refused],
+            "pit_places_lost": sum(p["places_lost"] for p in est.pit_projected),
             "max_se": max(est.se_mc.values()) if est.se_mc else 0.0,
             "ll": {
                 "layer": log_loss(est.p_win, winner),
@@ -314,6 +328,10 @@ def main():
     ap.add_argument("--flat-hazard", action="store_true",
                     help="09 sec5.5 requires the flat-hazard variant reported alongside "
                          "the two-segment one -- n=50 does not settle a hazard shape")
+    ap.add_argument("--pit-model", action="store_true",
+                    help="run docs/12's pit-strategy projection (12 sec4). "
+                         "Needs a --pit-refit fit.json: 12 sec7 assertion 4 "
+                         "refuses to build the layer against an un-refit q")
     ap.add_argument("--degrade", type=int, default=0,
                     help="inject a 03 sec8 degraded window every Nth LAP (09 sec9.1) -- "
                          "lap-keyed because checkpoints are lap boundaries")
@@ -335,11 +353,13 @@ def main():
         if om is None:
             print("    R%-2d no 08 fold model -- the ablation arm is meaningless here" % rnd)
         races.append(score_race(rnd, blob, args.mode, args.n, args.platt, inject,
-                                flat=args.flat_hazard, emit_jsonl=args.emit_jsonl))
+                                flat=args.flat_hazard, emit_jsonl=args.emit_jsonl,
+                                pit_model=args.pit_model))
 
     report = {"mode": args.mode, "n_paths": args.n, "eps": EPS,
               "platt": args.platt, "degrade_every": args.degrade,
-              "flat_hazard": args.flat_hazard,
+              "flat_hazard": args.flat_hazard, "pit_model": args.pit_model,
+              "pit_swaps_removed": bool(fit.get("meta", {}).get("pit_swaps_removed")),
               "rounds": rounds, "races": races}
 
     print("\n" + "=" * 78)
@@ -417,6 +437,68 @@ def main():
         "reasons": reasons, "pit_suppressed": pit_suppressed,
         "n_with_in_domain": sum(1 for r in all_cp if r["n_in_domain"]),
         "mean_max_se": sum(r["max_se"] for r in all_cp) / max(len(all_cp), 1)}
+
+    # ------------------------------------------------------------------
+    # 12 sec6 outcome 1, decomposed. A fall in the suppression fraction is only
+    # a result if it is a fall the PROJECTION bought; a rule that simply stops
+    # counting something is a different claim, and reporting the two as one
+    # number would be exactly the strained positive 05 sec6.4.1 rules out.
+    # ------------------------------------------------------------------
+    old_rule = [r for r in all_cp if r.get("pit_offset_top3", 0) > 0]
+    new_rule = [r for r in all_cp if wp.REASON_PIT_OFFSET in r["reasons"]]
+    freed = [r for r in old_rule if wp.REASON_PIT_OFFSET not in r["reasons"]]
+    corrected = [r for r in freed if r.get("pit_cycle_in_top3")]
+    no_cycle = [r for r in freed if not r.get("pit_cycle_in_top3")]
+    pct = lambda xs: 100.0 * len(xs) / max(len(all_cp), 1)      # noqa: E731
+    print("\n12 sec6 outcome 1 -- pit suppression, decomposed")
+    print("  09 sec5.7's OLD condition (pit_offset > 0 in top 3): %d (%.1f%%)"
+          % (len(old_rule), pct(old_rule)))
+    print("  12 sec4's NARROWED condition (rejoin not projectable): %d (%.1f%%)"
+          % (len(new_rule), pct(new_rule)))
+    print("  of the %d checkpoints the narrowing frees:" % len(freed))
+    print("    a top-3 car was mid-cycle and the projection corrected it: %d (%.1f%%)"
+          % (len(corrected), pct(corrected)))
+    print("    no top-3 car was in a cycle at all -- RULE CHANGE, NOT PROJECTION:")
+    print("      %d (%.1f%%)  <- 12 sec2.4's out-of-scope stop timing owns these"
+          % (len(no_cycle), pct(no_cycle)))
+    print("  checkpoints where the corrected order differs from track position: "
+          "%d (%.1f%%)" % (sum(1 for r in all_cp if r.get("pit_order_changed")),
+                           pct([r for r in all_cp if r.get("pit_order_changed")])))
+    print("  checkpoints with any car projected: %d (%.1f%%); places lost, total: %d"
+          % (sum(1 for r in all_cp if r.get("n_pit_projected")),
+             pct([r for r in all_cp if r.get("n_pit_projected")]),
+             sum(r.get("pit_places_lost", 0) for r in all_cp)))
+    refused = {}
+    for r in all_cp:
+        for reason in r.get("pit_refused", ()):
+            refused[reason] = refused.get(reason, 0) + 1
+    if refused:
+        print("  projections refused (12 sec5.3), by reason:")
+        for reason, n in sorted(refused.items(), key=lambda kv: -kv[1]):
+            print("    %-24s: %d" % (reason, n))
+    # The honesty check on the rule change: on the checkpoints the narrowing
+    # newly declares reliable, is the layer actually better than the baseline
+    # that needs no reliability claim at all?
+    if freed:
+        print("  on the freed checkpoints -- layer %.4f vs ladder %.4f log-loss"
+              % (sum(r["ll"]["layer"] for r in freed) / len(freed),
+                 sum(r["ll"]["ladder"] for r in freed) / len(freed)))
+        if no_cycle:
+            print("  on the RULE-CHANGE-ONLY subset -- layer %.4f vs ladder %.4f"
+                  % (sum(r["ll"]["layer"] for r in no_cycle) / len(no_cycle),
+                     sum(r["ll"]["ladder"] for r in no_cycle) / len(no_cycle)))
+    report["pit_model_coverage"] = {
+        "old_rule": len(old_rule), "new_rule": len(new_rule),
+        "freed": len(freed), "freed_corrected": len(corrected),
+        "freed_rule_change_only": len(no_cycle),
+        "order_changed": sum(1 for r in all_cp if r.get("pit_order_changed")),
+        "any_projected": sum(1 for r in all_cp if r.get("n_pit_projected")),
+        "places_lost": sum(r.get("pit_places_lost", 0) for r in all_cp),
+        "refused": refused,
+        "freed_ll_layer": (sum(r["ll"]["layer"] for r in freed) / len(freed)
+                           if freed else None),
+        "freed_ll_ladder": (sum(r["ll"]["ladder"] for r in freed) / len(freed)
+                            if freed else None)}
 
     print("\n09 sec9.3 requirement 3 -- Plackett-Luce log-likelihood of the realised "
           "finishing order (DIAGNOSTIC, not the winner metric)")
