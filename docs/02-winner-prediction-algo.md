@@ -408,8 +408,58 @@ let a season of Brier scores (§7) decide whether it is real overconfidence.
 ## 10. Open items
 
 1. **Track overtaking multipliers are hand-set judgements**, not measurements. Replace with
-   per-circuit overtake counts once A3 has the data. **Partial payment now available from an
-   unexpected direction (2026-08-27):** `09` §5.4's background per-lap transition model enters
+   per-circuit overtake counts once A3 has the data.
+
+   **PAID, 2026-09-04, and the answer is that the `m = 1.15` tier is not a coherent group.** `09`
+   §5.4's background-rate fit was built and run (`09` §10.1), and it reports the per-circuit
+   residual as a by-product exactly as promised below. Measured per-lap adjacent-pair swap rate,
+   over the 11 circuits in the 2026 archive, against the rate the fitted model predicts for that
+   circuit's `m`:
+
+   | Circuit | `m` | pairs | observed | predicted | obs/pred |
+   |---|---|---|---|---|---|
+   | Shanghai | 1.00 | 841 | 0.0868 | 0.0635 | **1.37** |
+   | Spa | **0.85** | 805 | 0.0770 | 0.0850 | 0.91 |
+   | Barcelona | 1.00 | 1,132 | 0.0769 | 0.0640 | 1.20 |
+   | Red Bull Ring | 1.00 | 1,239 | 0.0726 | 0.0635 | 1.14 |
+   | **Hungaroring** | **1.15** | 1,335 | **0.0719** | 0.0469 | **1.53** |
+   | Miami | 1.00 | 955 | 0.0691 | 0.0631 | 1.10 |
+   | Silverstone | 1.00 | 1,035 | 0.0667 | 0.0628 | 1.06 |
+   | Suzuka | 1.00 | 1,028 | 0.0632 | 0.0632 | 1.00 |
+   | Melbourne | 1.00 | 924 | 0.0574 | 0.0639 | 0.90 |
+   | Montréal | 1.00 | 1,112 | 0.0477 | 0.0642 | 0.74 |
+   | **Monaco** | **1.15** | 1,340 | **0.0201** | 0.0473 | **0.43** |
+
+   **Monaco and the Hungaroring carry the same hand-set `m = 1.15` and their measured swap rates
+   differ by 3.6×** — 0.0201 against 0.0719. Worse for the tier: the Hungaroring's rate is *above*
+   the `m = 1.00` circuits' average of about 0.065, so a circuit labelled "position hard to change"
+   reorders its field **more** than the default group does. Monaco is the only circuit in the corpus
+   that clearly behaves like the label.
+
+   Spa, on the other side, is labelled `m = 0.85` ("position easy to change") and comes in at 0.0770
+   against the default group's ~0.065 — a 1.18× lift where the tier implies a large one.
+
+   **A second, independent symptom that the circuit effect is not identified from twelve races:**
+   `09` §5.4 enters circuit as a single fitted slope on `m`, and fitted race-forward that slope moves
+   from **−7.2 on R1–R8 to −2.0 on R1–R11** — it collapses the moment the Hungaroring arrives and
+   contradicts Monaco. One parameter over three tier values is already the most this corpus supports,
+   and it is not stable.
+
+   **This corroborates `05`'s A3 finding from a different direction**, which matters because the two
+   measurements share no machinery: `05` §3.5's fitted tier interaction found `grid_x_hard` negative
+   in all seven folds — "a stable inversion of `02` §5.1's predicted ordering" — and that is the
+   `m = 1.15` tier again, failing again. `05`'s locked decision to drop `m` from A3 v1 stands, and
+   this is now the second line of evidence for it.
+
+   **What this does NOT license.** It does not license re-tuning `m` in `02` from these numbers. An
+   adjacent-pair swap rate is not the quantity `m` scales — `m` scales the *weight on grid position*
+   in a pre-race scorer, and `09` §5.4's rate contains pit cycles and retirements as well as on-track
+   passes (`09` §2.3). The finding is that **the tier grouping is wrong**, not that a particular
+   replacement value is right. Replacing `m` needs its own measurement of the thing `m` actually
+   claims, and that is still this item's open half.
+
+   Earlier note, kept for the record — **partial payment then available from an unexpected direction
+   (2026-08-27):** `09` §5.4's background per-lap transition model enters
    circuit as `m` rather than as a free per-circuit parameter, so fitting it produces a per-circuit
    residual against `m` as a by-product. `09` §2.3 already measures the raw per-lap adjacent-pair
    swap rate across 12 races — about 6% at the front of the field and 7–8% in the midfield, which
