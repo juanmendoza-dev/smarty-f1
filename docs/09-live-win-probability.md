@@ -441,7 +441,40 @@ rows (3,358 of 26,636), and θ_front then keeps 41% of what survives at the fron
 ### 5.4 The background per-lap transition model
 
 A pair-swap probability `q(band, progress, circuit)` for each adjacent pair on each simulated lap,
-fitted from §2.3's counts. Requirements:
+fitted from §2.3's counts.
+
+> **Correction, 2026-09-03, made in place during the B4 build.** As originally written this section
+> defined the swap probability as `q(band, progress, circuit)` and nothing else — **no strength
+> term** — while §4 declares `WinProbState.strengths` and §5.5 requires solving for reconciled
+> strengths `w'` such that the simulator reproduces `02`'s `p_algo` at lights-out. Traced through
+> the step structure before any simulator code was written, `w'` had **no path into `p̂` at all**:
+> the estimate was a function of starting order and retirement only, the IPF update
+> `w' ← w' · p_algo / p̂` had nothing to pull on, and §11 assertion 2 — the backbone assertion of
+> this whole layer — was unreachable. The spec was internally inconsistent, not merely incomplete.
+>
+> **The fix, which is the minimal one.** For an adjacent pair with `a` ahead of `b`:
+>
+> ```
+> q_pair = q(band, progress, circuit) · 2·w_b / (w_a + w_b)
+> ```
+>
+> The tilt is exactly 1.0 when the two strengths are equal, so §2.3's measured rate is recovered
+> on a field of equals and remains the calibration target rather than being replaced by a fitted
+> quantity; and it is bounded in `[0, 2q]`, so no strength ratio can drive a swap probability to
+> nonsense. That reduction is itself an assertion in `lib/winprob_sim.py`
+> (`TILT_EQUAL_STRENGTH_IS_ONE`), not a comment.
+>
+> Measured lever, on a 20-car 60-lap synthetic field at `q = 0.06`: the leader's simulated P(win)
+> moves from **0.002 to 0.879** as his strength runs from 0.05× to 8× the field, against 0.291 at
+> parity. IPF has room in both directions, and the direction it needs most — flattening a leader
+> whose `p_algo` is below the process's natural conversion rate — is the easy one.
+>
+> Recorded here rather than only in the code because this project's specs are the decision record
+> (§15's `Lapped` correction is the precedent): the number that changed is in the spec, so the
+> correction belongs in the spec.
+
+
+Requirements:
 
 - **Conditioned on `progress`, not on laps remaining** (§2.2's composition artifact).
 - **Conditioned on position band**, at §2.3's granularity — P1–P3 / P4–P6 / P7–P10 / P11–P15 /
