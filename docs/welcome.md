@@ -77,8 +77,13 @@ The project is split into independent tracks. Don't conflate them — most confu
   broadcast at all — is a go/no-go for the track map. Its §13 flags one thing worth knowing before
   anyone screenshots it: a screenshot of a real capture is live timing data under `03` §11.2, so it
   cannot be published while `03` §16 item 4 is open
-- `docs/12-pit-strategy-model.md` — the pit-strategy model (Phase B5), **specced 2026-09-04, not
-  approved, not built**. `09` §5.7's named gap, scoped to *projecting a stop already in progress*
+- `docs/12-pit-strategy-model.md` — the pit-strategy model (Phase B5), **specced 2026-09-04,
+  approved 2026-09-04, built and validated 2026-09-04 — and it does not earn its place; read
+  `12` §6.1 before using it**. Two of its three pre-registered outcomes failed and `09`'s B4 layer
+  as shipped is still the better configuration. What the build is worth keeping for is the
+  measurement it produced: `09` §5.4's `q` is nearly half pit-cycle swaps, and removing them —
+  which `12` §4 makes mandatory the moment the model exists — costs more accuracy than the
+  projection buys back. `09` §5.7's named gap, scoped to *projecting a stop already in progress*
   rather than predicting when a car will stop — a scope set by measurement (`12` §2.4: stint age
   barely moves the per-lap stop hazard) rather than by preference. Read `12` §2.3 even if you never
   build it: it measures that a per-lap swap rate implies about 1.6× more net movement than actually

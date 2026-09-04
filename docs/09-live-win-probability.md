@@ -684,9 +684,14 @@ leading and overstate his P(win). The error is largest exactly where the market 
   onto post-cycle track position. That is a genuine second model, it needs its own measurements,
   and building it inside this spec would be exactly the scope creep `welcome.md` warns against. It
   is §13 item 2 and it is the most valuable thing this layer could gain.
-  **That model is `docs/12`, approved and built 2026-09-04.** It is narrower than this bullet
-  imagined: it projects a stop *already in progress* and does not predict when a car will stop
-  (`12` §2.4). The `pit_offset` field above keeps its meaning unchanged — the owner's call on `12`
+  **That model is `docs/12`, approved and built 2026-09-04 — and it does not earn its place; `12`
+  §6.1 has the numbers.** It is narrower than this bullet imagined: it projects a stop *already in
+  progress* and does not predict when a car will stop (`12` §2.4), and that turns out to be the
+  reason it fails. §2.1 measured that 62% of pit-attributable lead changes are the cycle resolving
+  itself, so demoting a leader who is in the pit lane discards the fact that he takes the place
+  back when the cars ahead stop — the layer's log-loss on the four checkpoints where the projection
+  corrected a top-three car goes from 0.79 to 2.90. **This layer as shipped remains the
+  configuration to use.** The `pit_offset` field above keeps its meaning unchanged — the owner's call on `12`
   §9 item 4 was that a field published as diagnostic information should not quietly change
   semantics under something downstream that may already read it, so the projection is reported in
   its own `pit_projected` / `pit_order_changed` / `pit_cycle_in_top3` fields alongside it.

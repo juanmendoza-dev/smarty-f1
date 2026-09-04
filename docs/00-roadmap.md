@@ -210,7 +210,15 @@ Six measurements were run against the 12-race archive before the spec was writte
 **Gate:** the *offline* layer was authorized by the 2026-09-03 approval of `09`, which **extends** `03` §4.4's 2026-08-26 amendment — that amendment names `08` explicitly, so it was a new dated decision rather than an inheritance (`09` §1.2). **Running it live stays gated on B1, which is still unrun.** Nothing in the build or the validation touches that gate: the whole run is archive replay.
 
 **Phase B5 — Pit-strategy model (new 2026-09-04)**
-Specced in `12-pit-strategy-model.md`. **Specced, not approved, not built.** `09` §5.7 named this "the most valuable thing this layer could gain" and B4's run put numbers on both sides of that: 28.5% of checkpoints suppressed by the pit rule, and the position ladder beating the full layer in the closing tenth of the race. Scoped deliberately narrowly — **project a stop already in progress onto post-cycle track position using a per-circuit δ; do not predict when a car will stop.** That scope is a measurement, not a preference: stint age moves the per-lap stop hazard between 0.015 and 0.075 on a 0.037 base and is not even monotone, so the timing half is unfunded by the data (`12` §2.4). δ measures at **22.8 s pooled, MAD 3.7 s, 19.4–28.3 s per circuit over 286 stops** (`12` §2.1). `12` §6 pre-registers three outcomes and one null.
+Specced in `12-pit-strategy-model.md`. **Specced, approved and BUILT 2026-09-04 — and not
+recommended for use; `12` §6.1 is the result.** All three pre-registered outcomes were run: coverage
+fell 28.5% → 2.7% but 135 of the 139 freed checkpoints had no car in a pit cycle at all, so the
+projection bought ~0.8 points of a 25.8-point fall and the rule change bought the rest; outcome 2's
+prediction that removing pit swaps would move §2.3's 0.61 toward 1.0 failed (it went to 0.59); and
+mid-race log-loss got worse rather than better (pooled 0.799 → 0.913). The measurement worth keeping
+is that **`q` is ~45% pit-cycle swaps** and removing them, which the model makes mandatory, costs
+more than the projection returns. `09`'s B4 layer as shipped remains the configuration to use.
+Earlier status, for the record: `09` §5.7 named this "the most valuable thing this layer could gain" and B4's run put numbers on both sides of that: 28.5% of checkpoints suppressed by the pit rule, and the position ladder beating the full layer in the closing tenth of the race. Scoped deliberately narrowly — **project a stop already in progress onto post-cycle track position using a per-circuit δ; do not predict when a car will stop.** That scope is a measurement, not a preference: stint age moves the per-lap stop hazard between 0.015 and 0.075 on a 0.037 base and is not even monotone, so the timing half is unfunded by the data (`12` §2.4). δ measures at **22.8 s pooled, MAD 3.7 s, 19.4–28.3 s per circuit over 286 stops** (`12` §2.1). `12` §6 pre-registers three outcomes and one null.
 
 **Phase B2b — Automated trigger recognition**
 Computer vision on screen-captured broadcast frames, targeting broadcast graphic overlays (pit boards, safety car flags, lights-out gantry) rather than raw scene content — a more tractable detection target. Requires reference footage of Apple's actual broadcast graphics first (their first season broadcasting F1 in the US, so no existing reference material).
