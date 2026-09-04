@@ -173,7 +173,8 @@ class TestArchived2023DutchGP(unittest.TestCase):
         # DNF/fastest-lap, not F7) and Open-Meteo's forecast API doesn't serve
         # a date this far in the past -- stub a dormant/dry block rather than
         # pull the archive API and build a real weather feature test doesn't need.
-        weather = {"p_max": 0}
+        # p_mean, not p_max: 06 sec6.2 moved F7's gate onto it.
+        weather = {"p_mean": 0}
 
         snapshot = {
             "meta": {

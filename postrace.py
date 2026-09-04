@@ -221,7 +221,7 @@ def main():
         "raw_scores": result["raw_scores"],
         "p_algo": p_algo,
         "weather_dormant": result["weather_dormant"],
-        "p_max": result["p_max"],
+        "p_mean": result["p_mean"],
         "phase_a4": phase_a4,
         "comparison": comparison,
         "post_race": post_race,

@@ -134,7 +134,9 @@ def build_race_rows(season, round_, cache_dir):
         # sec3.3: F7 is dormant for every backfilled row -- the archive endpoint
         # serves observed mm, never a precipitation probability (01 sec5.6).
         # score_all still wants the key; the column it produces is discarded.
-        "weather": {"p_max": 0},
+        # The key is p_mean since 06 sec6.2 moved F7's gate onto it; a past race
+        # has no probability under either name, so this stays a dormant stub.
+        "weather": {"p_mean": 0},
     }
     # dict keys like results_by_round's round numbers become strings on the way
     # through json.dump in a real snapshot, and compute_driver_form indexes

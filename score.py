@@ -189,11 +189,36 @@ def compute_champ(algo_snapshot):
 # ---------- F7 weather ----------
 
 def compute_weather(algo_snapshot):
-    p_max = algo_snapshot["weather"]["p_max"]
+    """F7. Only the scalar entering the >=40 gate changed; the branch behind it
+    -- the per-driver wet rating, the shrinkage, the field normalization -- is
+    untouched (06-weather-ensemble-signal.md sec7.1).
+
+    That scalar is now p_mean: the max over race-window hours of the mean across
+    four models (06 sec4.2), decided in sec6.2 on the backtest rather than by
+    preference. Under the >= 0.5mm wet rule it gets 75%/60% recall/precision
+    against the blended call's 62%/45%, and p_max -- which looks best under the
+    old > 0.0mm rule -- collapses to 38% precision because everything extra it
+    catches is a 0.1mm trace.
+
+    A pre-ensemble snapshot has no p_mean and is refused rather than quietly
+    falling back to its p_max. The two are different quantities (the 2026 Dutch
+    GP: p_max 88, p_mean 32.5, opposite sides of the gate), and reading one
+    under the other's name is exactly the failure 01 sec5.6 spends a page
+    rejecting for the backfill.
+    """
+    weather = algo_snapshot["weather"]
+    require(
+        "p_mean" in weather,
+        "snapshot weather block has no p_mean: F7's gate input moved from the "
+        "blended p_max to the four-model p_mean (06 sec6.2), so this snapshot "
+        "predates the ensemble and cannot be scored against the current gate. "
+        "Re-run snapshot.py.",
+    )
+    p_mean = weather["p_mean"]
     grid = algo_snapshot["grid"]
-    dormant = p_max is None or p_max < 40
+    dormant = p_mean is None or p_mean < 40
     if dormant:
-        return {d["code"]: NEUTRAL for d in grid}, dormant, p_max
+        return {d["code"]: NEUTRAL for d in grid}, dormant, p_mean
 
     by_driver = algo_snapshot["track_history"]["by_driver"]
     raw_by_code = {}
@@ -210,7 +235,7 @@ def compute_weather(algo_snapshot):
         code = d["code"]
         n = n_wet_by_code[code]
         out[code] = NEUTRAL if n == 0 else shrink_by_n(normalized[code], n)
-    return out, dormant, p_max
+    return out, dormant, p_mean
 
 
 # ---------- F8 teammate H2H ----------
@@ -289,7 +314,7 @@ def score_all(algo_snapshot):
     s_driver_form = compute_driver_form(algo_snapshot)
     s_track, track_n = compute_track_history(algo_snapshot)
     s_champ = compute_champ(algo_snapshot)
-    s_weather, weather_dormant, p_max = compute_weather(algo_snapshot)
+    s_weather, weather_dormant, p_mean = compute_weather(algo_snapshot)
     s_teammate = compute_teammate_h2h(algo_snapshot)
 
     sub_scores = {
@@ -327,7 +352,7 @@ def score_all(algo_snapshot):
         "sub_scores": sub_scores,
         "track_n": track_n,
         "weather_dormant": weather_dormant,
-        "p_max": p_max,
+        "p_mean": p_mean,
         "effective_weights": eff,
         "raw_scores": raw_scores,
         "p_algo": p_algo,
@@ -640,7 +665,7 @@ def main():
     p_algo = result["p_algo"]
 
     print(f"{snapshot['meta']['race_name']} {snapshot['meta']['season']} — m={snapshot['meta']['track_overtaking_multiplier']}, "
-          f"sprint_weekend={snapshot['meta']['is_sprint_weekend']}, weather p_max={result['p_max']}% "
+          f"sprint_weekend={snapshot['meta']['is_sprint_weekend']}, weather p_mean={result['p_mean']}% "
           f"({'dormant' if result['weather_dormant'] else 'ACTIVE'})")
     print(f"effective weights: " + ", ".join(f"{k} {v:.4f}" for k, v in result["effective_weights"].items()))
     print()
@@ -697,7 +722,7 @@ def main():
         "raw_scores": result["raw_scores"],
         "p_algo": p_algo,
         "weather_dormant": result["weather_dormant"],
-        "p_max": result["p_max"],
+        "p_mean": result["p_mean"],
         "comparison": comparison,
         "phase_a4": {
             "p_dnf": p_dnf, "dnf_n": dnf_n, "field_dnf_rate": field_dnf_rate,
