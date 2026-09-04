@@ -401,15 +401,22 @@ def _blank(car, degraded):
     return CarState(**kw)
 
 
-def degrade_every(n_ticks, modes=("cardata",), stale_every=None, gap_every=None):
-    """A deterministic `inject` for exercising the 09 sec8.1 reliability paths
-    offline, rather than meeting a degraded tick for the first time in a race."""
+def degrade_every(n_laps, modes=("cardata",), stale_every=None, gap_every=None):
+    """A deterministic `inject` for exercising 09 sec8.1's reliability paths
+    offline, rather than meeting a degraded tick for the first time in a race.
+
+    Keyed on the LAP, not on wall-clock seconds. An earlier version degraded
+    every Nth second and measurably did nothing: 09 sec9.2 scores at lap
+    boundaries, so a degraded window a few seconds wide almost never coincided
+    with a checkpoint and the run came back byte-identical to the undegraded
+    one. A test that cannot fail is worse than no test, so the trigger is the
+    quantity the harness actually samples.
+    """
     def inject(t, lap, degraded):
-        i = int(t)
         d = set(degraded)
-        if n_ticks and i % n_ticks == 0:
+        if n_laps and lap % n_laps == 0:
             d |= set(modes)
-        stale = bool(stale_every and i % stale_every == 0)
-        gap = bool(gap_every and i % gap_every == 0)
+        stale = bool(stale_every and lap % stale_every == 0)
+        gap = bool(gap_every and lap % gap_every == 0)
         return frozenset(d), stale, gap
     return inject

@@ -301,7 +301,8 @@ def main():
                     help="09 sec5.5 requires the flat-hazard variant reported alongside "
                          "the two-segment one -- n=50 does not settle a hazard shape")
     ap.add_argument("--degrade", type=int, default=0,
-                    help="inject a 03 sec8 degraded window every N seconds (09 sec9.1)")
+                    help="inject a 03 sec8 degraded window every Nth LAP (09 sec9.1) -- "
+                         "lap-keyed because checkpoints are lap boundaries")
     args = ap.parse_args()
 
     fit = load_fit(args.fit)
