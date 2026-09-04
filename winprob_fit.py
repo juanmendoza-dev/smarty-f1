@@ -81,11 +81,19 @@ def load_archives(rounds, cache):
     return out
 
 
-def race_observations(archive):
-    """Background-rate and ladder observations for one race."""
+def race_observations(archive, exclude_pit_swaps=False):
+    """Background-rate and ladder observations for one race.
+
+    `exclude_pit_swaps` is 12 sec4's mandatory side effect: with
+    `lib/pit_strategy.py` projecting a cycle explicitly, a `q` that still
+    contains pit-cycle swaps counts the cycle twice. The window is
+    `lib/winprob_background`'s and is pre-registered there.
+    """
     order_by_lap = archive.order_by_lap()
     retired_lap = archive.retired_lap_by_code()
-    swaps = bgmod.swap_observations(order_by_lap, retired_lap, archive.total_laps)
+    swaps = bgmod.swap_observations(
+        order_by_lap, retired_lap, archive.total_laps,
+        pit_laps_by_code=archive.pit_laps_by_code() if exclude_pit_swaps else None)
     winner = archive.winner()
     ladder = []
     for lap in range(1, archive.total_laps + 1):
@@ -95,7 +103,8 @@ def race_observations(archive):
             ladder.append((pos, progress, 1 if code == winner else 0))
     retire_fracs = [rl / float(archive.total_laps) for rl in retired_lap.values()]
     return {"circuit_id": archive.circuit_id, "observations": swaps,
-            "ladder": ladder, "retire_fracs": retire_fracs}
+            "ladder": ladder, "retire_fracs": retire_fracs,
+            "pit_swaps_removed": bool(exclude_pit_swaps)}
 
 
 def fit_overtake_models(rows, rounds):
@@ -188,6 +197,10 @@ def main():
     ap.add_argument("--quick", action="store_true",
                     help="lower IPF budgets -- for wiring checks, never for a reported run")
     ap.add_argument("--skip-overtake", action="store_true")
+    ap.add_argument("--pit-refit", action="store_true",
+                    help="refit 09 sec5.4's q with pit-cycle swaps removed "
+                         "(12 sec4) -- REQUIRED by 12 sec7 assertion 4 for any "
+                         "fit the pit-strategy model will be scored against")
     args = ap.parse_args()
 
     t_start = time.time()
@@ -197,7 +210,12 @@ def main():
     require(archives, "no archives loaded")
     print("archives: %s" % ", ".join("R%d" % r for r in sorted(archives)))
 
-    obs = {r: race_observations(a) for r, a in sorted(archives.items())}
+    obs = {r: race_observations(a, exclude_pit_swaps=args.pit_refit)
+           for r, a in sorted(archives.items())}
+    if args.pit_refit:
+        kept = sum(len(o["observations"]) for o in obs.values())
+        print("12 sec4: q refit with pit-cycle swaps removed -- %d adjacent-pair "
+              "observations survive the window" % kept)
 
     test_rounds = ([int(x) for x in args.rounds.split(",")] if args.rounds
                    else [r for r in sorted(archives) if r >= FIRST_SCOREABLE_ROUND])
@@ -212,7 +230,8 @@ def main():
     out = {"season": SEASON, "test_rounds": [], "races": {},
            "overtake_models": {str(k): v.as_dict() for k, v in ot_models.items()},
            "meta": {"quick": args.quick, "ipf_fine_n": IPF_FINE_N,
-                    "ipf_coarse_n": IPF_COARSE_N}}
+                    "ipf_coarse_n": IPF_COARSE_N,
+                    "pit_swaps_removed": bool(args.pit_refit)}}
 
     print("\nfitting race-forward, per test round")
     for rnd in test_rounds:

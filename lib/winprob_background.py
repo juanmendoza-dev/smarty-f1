@@ -83,6 +83,16 @@ class BackgroundRate:
         self.per_circuit = per_circuit or {}
         self.meta = meta or {}
 
+    @property
+    def pit_swaps_removed(self):
+        """Whether pit-cycle swaps were excluded from this fit (12 sec4).
+
+        Read by 12 sec7 assertion 4. Defaults to False so a rate fitted before
+        `docs/12` -- or deserialised from a pre-12 `fit.json` -- reads as what
+        it is rather than as what the caller hoped.
+        """
+        return bool(self.meta.get("pit_swaps_removed", False))
+
     def rate(self, position, progress, m=1.0):
         cell = self.cells.get((band_of(position), progress_bucket(progress)))
         if cell is None:
@@ -113,17 +123,28 @@ class BackgroundRate:
         return cls(cells, d["band_pooled"], d["slope"], d.get("per_circuit"), d.get("meta"))
 
 
-def swap_observations(order_by_lap, retired_lap_by_code, total_laps):
+def swap_observations(order_by_lap, retired_lap_by_code, total_laps,
+                      pit_laps_by_code=None):
     """Adjacent-pair observations for one race.
 
     `order_by_lap`: {lap -> {position -> code}} from the archive.
     `retired_lap_by_code`: {code -> last lap completed} for cars that retired.
+    `pit_laps_by_code`: {code -> {laps with a pit-in}}. Passing it removes
+        pit-cycle swaps as well (12 sec4); passing None keeps the pre-`docs/12`
+        behaviour, which is what 09 sec10's reported baseline was fitted on.
 
     Yields (band-leading-position, progress, swapped) per adjacent pair per lap,
     EXCLUDING any pair where either car retires within the lap -- 09 sec5.4's
     double-count guard, which is the difference between this and the raw 6%
-    09 sec2.3 reports.
+    09 sec2.3 reports -- and, when `pit_laps_by_code` is given, any pair where
+    either car is inside a pit cycle at either end of the transition.
     """
+    def in_cycle(code, lap):
+        stops = pit_laps_by_code.get(code) or ()
+        # An in-lap is the stop lap; the out-lap is the one after it. See the
+        # module docstring for why the window is these two laps and not more.
+        return lap in stops or (lap - 1) in stops
+
     out = []
     for lap in range(1, total_laps):
         a, b = order_by_lap.get(lap), order_by_lap.get(lap + 1)
@@ -138,6 +159,9 @@ def swap_observations(order_by_lap, retired_lap_by_code, total_laps):
             r1, r2 = retired_lap_by_code.get(d1), retired_lap_by_code.get(d2)
             if (r1 is not None and r1 <= lap + 1) or (r2 is not None and r2 <= lap + 1):
                 continue
+            if pit_laps_by_code is not None and any(
+                    in_cycle(d, l) for d in (d1, d2) for l in (lap, lap + 1)):
+                continue
             p1, p2 = where.get(d1), where.get(d2)
             if p1 is None or p2 is None:
                 continue
@@ -148,12 +172,23 @@ def swap_observations(order_by_lap, retired_lap_by_code, total_laps):
 def fit_background(races):
     """`races`: [{"circuit_id":.., "observations": [(pos, progress, swapped)]}].
 
+    Each race carries `pit_swaps_removed`, and they must agree: half a corpus
+    with pit cycles taken out is neither rate, and 12 sec7 assertion 4 reads
+    the flag this sets.
+
     Fitted by counting, then shrinking each (band, progress) cell toward its
     band's pooled rate, then choosing the single circuit slope that maximises
     the Bernoulli log-likelihood of the pooled observations. One parameter for
     circuit, per 09 sec5.4.
     """
     require(races, "fit_background: no training races")
+    flags = set(bool(r.get("pit_swaps_removed", False)) for r in races)
+    require(len(flags) == 1,
+            "fit_background: %d races say pit swaps were removed and %d say they "
+            "were not -- a rate fitted across both is neither" % (
+                sum(1 for r in races if r.get("pit_swaps_removed")),
+                sum(1 for r in races if not r.get("pit_swaps_removed"))))
+    pit_removed = flags.pop()
     cell_n, cell_k = {}, {}
     band_n, band_k = {}, {}
     for race in races:
@@ -190,7 +225,8 @@ def fit_background(races):
 
     fitted = BackgroundRate(cells, band_pooled, best_slope, meta={
         "n_pairs": sum(cell_n.values()), "n_swaps": sum(cell_k.values()),
-        "overall_rate": overall, "loglik": best_ll, "n_races": len(races)})
+        "overall_rate": overall, "loglik": best_ll, "n_races": len(races),
+        "pit_swaps_removed": pit_removed})
 
     # The by-product 02 sec10 item 1 is owed: observed vs predicted per circuit.
     resid = {}

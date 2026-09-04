@@ -130,6 +130,16 @@ class RaceArchive:
                 out[code] = int(dl.max())
         return out
 
+    def pit_laps_by_code(self):
+        """{code -> {laps this car had a pit-in on}}. 12 sec4's q refit reads
+        it; `_pit_windows` below is the same fact in session-time seconds, for
+        the replay's `in_pit` field."""
+        out = {}
+        for _, r in self.laps.iterrows():
+            if pd.notna(r["PitInTime"]) and pd.notna(r["LapNumber"]):
+                out.setdefault(str(r["Driver"]), set()).add(int(r["LapNumber"]))
+        return out
+
     def order_by_lap(self):
         """{lap -> {position -> code}} from the archive's own per-lap Position."""
         out = {}
