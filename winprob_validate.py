@@ -157,7 +157,8 @@ def market_prices():
     return {c: v / total for c, v in mean.items()} if total > 0 else None
 
 
-def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, verbose=True):
+def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, flat=False,
+               verbose=True):
     """Replay one race and score every arm at every lap boundary."""
     telemetry = (mode == "full")
     archive = wpr.RaceArchive(SEASON, rnd, telemetry=telemetry)
@@ -165,7 +166,7 @@ def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, verbose=True):
     require(winner, "R%d has no classified winner" % rnd)
     realised = archive.classified_order()
 
-    prior = prior_from_fit(race_blob)
+    prior = prior_from_fit(race_blob, flat=flat)
     background = bgmod.BackgroundRate.from_dict(race_blob["background"])
     ladder = bgmod.PositionLadder.from_dict(race_blob["ladder"])
     m = race_blob["reconciled"]["m"]
@@ -296,6 +297,9 @@ def main():
     ap.add_argument("--n", type=int, default=wsim.VALIDATE_N)
     ap.add_argument("--platt", action="store_true",
                     help="consume 08's damped-Platt map instead of p_raw (09 sec5.3)")
+    ap.add_argument("--flat-hazard", action="store_true",
+                    help="09 sec5.5 requires the flat-hazard variant reported alongside "
+                         "the two-segment one -- n=50 does not settle a hazard shape")
     ap.add_argument("--degrade", type=int, default=0,
                     help="inject a 03 sec8 degraded window every N seconds (09 sec9.1)")
     args = ap.parse_args()
@@ -305,8 +309,9 @@ def main():
               else sorted(int(r) for r in fit["races"]))
     inject = wpr.degrade_every(args.degrade) if args.degrade else None
 
-    print("validating %d races, mode=%s, N=%d, calibrator=%s"
-          % (len(rounds), args.mode, args.n, "platt" if args.platt else "raw"))
+    print("validating %d races, mode=%s, N=%d, calibrator=%s, hazard=%s"
+          % (len(rounds), args.mode, args.n, "platt" if args.platt else "raw",
+             "flat" if args.flat_hazard else "two-segment"))
     races = []
     for rnd in rounds:
         blob = dict(fit["races"][str(rnd)])
@@ -314,10 +319,12 @@ def main():
         blob["overtake_model"] = om
         if om is None:
             print("    R%-2d no 08 fold model -- the ablation arm is meaningless here" % rnd)
-        races.append(score_race(rnd, blob, args.mode, args.n, args.platt, inject))
+        races.append(score_race(rnd, blob, args.mode, args.n, args.platt, inject,
+                                flat=args.flat_hazard))
 
     report = {"mode": args.mode, "n_paths": args.n, "eps": EPS,
               "platt": args.platt, "degrade_every": args.degrade,
+              "flat_hazard": args.flat_hazard,
               "rounds": rounds, "races": races}
 
     print("\n" + "=" * 78)
