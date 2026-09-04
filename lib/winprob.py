@@ -346,6 +346,14 @@ class WinProbLayer:
         require(running, "estimate(): every car in the field is latched retired")
 
         correction = self.pit_correction(running)
+        # One consequence of handing the simulator a different permutation,
+        # worth stating because it is silent: 09 sec5.3's in-domain pairs are
+        # computed on raw track adjacency, and a pair the correction has pulled
+        # apart is dropped by `forward_simulate`'s own `i_p != i_a + 1` guard.
+        # That is the right answer -- a car in the pit lane is not racing the
+        # car it was behind on track -- but it means `in_domain` reports what
+        # 08 admitted, not what step 0 applied, whenever a projection lands
+        # between them.
         # The permutation the simulator sees. Every downstream identity -- the
         # p_win sum, the retirement zero, the t=0 baseline -- is over the same
         # set of cars, because 12 sec4's correction reorders the field and never
