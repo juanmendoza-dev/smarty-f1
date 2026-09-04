@@ -453,7 +453,7 @@ def test_t0_identity():
 def main():
     for fn in (test_sums_and_retired, test_endgame_identity, test_domain_gates,
                test_train_serve_parity, test_reliability_reasons,
-               test_propagation_rules, test_common_random_numbers,
+               test_propagation_rules, test_common_random_numbers, test_no_lookahead,
                test_trading_interlock, test_t0_identity):
         fn()
     print()
