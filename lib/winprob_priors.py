@@ -232,37 +232,80 @@ def lap_hazards(f_dnf_by_code, hazard, laps_from, laps_total):
 
 def reconcile(p_algo, sim_win_probs, w_start=None, iters=IPF_ITERS,
               damping=IPF_DAMPING, min_p=RECONCILE_MIN_P):
-    """One IPF sweep driver. `sim_win_probs(w) -> {code: p}` is the caller's
-    simulator run from lights-out at a high N (09 sec5.5: never against the
-    working simulator's noisy estimate, and never at serve time).
+    """09 sec5.5 step 3. `sim_win_probs(w) -> {code: p}` is the caller's
+    simulator run from lights-out at a high N (sec5.5: never against the working
+    simulator's noisy estimate, and never at serve time).
 
     Only drivers with `p_algo >= min_p` are reconciled; the tail is held
-    proportional to its unreconciled strengths and the whole vector is
-    renormalised each sweep. 09 sec5.5's tail guard, verbatim.
+    proportional to its unreconciled strengths. 09 sec5.5's tail guard.
 
-    Returns (w', diagnostics).
+    **The update targets the band's CONDITIONAL distribution, and this is a
+    correction to sec5.5 made during the B4 build -- see 09 sec5.5's dated note.**
+    Measured on R5, the absolute-target version converges to a worst residual of
+    0.0184 and stops. That is not a tuning failure, it is a structural floor,
+    and it decomposes exactly: `02` sec5.4's softmax leaves ~2.9% of the mass on
+    17 backmarkers (`02` sec9's own reference field notes the same shape --
+    "remaining 15 drivers share ~2.1%"), and a forward simulation that respects
+    track position says a car starting P18 essentially cannot be classified
+    first. The band's simulated mass is therefore ~1.000 against a target of
+    0.971, no strength vector can close that, and the excess lands on the band
+    in proportion: 0.029 x 0.617 = 0.0179 predicted floor against 0.0184
+    measured. Chasing it would mean inflating backmarker strengths until the
+    simulator produced wins it does not believe in.
+
+    So the ratio update is run on `p_algo_d / sum(p_algo over band)` against
+    `p_hat_d / sum(p_hat over band)`, and BOTH residuals are returned:
+    `worst_abs_residual` (which carries the tail artifact and is the number 09
+    sec11 assertion 2 was originally written against) and
+    `worst_cond_residual` (which is what the reconciliation can actually
+    control). Neither is hidden behind the other.
+
+    Damping decays across the sweep and the best iterate is kept rather than the
+    last: at a fixed 0.7 the update overshoots and oscillates between ~0.012 and
+    ~0.023 forever, so "the final sweep" is a coin flip over that band.
     """
     w = dict(w_start or strengths_from_prior(p_algo))
     band = [c for c in w if p_algo.get(c, 0.0) >= min_p]
     require(band, "reconcile: no driver clears p_algo >= %.3f" % min_p)
+    band_mass = sum(p_algo[c] for c in band)
+    target = {c: p_algo[c] / band_mass for c in band}
+
+    def residuals(p_hat):
+        hat_mass = sum(p_hat.get(c, 0.0) for c in band)
+        cond = {c: (p_hat.get(c, 0.0) / hat_mass if hat_mass > 0 else 0.0) for c in band}
+        return (max(abs(p_hat.get(c, 0.0) - p_algo[c]) for c in band),
+                max(abs(cond[c] - target[c]) for c in band), cond)
+
     history = []
     p_hat = sim_win_probs(w)
-    for _ in range(iters):
-        worst = max(abs(p_hat.get(c, 0.0) - p_algo[c]) for c in band)
-        history.append(worst)
+    best = None
+    for i in range(iters):
+        absr, condr, cond = residuals(p_hat)
+        history.append(condr)
+        if best is None or condr < best[0]:
+            best = (condr, absr, dict(w), dict(p_hat))
+        step = damping * (0.5 ** (i / max(iters - 1, 1)))
         for c in band:
-            ph = p_hat.get(c, 0.0)
-            if ph <= 0.0:
+            got = cond.get(c, 0.0)
+            if got <= 0.0:
                 # No simulated path put this driver first at all. Push hard but
                 # bounded -- an unbounded kick here is how IPF diverges.
                 w[c] *= 4.0
             else:
-                w[c] *= (p_algo[c] / ph) ** damping
+                w[c] *= (target[c] / got) ** step
         total = sum(w.values())
         w = {c: v / total for c, v in w.items()}
         p_hat = sim_win_probs(w)
-    worst = max(abs(p_hat.get(c, 0.0) - p_algo[c]) for c in band)
-    history.append(worst)
-    return w, {"band": sorted(band), "worst_abs_residual": worst,
-               "residual_history": history, "iters": iters, "damping": damping,
-               "p_hat": p_hat}
+    absr, condr, _ = residuals(p_hat)
+    history.append(condr)
+    if condr < best[0]:
+        best = (condr, absr, dict(w), dict(p_hat))
+
+    condr, absr, w_best, p_best = best
+    return w_best, {
+        "band": sorted(band), "band_mass": band_mass,
+        "tail_mass": 1.0 - band_mass,
+        "worst_abs_residual": absr, "worst_cond_residual": condr,
+        "residual_history": history, "iters": iters, "damping": damping,
+        "p_hat": p_best,
+    }

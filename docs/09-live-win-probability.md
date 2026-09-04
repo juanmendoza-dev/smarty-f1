@@ -550,6 +550,46 @@ and the double-count `04` §6.3 identified never forms.
   §6.2's self-consistency assertion, which validates the podium machinery against `02` §9's locked
   numbers every time it runs.
 
+> **Correction, 2026-09-03, made in place during the B4 build — the identity has a measured
+> structural floor, and it is not the hazard.** Run as written, IPF against the *absolute* targets
+> converges to a worst residual of **0.0184 on R5 and stops there**, far outside the 3 × `se_mc`
+> tolerance §11 asks for. That is not a tuning failure and not a double-counted hazard. It
+> decomposes exactly:
+>
+> - `02` §5.4's softmax leaves a flat tail — on R5, **17 backmarkers share 2.9%** of `p_algo`
+>   (§9's own reference field says the same thing: "remaining 15 drivers share ~2.1%").
+> - A forward simulation that respects track position says a car starting P18 essentially **cannot**
+>   be classified first. The background process moves a car at most `2q` per pair per lap, which
+>   over a race is a climb of order ten places at the extreme, so the tail's mass is unreachable at
+>   *any* strength vector.
+> - The band's simulated mass is therefore ~1.000 against a target of 0.971, and the excess lands on
+>   the band in proportion. Predicted floor: `0.029 × 0.617 = 0.0179`. Measured: **0.0184**.
+>
+> Chasing that residual means inflating backmarker strengths until the simulator produces wins it
+> does not believe in, which is worse than the discrepancy.
+>
+> **What is done instead.** The IPF ratio update is run on the band's **conditional** distribution —
+> `p_algo_d / Σ_band p_algo` against `p̂_d / Σ_band p̂`. On R9 that takes the residual it can
+> control from 0.0054 to **0.0001**. Two numbers are reported for every race and **neither is
+> quoted without the other**: `residual_cond`, which the reconciliation controls and which §11
+> assertion 2 is now asserted against, and `residual` (absolute), which carries the tail artifact
+> and is reported so the gap stays visible rather than being defined away. The tail mass itself is
+> reported per race as `tail_mass`.
+>
+> **This is a real disagreement with the prior, and it is worth stating as one.** The layer says a
+> backmarker's win probability is ~0 where Lane A's softmax says 0.17%. Given §1.3 — the prior has
+> no measured edge, and `02` §10 item 2 already records that `T`'s calibration does not describe the
+> real field's shape — the layer's answer here is the more defensible of the two. It is recorded
+> because it means the t = 0 identity is an identity **on the reconcile band**, not on all 22 cars,
+> and a reader who does not know that would think something was broken.
+>
+> Two smaller fixes made at the same time, both measured: IPF damping now decays across the sweep
+> and the **best** iterate is kept rather than the last (at a fixed 0.7 the update overshoots and
+> oscillates between ~0.012 and ~0.023 indefinitely, so "the final sweep" was a coin flip over that
+> band); and §5.4's circuit term is `exp(c·(m−1))` rather than `1 + c·(m−1)`, because the linear
+> form went negative before it could fit what the data asks for — see §5.4's own correction and the
+> Monaco number in §10.
+
 **Reported alongside, always:** the same validation run with the flat-hazard variant instead of
 §2.5's two-segment one. n = 50 does not settle a hazard shape (§2.5) and the spec should not
 pretend a choice made on 50 events is closed.
@@ -893,6 +933,11 @@ a plausible wrong number is the failure mode this project has been bitten by.
 2. **The t = 0 identity (§5.5).** At `progress = 0` with the observed grid equal to the prior's
    assumed grid, `p_win` reproduces `02`'s `p_algo` within Monte Carlo tolerance (3 × `se_mc`).
    This is the assertion that proves the DNF hazard is not double-counted, and it fails loudly.
+   **As amended 2026-09-03 (see §5.5's dated correction):** asserted on the reconcile band's
+   *conditional* distribution, because the absolute form has a structural floor set by the mass
+   `02`'s softmax puts on backmarkers the simulator says cannot win. The absolute residual and the
+   tail mass are both reported per race alongside it, so the amendment narrows what is asserted
+   without hiding what is not.
 3. **The endgame identity (§2.2).** With zero laps remaining, the leader's `p_win` is 1.0 and
    everyone else's is 0.0. With ≤ 5 laps remaining and green flag, the leader's `p_win` ≥ 0.9 —
    `08` §10's precedent for a band asserted from a small measured sample applies, so this is

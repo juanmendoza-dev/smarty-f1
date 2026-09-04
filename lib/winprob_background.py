@@ -42,8 +42,17 @@ PROGRESS_BUCKETS = 4
 # ~550 observations per front-band cell that is a real but not overwhelming pull.
 SHRINK_N0 = 500.0
 # The circuit slope is ONE fitted parameter, not twelve (09 sec5.4). m is `02`
-# sec5.1's hand-set overtaking multiplier and enters as 1 + c*(m - 1).
-CIRCUIT_SLOPE_GRID = [i * 0.1 for i in range(-30, 31)]
+# sec5.1's hand-set overtaking multiplier and enters as exp(c * (m - 1)):
+# multiplicative, exactly 1 at m = 1, and positive for any c, where a linear
+# 1 + c*(m-1) goes negative as soon as the data asks for a strong effect -- and
+# it does. Monaco's measured adjacent-swap rate is about a THIRD of the m = 1.00
+# circuits', which is a far larger effect than a hand-set 1.15 grid-weight bump
+# implies, and clipping it at a linear form's zero would hide that.
+# Ordered by distance from zero so that a tie -- which is what happens when
+# every training circuit shares one value of m, as it does for the first few
+# race-forward folds -- resolves to "no circuit effect" rather than to whichever
+# end of the grid happened to be tried first.
+CIRCUIT_SLOPE_GRID = sorted((i * 0.25 for i in range(-32, 33)), key=lambda c: (abs(c), c))
 
 
 def band_of(position):
@@ -78,7 +87,7 @@ class BackgroundRate:
         cell = self.cells.get((band_of(position), progress_bucket(progress)))
         if cell is None:
             cell = self.band_pooled.get(band_of(position), 0.06)
-        q = cell * (1.0 + self.slope * (m - 1.0))
+        q = cell * math.exp(self.slope * (m - 1.0))
         return min(max(q, 0.0), 0.5)
 
     def slot_rates(self, n_slots, progress, m=1.0):
@@ -173,7 +182,7 @@ def fit_background(races):
         for race in races:
             m = multiplier_for(race["circuit_id"])
             for pos, progress, swapped in race["observations"]:
-                q = base.rate(pos, progress, 1.0) * (1.0 + c * (m - 1.0))
+                q = base.rate(pos, progress, 1.0) * math.exp(c * (m - 1.0))
                 q = min(max(q, 1e-6), 1.0 - 1e-6)
                 ll += math.log(q) if swapped else math.log(1.0 - q)
         if best_ll is None or ll > best_ll:
