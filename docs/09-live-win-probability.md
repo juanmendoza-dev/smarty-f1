@@ -1439,7 +1439,8 @@ re-validate without re-deriving anything from chat history. **This section is th
 | `lib/winprob_replay.py` | §9.1's tick replayer: lap-boundary and 1 Hz-with-telemetry modes, and `03` §8 degraded-mode injection |
 | `winprob_fit.py` | CLI: `08` fold models, background rate, hazard, ladder, §5.5's reconciliation → `data/live/winprob/fit.json` |
 | `winprob_validate.py` | CLI: §9's replay, §10's four baselines, §9.3's block bootstrap → `data/live/winprob/validation.json` |
-| `test_winprob.py` | §11's assertions and §8.2's interlock. Synthetic fixtures only, per `03` §11.2 |
+| `test_winprob.py` | §11's assertions and §8.2's interlock. Synthetic fixtures only, per `03` §11.2, except the two checks that read the gitignored fitted artifacts (§11.2's identity and §11.3's band) and skip cleanly without them |
+| `probes/09b_dispersion.py` | §10.2's dispersion measurement — runs the real simulator, which is why it imports the layer where the other probes do not |
 
 ### 16.2 Commands
 
@@ -1465,8 +1466,10 @@ gitignored — `08` §13.4.
 - **Validate:** 8 races, **520 checkpoints**, pooled log-loss **layer 0.799 / ablation 0.800 /
   ladder 1.000 / static 1.177**; layer beats static 8/8 and the ladder 7/8; `reliable = False` on
   **33.3%**; `08` in-domain on **46.5%** of checkpoints.
-- **Tests:** all pass, with the t = 0 identity reported at a worst conditional residual around
-  0.0001 against a tolerance of 0.00335.
+- **Tests:** all pass, with the t = 0 identity at a worst conditional residual around 0.0001
+  against a tolerance of 0.00335, and §11 assertion 3 reported as **16 of 42 checkpoints below the
+  0.9 band** — the documented failure (§10.2), not a regression. If that count reaches 0, §13 item 6
+  has been fixed and §10.2 needs updating.
 
 If the validation reports **zero checkpoints**, read §10.7 item 1 before anything else — that is
 the driver-key failure, and it looks like a degraded feed rather than like a bug.
