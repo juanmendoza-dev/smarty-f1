@@ -21,8 +21,23 @@ is why the insertion below counts cars instead of re-sorting the field:
     only if `g(d) < g(c) + remaining`; at `remaining = 0` that set is empty by
     construction, so the corrected order is the observed order field for field.
   - A projection never gains a place (assertion 2). `remaining` is clamped at
-    zero and the shift is a count, so a car's projected index is never below its
-    observed one. It can only ever go backwards.
+    zero and the shift is a count, so a projected car never finishes ahead of a
+    car that did not move, and its projected gap is never better than the gap it
+    already has.
+
+    **Stated against the cars standing still rather than against an absolute
+    index, and that distinction is a bug this assertion caught on real data.**
+    Assertion 2 was first written as `projected_index >= observed_index` and it
+    fired on R7, on a car projected from P19 to P18. The cause was that
+    `project` counted every car in a pit cycle as non-stationary while
+    `_reinsert` counted only the ones that got a projection, so a car in the
+    lane whose gap was unreadable -- refused under 12 sec5.3, therefore sitting
+    at its observed position -- was counted one way in one place and the other
+    way in the other, and a projected car cut in ahead of a car that had not
+    moved at all. Both now read `movable`. The absolute-index form is also the
+    wrong *statement*: with two cars mid-cycle, the one that entered first owes
+    less time and can legitimately come out ahead of the one that entered
+    later, which is the pit cycle working rather than a place gained for free.
 
   The comparison is also floored at `g(d) >= g(c)`, so a car *behind* `c` whose
   gap reads *ahead* of it -- an asof join against a stale sample, `03` sec8's
@@ -244,10 +259,13 @@ class PitProjector:
         gaps = {code: gap_seconds(tick.car(code)) for code in observed_order}
         index_of = {code: i for i, code in enumerate(observed_order)}
 
+        # Pass 1: who can actually be projected. This has to be settled before
+        # any position arithmetic, because "stationary" must mean the same
+        # thing here and in `_reinsert` -- see the note below on the bug that
+        # found this.
         refusals = {}
-        projections = []
-        for code, state in in_cycle.items():
-            idx = index_of[code]
+        movable = {}
+        for code in in_cycle:
             car = tick.car(code)
             if car is None or car.position is None:
                 refusals[code] = REFUSE_NO_POSITION
@@ -258,21 +276,27 @@ class PitProjector:
                 continue
             cyc = self.cycles[code]
             remaining = max(self.pit_loss.delta_s - cyc.elapsed(tick.t_local), 0.0)
-            projected_gap = g_now + remaining
+            movable[code] = (g_now, remaining, g_now + remaining)
+
+        # Pass 2: where each of them cuts back in, counted against the cars that
+        # are standing still -- which is every car WITHOUT a projection, not
+        # every car outside a pit cycle. A car in the lane whose gap is
+        # unreadable (12 sec5.3) is refused, so it keeps its observed slot and
+        # is stationary like any other car.
+        projections = []
+        for code, (g_now, remaining, projected_gap) in movable.items():
+            idx = index_of[code]
             shift = 0
             for other in observed_order[idx + 1:]:
                 g_other = gaps.get(other)
-                if g_other is None or other in in_cycle:
+                if g_other is None or other in movable:
                     continue
                 if g_now <= g_other < projected_gap:
                     shift += 1
-            require(shift >= 0,
-                    "12 sec7 assertion 2: %s projected forward by %d places"
-                    % (code, -shift))
             ahead_stationary = sum(1 for other in observed_order[:idx]
-                                   if other not in in_cycle)
+                                   if other not in movable)
             projections.append(PitProjection(
-                code, state, self.pit_loss.delta_s, remaining, g_now,
+                code, in_cycle[code], self.pit_loss.delta_s, remaining, g_now,
                 projected_gap, idx, ahead_stationary + shift,
                 self.pit_loss.flagged))
 
@@ -280,14 +304,24 @@ class PitProjector:
         require(sorted(order) == sorted(observed_order),
                 "12 sec4: the corrected order must be a permutation of the "
                 "observed one, not a different field")
+        new_index = {code: i for i, code in enumerate(order)}
         for p in projections:
-            p.projected_index = order.index(p.code)
-            # 12 sec7 assertion 2, checked on the order that was actually built
-            # rather than on the arithmetic that was supposed to build it.
-            require(p.projected_index >= p.observed_index,
-                    "12 sec7 assertion 2: %s was projected from P%d to P%d -- a "
-                    "car in the pit lane cannot gain a place"
-                    % (p.code, p.observed_index + 1, p.projected_index + 1))
+            p.projected_index = new_index[p.code]
+            # 12 sec7 assertion 2, in the form the spec states it: the car's own
+            # projected gap is never better than the gap it has now, and it
+            # never finishes ahead of a car that did not move.
+            require(p.projected_gap >= p.gap_now,
+                    "12 sec7 assertion 2: %s projected to gap %.3f, ahead of its "
+                    "own current %.3f" % (p.code, p.projected_gap, p.gap_now))
+            for other in observed_order[:p.observed_index]:
+                if other in movable:
+                    continue
+                require(new_index[other] < p.projected_index,
+                        "12 sec7 assertion 2: %s was projected from P%d to P%d "
+                        "and passed %s, which never moved -- a car in the pit "
+                        "lane cannot gain a place"
+                        % (p.code, p.observed_index + 1, p.projected_index + 1,
+                           other))
         return Correction(order, projections, refusals, in_cycle)
 
 

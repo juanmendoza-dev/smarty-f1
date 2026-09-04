@@ -206,6 +206,20 @@ def test_never_gains_a_place():
     check("no projection over 3 circuits x 5 elapsed times x 6 cars moved a car "
           "forward (worst places_lost = %d)" % worst, worst >= 0)
 
+    # The regression this assertion actually caught, on R7 of the real archive.
+    # BBB is in the pit lane with an unreadable gap, so 12 sec5.3 refuses it and
+    # it keeps its observed slot -- it is STATIONARY. EEE is projected past FFF.
+    # Counting BBB as non-stationary in one place and stationary in the other
+    # put EEE ahead of FFF, which had not moved at all.
+    proj = projector()
+    c = run(proj, [make_tick(in_pit=["BBB", "EEE"], t=0.0,
+                             gap_override={"BBB": "LAP 5"})])
+    check("a refused car in the lane is treated as standing still",
+          c.refusals.get("BBB") == pit.REFUSE_GAP and len(c.projections) == 1)
+    check("the projected car still drops behind the car that never moved "
+          "(order %s)" % c.order,
+          c.order == ["AAA", "BBB", "CCC", "DDD", "FFF", "EEE"])
+
     # And a gap that reads AHEAD of the stopping car cannot drag it backwards
     # on noise: the comparison is floored at the car's own gap.
     inverted = dict(GAPS, EEE=0.5)
