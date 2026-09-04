@@ -16,6 +16,7 @@ this file.
 import argparse
 import json
 import os
+import statistics
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -45,6 +46,12 @@ DEFAULT_OUT_DIR = os.path.join(REPO_ROOT, "data", "snapshots")
 # counts an edition as wet, for F5's per-edition flag and so for the wet-only
 # subset F7's active branch scores drivers over.
 WET_PRECIP_MM = 0.5
+
+# 06 sec4.3/6.3. Below this cross-model spread the four models agree; at or
+# above it, 06 sec5.3 measured that the gate's errors concentrate -- 9 of 9
+# under the >= 0.5mm rule, against 0 in 25 agreeing races. Anywhere in 10-18pp
+# behaves the same, so 15 sits mid-plateau rather than on an edge.
+AGREE_SPREAD_PP = 15
 
 # Indexed as a bare dict lookup in build_track_history and build_weather, so a
 # missing circuit is a KeyError, not a degraded feature. That is deliberate --
@@ -414,36 +421,118 @@ def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
 
 
 def build_weather(lat, lon, race_date_str, race_time_str, circuit_id, cache_dir, force_refresh=False):
+    """The race-window forecast, from four named models rather than one blend.
+
+    06-weather-ensemble-signal.md. The window is unchanged -- lights-out in
+    circuit-local time +/- 2h inclusive, the same instants build_track_history
+    reads the archive over (06 sec3.2 explicitly says reuse it, do not invent a
+    second definition).
+
+    What changes is where the numbers come from. One call to the same endpoint
+    with `models=` set returns four independent operational models instead of
+    the provider's own blend, and the block gains:
+
+      per_model  all four raw series over the window, persisted whole. 06 sec4.4
+                 requires raw alongside derived, the same rule 01 sec8.4 sets
+                 for market odds -- never persist only the aggregate.
+      p_mean     max over hours of the cross-model mean. F7's gate input
+                 (06 sec6.2).
+      p_max      max over both axes. A different quantity from the p_max older
+                 snapshots carry, which was a max over hours of a single
+                 blended series -- the presence of per_model is what tells the
+                 two apart. Nothing reads it now; it is persisted because
+                 sec6.2 says all three are.
+      p_spread   *median* hourly spread, not the max. The max-over-window
+                 distribution is badly skewed (quartiles 0/11/50/98pp against
+                 the median hour's 0/5/33), so one volatile hour would set an
+                 entire race's flag (06 sec4.2).
+      agree      p_spread < 15pp (06 sec4.3/6.3).
+
+    hourly_window survives but its meaning moved: it is now the per-hour mean
+    across the four models, not a blended series, so it carries a source key
+    saying so rather than quietly changing under the same name.
+    """
     tz_name = CIRCUIT_TIMEZONE[circuit_id]
     tz = ZoneInfo(tz_name)
-    body, meta = openmeteo.forecast(lat, lon, race_date_str, tz_name, cache_dir, force_refresh=force_refresh)
-    hourly = body["hourly"]
+    per_model, units, meta = openmeteo.forecast_ensemble(
+        lat, lon, race_date_str, tz_name, cache_dir, force_refresh=force_refresh
+    )
+    models = sorted(per_model)
 
     start_utc = datetime.fromisoformat(f"{race_date_str}T{race_time_str.replace('Z', '+00:00')}")
     start_local = start_utc.astimezone(tz)
     window_start = start_local - timedelta(hours=2)
     window_end = start_local + timedelta(hours=2)
 
-    window_rows = []
-    for i, t_str in enumerate(hourly["time"]):
+    # Index off the shared time array once. Every model came back parallel to it
+    # (checked in the client), so one index set covers all four.
+    times = per_model[models[0]]["time"]
+    idx = []
+    for i, t_str in enumerate(times):
         t = datetime.fromisoformat(t_str).replace(tzinfo=tz)
         if window_start <= t <= window_end:
-            window_rows.append({
-                "local_time": t_str,
-                "temperature_2m": hourly["temperature_2m"][i],
-                "precipitation_probability": hourly["precipitation_probability"][i],
-                "precipitation": hourly["precipitation"][i],
-                "wind_speed_10m": hourly["wind_speed_10m"][i],
-                "relative_humidity_2m": hourly["relative_humidity_2m"][i],
-            })
+            idx.append(i)
 
-    p_max = max(r["precipitation_probability"] for r in window_rows) if window_rows else None
+    window_by_model = {}
+    for m in models:
+        row = {"local_time": [times[i] for i in idx]}
+        for field in openmeteo.HOURLY_FIELDS:
+            row[field] = [per_model[m][field][i] for i in idx]
+        window_by_model[m] = row
+
+    # 06 sec3.3: this endpoint answers 200 with the per-model keys full of
+    # nulls rather than erroring. A None only matters if it lands in the window,
+    # which is why the check is here and not in the client.
+    for m in models:
+        require(
+            all(v is not None for v in window_by_model[m]["precipitation_probability"]),
+            f"Open-Meteo returned null precipitation_probability for {m} inside the "
+            f"race window -- 06 sec3.3's silent-null gap, not a dry forecast",
+        )
+
+    if idx:
+        by_hour = [[window_by_model[m]["precipitation_probability"][h] for m in models]
+                   for h in range(len(idx))]
+        # Collapse models first, then hours. mean(max(...)) is a different and
+        # larger number; this one answers "what does the ensemble as a whole say
+        # at its wettest point" (06 sec4.2).
+        p_mean = max(sum(h) / len(models) for h in by_hour)
+        p_max = max(max(h) for h in by_hour)
+        p_spread = statistics.median([max(h) - min(h) for h in by_hour])
+        agree = p_spread < AGREE_SPREAD_PP
+
+        for name, v in (("p_mean", p_mean), ("p_max", p_max), ("p_spread", p_spread)):
+            require(0 <= v <= 100, f"weather {name}={v} outside [0, 100]")
+    else:
+        p_mean = p_max = p_spread = None
+        agree = None
+
+    require(
+        len(window_by_model) == len(openmeteo.ENSEMBLE_MODELS),
+        f"weather per_model has {len(window_by_model)} models, expected "
+        f"{len(openmeteo.ENSEMBLE_MODELS)} (06 sec3)",
+    )
+
+    hourly_window = []
+    for h, i in enumerate(idx):
+        row = {"local_time": times[i]}
+        for field in openmeteo.HOURLY_FIELDS:
+            vals = [window_by_model[m][field][h] for m in models]
+            vals = [v for v in vals if v is not None]
+            row[field] = (sum(vals) / len(vals)) if vals else None
+        hourly_window.append(row)
 
     return {
         "race_window_local": {"start": window_start.isoformat(), "end": window_end.isoformat()},
-        "hourly_window": window_rows,
+        "models": models,
+        "per_model": window_by_model,
+        "hourly_window": hourly_window,
+        "hourly_window_source": "ensemble_mean_over_4_models",
+        "p_mean": p_mean,
         "p_max": p_max,
-        "hourly_units": body.get("hourly_units"),
+        "p_spread": p_spread,
+        "agree": agree,
+        "hourly_units": units,
     }, [meta]
 
 
@@ -783,6 +872,13 @@ def main():
             "track_overtaking_multiplier": multiplier_for(circuit_id),
             "snapshot_timestamp_utc": snapshot_ts.isoformat(),
             "git_commit": git_commit(REPO_ROOT),
+            # 06 sec7.3, the minimum viable consumer of p_spread. When the four
+            # models disagree by >= 15pp our own weather gate is where all of
+            # its measured errors live (06 sec5.3), so a prediction made under
+            # disagreement is marked here the same way 01 sec5.6 marks a wet
+            # race out-of-domain for A3. Flag only -- whether p_spread ever
+            # becomes a feature in its own right is still open (06 sec10).
+            "weather_uncertain": weather["agree"] is False,
         },
         "provenance": provenance,
         "grid": grid,
@@ -802,7 +898,9 @@ def main():
 
     print(f"wrote {out_path}")
     print(f"grid: {len(grid)} drivers, sprint_weekend={is_sprint_weekend}")
-    print(f"weather P_max={weather['p_max']}% (dormant if <40)")
+    print(f"weather p_mean={weather['p_mean']}% (F7 dormant if <40), p_max={weather['p_max']}%, "
+          f"p_spread={weather['p_spread']}pp "
+          f"({'agree' if weather['agree'] else 'DISAGREE -- forecast unreliable, 06 sec7.3'})")
     print(f"polymarket overround={markets['polymarket']['overround']:.4f}, "
           f"kalshi overround={markets['kalshi']['overround']:.4f}")
 
