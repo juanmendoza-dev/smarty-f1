@@ -273,5 +273,62 @@ class TestFullPipelineWithAnEnsembleBlock(unittest.TestCase):
         self.assertAlmostEqual(sum(result["p_algo"].values()), 1.0, places=6)
 
 
+class TestAggregatesMatchTheIndependentBacktest(unittest.TestCase):
+    """snapshot.ensemble_aggregates against weather_backtest.derive(), 44 races.
+
+    The two implementations share no code and read different endpoints -- the
+    backtest replays historical-forecast runs, the pipeline calls the live
+    forecast API -- so agreeing on all three aggregates across every race in
+    06 sec5's corpus is the real check that sec4.2's order of collapse shipped
+    the way it is specified. One race would not distinguish max(mean(...)) from
+    mean(max(...)); 44 do.
+
+    Skipped rather than failed if the corpus JSON hasn't been generated, since
+    building it is a few hundred cached HTTP reads:
+        python3 weather_backtest.py --today 2026-08-23 --json <path>
+    """
+
+    CORPUS = os.environ.get(
+        "F1_WEATHER_BACKTEST_JSON",
+        os.path.join(REPO_ROOT, "data", "cache", "weather-backtest-rows.json"),
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        if not os.path.exists(cls.CORPUS):
+            raise unittest.SkipTest(f"no backtest corpus at {cls.CORPUS}")
+        with open(cls.CORPUS) as f:
+            cls.rows = json.load(f)
+
+    def test_every_race_agrees_on_all_three_aggregates(self):
+        import weather_backtest
+
+        self.assertGreaterEqual(len(self.rows), 44, "corpus is smaller than 06 sec5's 44 races")
+        for row in self.rows:
+            models = sorted(row["per_model"])
+            self.assertEqual(models, sorted(snapshot.openmeteo.ENSEMBLE_MODELS))
+            n_hours = len(row["per_model"][models[0]])
+            by_hour = [[row["per_model"][m][h] for m in models] for h in range(n_hours)]
+
+            mine = snapshot.ensemble_aggregates(by_hour)
+            theirs = weather_backtest.derive(row["per_model"])
+            for key in ("p_mean", "p_max", "p_spread"):
+                self.assertAlmostEqual(
+                    mine[key], theirs[key], places=9,
+                    msg=f"{row['date']} {row['name']}: {key} "
+                        f"{mine[key]} (pipeline) vs {theirs[key]} (backtest)",
+                )
+
+    def test_the_agreement_flag_splits_the_corpus_the_way_sec5_3_measured(self):
+        """06 sec5.3's headline: >= 15pp flags 43% of races. Recomputed, not quoted."""
+        flags = [snapshot.ensemble_aggregates(
+            [[r["per_model"][m][h] for m in sorted(r["per_model"])]
+             for h in range(len(r["per_model"]["ecmwf_ifs025"]))])["agree"]
+            for r in self.rows]
+        disagree = sum(1 for f in flags if not f)
+        self.assertEqual(len(flags) - disagree, 25, "agree bucket should hold 25 races")
+        self.assertEqual(disagree, 19, "disagree bucket should hold 19 races")
+
+
 if __name__ == "__main__":
     unittest.main()

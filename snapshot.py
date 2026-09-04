@@ -420,6 +420,41 @@ def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
     }, provenance
 
 
+def ensemble_aggregates(prob_by_hour):
+    """06 sec4.2's three aggregates, over one race window.
+
+    prob_by_hour is one list of per-model probabilities per window hour. Written
+    as its own function because the order of collapse is the whole content of
+    sec4.2 and prose hides it: p_mean collapses *models first, then hours*, so
+    it is max(mean(...)) rather than the different and larger mean(max(...)).
+    p_max is a max over both axes. p_spread is the *median* hourly spread, not
+    the max -- across 44 races the max-over-window spread's quartiles are
+    0/11/50/98pp against the median hour's 0/5/33, so a single volatile hour
+    would otherwise set an entire race's flag.
+
+    Isolated here so it can be checked against weather_backtest.py's derive(),
+    which computes the same three from the historical endpoint with its own
+    code and shares nothing with this path.
+    """
+    if not prob_by_hour:
+        return {"p_mean": None, "p_max": None, "p_spread": None, "agree": None}
+
+    n_models = len(prob_by_hour[0])
+    require(
+        all(len(h) == n_models for h in prob_by_hour),
+        "ensemble hours do not all carry the same number of models",
+    )
+    p_mean = max(sum(h) / n_models for h in prob_by_hour)
+    p_max = max(max(h) for h in prob_by_hour)
+    p_spread = statistics.median([max(h) - min(h) for h in prob_by_hour])
+
+    for name, v in (("p_mean", p_mean), ("p_max", p_max), ("p_spread", p_spread)):
+        require(0 <= v <= 100, f"weather {name}={v} outside [0, 100]")
+
+    return {"p_mean": p_mean, "p_max": p_max, "p_spread": p_spread,
+            "agree": p_spread < AGREE_SPREAD_PP}
+
+
 def build_weather(lat, lon, race_date_str, race_time_str, circuit_id, cache_dir, force_refresh=False):
     """The race-window forecast, from four named models rather than one blend.
 
@@ -490,22 +525,11 @@ def build_weather(lat, lon, race_date_str, race_time_str, circuit_id, cache_dir,
             f"race window -- 06 sec3.3's silent-null gap, not a dry forecast",
         )
 
-    if idx:
-        by_hour = [[window_by_model[m]["precipitation_probability"][h] for m in models]
-                   for h in range(len(idx))]
-        # Collapse models first, then hours. mean(max(...)) is a different and
-        # larger number; this one answers "what does the ensemble as a whole say
-        # at its wettest point" (06 sec4.2).
-        p_mean = max(sum(h) / len(models) for h in by_hour)
-        p_max = max(max(h) for h in by_hour)
-        p_spread = statistics.median([max(h) - min(h) for h in by_hour])
-        agree = p_spread < AGREE_SPREAD_PP
-
-        for name, v in (("p_mean", p_mean), ("p_max", p_max), ("p_spread", p_spread)):
-            require(0 <= v <= 100, f"weather {name}={v} outside [0, 100]")
-    else:
-        p_mean = p_max = p_spread = None
-        agree = None
+    by_hour = [[window_by_model[m]["precipitation_probability"][h] for m in models]
+               for h in range(len(idx))]
+    aggregates = ensemble_aggregates(by_hour)
+    p_mean, p_max = aggregates["p_mean"], aggregates["p_max"]
+    p_spread, agree = aggregates["p_spread"], aggregates["agree"]
 
     require(
         len(window_by_model) == len(openmeteo.ENSEMBLE_MODELS),
