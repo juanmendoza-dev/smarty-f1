@@ -133,19 +133,32 @@ races — net displacement at 5 laps (is the car that was behind actually ahead?
 | P16+ | 0.41 – 0.78 |
 | **Pooled (13,056 pairs)** | **0.61** |
 
-**The simulator disperses the field about 1.6× faster than the archive does, in every band and
-every quarter of every race.** This is not a front-of-field problem and not a band-granularity
-problem — the first diagnosis attempted during the B4 build was "the P1–P3 band pools P1/P2 with
-P2/P3", and measuring the alternative reading is what showed it to be the smaller effect.
+**A per-lap swap rate implies about 1.6× more net movement than the archive actually shows, in
+every band and every quarter of every race.** It is the same error, one level down, as the one §2.5
+catches in the undercut comparison: **"swapped at least once over n laps" is not "ahead after n
+laps."**
 
-It is the same error, one level down, as the one §2.5 catches in the undercut comparison:
-**"swapped at least once over n laps" is not "ahead after n laps."**
+> **Correction, 2026-09-04, before this document was first read by anyone.** This section originally
+> said "**the simulator** disperses the field about 1.6× faster than the archive does", and `09`
+> §10.2 said the same. **That was an inference, not a measurement, and it is wrong.** `09`'s
+> simulator does not consume the raw rate above: it consumes a cell rate that has been shrunk toward
+> its band, had retirement-driven changes removed and been scaled by `exp(c·(m−1))`, and it then
+> multiplies that by an asymmetric strength tilt. Measured directly against the real
+> `forward_simulate` (`probes/09b_dispersion.py`), the simulator's net displacement at five laps is
+> **0.176 against the archive's 0.178 — a ratio of 0.99.** Those steps absorb the gap almost
+> exactly.
+>
+> The table above stands as what it is: **a property of the raw rate, and a warning about feeding a
+> swap rate to anything that treats swaps as permanent.** It is not a defect of `09` as built.
+> `09` §10.2 carries the corrected version and `09` §16.6 item 7 records how the wrong one got
+> written.
 
-**Why this belongs in *this* document.** Pit cycles are the largest single generator of transient
-swaps — a car pits, drops several places, and takes them back over the following laps — and `09`
-§5.4 deliberately leaves pit-cycle swaps *inside* `q` because `09` §5.7 does not model them. So the
-over-dispersion is, in substantial part, the cost of that decision, and §4 states what removing it
-is expected to buy.
+**Why this still belongs in *this* document.** Pit cycles are the largest single generator of
+transient swaps — a car pits, drops several places, and takes them back over the following laps —
+and `09` §5.4 deliberately leaves pit-cycle swaps *inside* `q` because `09` §5.7 does not model
+them. That is a live hazard for anyone who reuses `q` in a context where the shrinkage and the
+strength tilt are not there to absorb it, and §4 states what removing pit swaps from `q` is and is
+not expected to buy.
 
 ### 2.4 Stop timing is not predictable from stint age, and this decides v1's scope
 
@@ -255,10 +268,13 @@ with "correct the order and keep publishing". Concretely, in `09`'s terms:
   otherwise the pit cycle is counted twice, which is the double-count `04` §6.3 rejected and `09`
   §5.4 already applies to retirement. This is not optional and it is the reason this model cannot
   be bolted on without refitting `q`.
-- **§2.3 predicts what that refit buys**: pit cycles are a principal source of transient swaps, so
-  removing them from `q` should move the net/compounded ratio toward 1 and reduce the
-  over-dispersion that costs the layer the last tenth of the race. **That prediction is
-  pre-registered here** (§6) so it is testable rather than assertable.
+- **What that refit is and is not expected to buy.** Pit cycles are a principal source of the
+  transient swaps §2.3 measures, so removing them from `q` should move the raw net/compounded ratio
+  toward 1. **It should not be expected to fix `09`'s late-race leader error**, and this is stated
+  here rather than discovered later: that error is confined to the lead pair in the closing quarter
+  (`09` §10.2, 9.9×), the closing quarter is not where the stops are, and `09`'s own diagnosis is
+  that the repair there is a finer front band rather than anything to do with pit strategy. A
+  pit-cycle refit of `q` and a P1-only cell are two independent fixes to two independent defects.
 
 **What v1 explicitly does not do**: predict when a car will stop (§2.4), model tyre degradation or
 stint plans, model the undercut as a *decision* (§2.5's effect is an outcome, not a policy), or
@@ -319,13 +335,17 @@ weaker here.
 
 1. **Coverage.** The `pit_offset` suppression fraction falls from §3's measured **28.5%**. If it does
    not fall by at least half, the projection is not doing the job it was funded for.
-2. **The over-dispersion prediction (§4).** Refitting `09` §5.4's `q` with pit-cycle swaps removed
-   moves the pooled net-at-5-laps / compounded ratio from **0.61** toward 1.0. This is the sharpest
-   test in the document because it is a prediction about a quantity already measured, and it can
-   fail cleanly.
-3. **Late-race scoring.** The layer's log-loss in the final two progress deciles (currently 0.281 and
-   0.119, against the position ladder's 0.061 and 0.058) improves. `09` §10's ladder beating the full
-   layer there is the specific defect this is meant to fix.
+2. **The rate prediction (§4).** Refitting `09` §5.4's `q` with pit-cycle swaps removed moves the
+   raw net-at-5-laps / compounded ratio from **0.61** toward 1.0. This is the sharpest test in the
+   document because it is a prediction about a quantity already measured, and it can fail cleanly.
+   It is a prediction about the *rate*; `09`'s simulator already tracks the archive at 0.99 (§2.3's
+   correction), so this buys a cleaner input rather than a visibly different estimate.
+3. **Mid-race scoring, not late.** The layer's log-loss should improve **where the stops are** —
+   `09` §10.1's curve puts the layer's largest margin over the position ladder around half distance
+   (0.96 against 1.46), which is the pit window. The final two deciles, where the ladder currently
+   beats the layer (0.061 and 0.058 against 0.281 and 0.119), are **not** this model's target: `09`
+   §10.2 traces that to the lead-pair band cell, and `09` §13 item 6 owns it. **Claiming the last
+   two deciles for this model would be claiming credit for someone else's fix.**
 
 **And one pre-registered null**, in the spirit of `09` §1.3 and `05` §6.4.1: `09` §10's layer
 already meets its success criteria with the pit cycle unmodelled. **If this model improves coverage
