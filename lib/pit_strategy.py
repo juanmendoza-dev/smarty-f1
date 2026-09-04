@@ -213,14 +213,36 @@ class PitProjector:
                 cyc.advance(OUT_LAP)
             # A latched cycle never returns to IN_PIT: `in_pit` going true again
             # after the car has left the lane is 03 sec7.4's parsing artifact.
-            if cyc.state == OUT_LAP and self._observation_has_landed(car):
+            if cyc.state == OUT_LAP:
                 # 12 sec7 assertion 3: the projection is provisional. The moment
                 # a real gap arrives the observed value replaces it *on this
                 # tick* -- no blending, no carry-over -- which is exactly the
                 # cycle closing rather than being faded out.
-                cyc.closed_by = "pit_out" if car.pit_out else "gap"
-                self.completed[code] = self.completed.get(code, 0) + 1
-                del self.cycles[code]
+                #
+                # The second close condition is not decoration, and it is a bug
+                # this file had: a car whose `gap_leader` never becomes numeric
+                # again -- a lapped car reading the `LAP n` form, which 12 sec5.3
+                # refuses to parse -- would satisfy the first condition never,
+                # and its cycle stayed open for the rest of the race. Measured
+                # on R7 before the fix: 8 cycles still open at the flag, the
+                # oldest 43 laps past its stop. Every checkpoint after that
+                # counted the car as mid-cycle, which inflated the refusal counts
+                # and fed 12 sec4's narrowed suppression rule a car that had
+                # finished its stop three quarters of an hour earlier.
+                #
+                # `remaining` is the honest bound. Once the elapsed time has run
+                # past `delta` the projection is the identity by construction
+                # (`max(delta - elapsed, 0)` is zero), so the model has nothing
+                # left to say about this car and holding the cycle open changes
+                # no order -- only the bookkeeping, which is exactly what went
+                # wrong.
+                spent = cyc.elapsed(tick.t_local) >= self.pit_loss.delta_s
+                if self._observation_has_landed(car) or spent:
+                    cyc.closed_by = ("pit_out" if car.pit_out
+                                     else "gap" if gap_seconds(car) is not None
+                                     else "spent")
+                    self.completed[code] = self.completed.get(code, 0) + 1
+                    del self.cycles[code]
 
     @staticmethod
     def _observation_has_landed(car):

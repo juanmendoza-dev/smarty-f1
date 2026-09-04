@@ -267,6 +267,22 @@ def test_projection_is_provisional():
           proj.cycles.get("BBB") is not None
           and proj.cycles["BBB"].state == pit.OUT_LAP)
 
+    # ... but not forever. A lapped car reads the `LAP n` form for the rest of
+    # the race, so waiting for a numeric gap waits for something that never
+    # arrives. Measured on R7 before this closed: 8 cycles still open at the
+    # flag, the oldest 43 laps past its stop, every one of them counted as
+    # mid-cycle by 12 sec4's suppression rule.
+    proj.fold(make_tick(in_pit=(), t=2.9, gap_override={"BBB": "LAP 5"}))
+    check("the cycle is still open while the projection still owes time",
+          "BBB" in proj.cycles)
+    proj.fold(make_tick(in_pit=(), t=3.1, gap_override={"BBB": "LAP 5"}))
+    check("it closes once elapsed passes delta, where the projection is already "
+          "the identity", "BBB" not in proj.cycles
+          and proj.completed.get("BBB") == 1)
+    for t in (60.0, 600.0):
+        proj.fold(make_tick(in_pit=(), t=t, gap_override={"BBB": "LAP 5"}))
+    check("and it does not reopen on later ticks", "BBB" not in proj.cycles)
+
 
 # ------------------------------------------------------ sec7 assertion 4
 def test_no_pit_cycle_double_count():
@@ -353,17 +369,20 @@ def test_refusals():
 # ------------------------------------------------------ sec7 assertion 6
 def test_latch_discipline():
     print("12 sec7 assertion 6 -- the state machine never runs backwards")
+    # Times deliberately inside delta: a cycle whose elapsed time has run past
+    # delta closes on its own (see test_projection_is_provisional), and this
+    # test is about the latch rather than about the close.
     proj = projector()
     proj.fold(make_tick(in_pit=["BBB"], t=0.0))
     check("entry puts the car in ENTERING", proj.cycles["BBB"].state == pit.ENTERING)
-    proj.fold(make_tick(in_pit=["BBB"], t=1.0))
+    proj.fold(make_tick(in_pit=["BBB"], t=0.5))
     check("a second in-pit tick advances to IN_PIT",
           proj.cycles["BBB"].state == pit.IN_PIT)
     # in_pit flickers false, then true again: 03 sec7.4's parsing artifact.
-    proj.fold(make_tick(in_pit=(), t=2.0, gap_override={"BBB": "LAP 5"}))
+    proj.fold(make_tick(in_pit=(), t=1.0, gap_override={"BBB": "LAP 5"}))
     check("leaving the lane advances to OUT_LAP",
           proj.cycles["BBB"].state == pit.OUT_LAP)
-    proj.fold(make_tick(in_pit=["BBB"], t=3.0, gap_override={"BBB": "LAP 5"}))
+    proj.fold(make_tick(in_pit=["BBB"], t=1.5, gap_override={"BBB": "LAP 5"}))
     check("in_pit going true again does NOT drag the state back to IN_PIT",
           proj.cycles["BBB"].state == pit.OUT_LAP)
     check("the raw transition is refused if something asks for it directly",
