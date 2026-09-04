@@ -1,9 +1,14 @@
 # 06 — Multi-Model Weather Ensemble Signal
 
 Status: **drafted 2026-08-23; revised and verified live 2026-08-24; §6.1/§6.2 decided
-2026-09-01; not yet implemented.** No code gets written against it until this document is fully
-locked, per `welcome.md`'s "no implementation without an approved spec" rule. Read `welcome.md` and
-`01-data-pipeline.md` §5 first.
+2026-09-01; implemented 2026-09-04.** Read `welcome.md` and `01-data-pipeline.md` §5 first.
+
+**Implemented 2026-09-04.** `lib/openmeteo.forecast_ensemble()` makes the four-model call,
+`snapshot.build_weather()` derives §4.2's three aggregates and persists all four raw series under
+`weather.per_model`, `snapshot.build_track_history()` applies §6.1's `≥ 0.5 mm`, and
+`score.compute_weather()` gates F7 on `p_mean`. `test_f7_wet_branch.py` is rebuilt on live pulls
+and is the shipping gate §7.1 asked for. Two things the build turned up that this document did not
+anticipate are recorded in §13.
 
 **§6.1 decided 2026-09-01: wet is `≥ 0.5 mm`, tightened from `snapshot.py:288`'s `> 0.0 mm`.** This
 unblocks §6.2: the gate input is **`p_mean`**. Both changes move together, as §6.2 already required.
@@ -476,8 +481,9 @@ verify (§3.3).
   suggestion, not part of what this spec proposes locking.
 - Does not self-host GraphCast, Pangu-Weather, or any other ML weather model.
 - Does not change F7's train-dormant status or A3's design matrix (`01` §5.6, `05` §3.3).
-- **Does not change the wet-race definition** (`snapshot.py:288`, `02` §4). §6.1 argues it should
-  change and hands the decision to the owner; nothing here acts on it.
+- ~~**Does not change the wet-race definition**~~ — **superseded.** This line was written while
+  §6.1 was still open. The owner decided `≥ 0.5 mm` on 2026-09-01 and it shipped 2026-09-04, so
+  this spec does change the wet-race definition (`snapshot.WET_PRECIP_MM`, `02` §4).
 - Does not change F7's wet-branch logic — only the scalar that enters its gate (§7.1).
 - Does not change the snapshot schema's top-level shape (`01` §8.3) — `weather` gains a `per_model`
   block and three aggregates, it doesn't become a new top-level key.
@@ -510,9 +516,12 @@ Still open:
 3. **`p_spread`'s downstream consumer (§7.3).** The proposed minimum is a snapshot flag plus a
    weather-uncertain marker on predictions. Whether it ever becomes a feature in its own right is
    not decided.
-5. **`test_f7_wet_branch.py` is the shipping gate (§7.1).** Changing the gate input is what first
-   fires a branch that has never run on a real race. That test existing is not the same as it
-   having been exercised against the ensemble path.
+5. ~~**`test_f7_wet_branch.py` is the shipping gate (§7.1).**~~ **Done 2026-09-04.** Rebuilt on
+   live `build_weather`/`build_track_history` pulls; the active branch now runs against a real
+   `≥ 0.5 mm` edition (Monza 2024, 0.7 mm observed). The old version would have kept passing
+   without testing any of this — it asserted wet flags baked into a frozen snapshot under the old
+   rule, and flags in a frozen snapshot do not move when the rule does. Still true that the branch
+   has never run on a real *race*.
 6. **Backtest scale.** n = 44, with 8 wet races at the ≥ 0.5 mm rule, and the replay is optimistic
    on lead time (§5.1). Re-run `weather_backtest.py` as seasons accumulate; the per-model history
    only began in 2024-05, so the corpus grows on its own.
@@ -592,3 +601,64 @@ essentially the same mean Brier in the agreeing and disagreeing buckets (0.612 v
 makes rain-forecast disagreement predictive of unreliability (§5.3) does not carry over to
 temperature or humidity in this corpus. **Not pursued** — §7.3's `p_spread` reliability flag stays
 scoped to precipitation only.
+
+## 13. What the build turned up (2026-09-04)
+
+Two things, neither anticipated above. Recorded here rather than left in a commit message, same
+reasoning as §§1–4's corrections: a surprise found during implementation is worth more to the next
+reader than a spec that reads as though the build was uneventful.
+
+### 13.1 §6.1 leaves Zandvoort with no wet edition at all
+
+The tighter rule was argued in §6.1 on which races *should* count as wet. What it does to the
+per-driver history F7 actually scores over was not checked, and it is substantial. F5/F7 read a
+driver's **last three editions at this circuit**, so the corpus a wet-only filter draws from is
+three races per circuit, not 44.
+
+Measured through `build_track_history` on 2026-09-04, observed race-window mm:
+
+| circuit | editions | wet under `> 0.0 mm` | wet under `≥ 0.5 mm` |
+|---|---|---|---|
+| Zandvoort | 0.4 / 0.0 / 0.2 | 2 of 3 | **0 of 3** |
+| Monza | 0.0 / 0.7 / 0.0 | 1 of 3 | 1 of 3 |
+
+So on a wet Dutch GP, F7's gate would open and the branch would return **NEUTRAL for the entire
+field** — no driver has a qualifying edition to be rated on. That is not a bug in the branch; it
+is what a circuit with no wet history looks like, and `compute_weather`'s `n_wet == 0` path already
+handles it correctly. But it means §7.1's "changing the gate input is the act that first fires
+untested code" undersells the situation: at some circuits the branch can fire and still contribute
+nothing.
+
+**This does not reopen §6.1.** A 0.4 mm race is not a wet race, and scoring drivers on one was the
+problem, not the fix. It does mean the wet branch's real coverage is narrower than the 23%
+activation rate in §5.2 suggests — activation is measured on the forecast, contribution needs
+history, and the two are not the same test. `test_f7_wet_branch.py` asserts both the Monza case
+(discriminates) and the Zandvoort case (flat) so the gap stays visible.
+
+Worth revisiting if F7's wet handling is ever reopened, alongside §8.2: the obvious lever is the
+three-edition window, not the threshold.
+
+### 13.2 A race window can fall outside the date the forecast was requested for
+
+Pre-existing and unrelated to the ensemble, found while adding the aggregates' invariants.
+`build_weather` took Jolpica's race date — which is **UTC** — and asked Open-Meteo for that single
+local date, then sliced the local ±2h window out of it. For a race late enough in the UTC day the
+window sits on the *previous* local date, so the response contained none of its hours.
+
+Las Vegas 2026 is the live case on the current calendar: race date 2026-11-22, local window
+2026-11-21 18:00–22:00. One of 23 races. The old code produced `p_max: None` and F7 went dormant
+on an **empty** forecast, which is indistinguishable downstream from a dry one — the same
+silent-degradation shape as §3.3's null gap.
+
+Fixed by padding the pull a day either side (what `weather_backtest.py` always did) and a
+`require()` on a non-empty window, so a future instance fails loudly. `meta.weather_uncertain` is
+`not agree`, so an absent forecast reads as uncertain rather than as confidently fine.
+
+### 13.3 Rate-limit weighting is still unverified (§10 item 1)
+
+No 429 was seen at any point, including a full 44-race `weather_backtest.py` run. Open-Meteo
+returns **no quota headers at all** — checked directly on a one-model call, a no-`models=` call and
+the four-model × five-variable call, and all three come back with only `Connection`, `Content-Type`,
+`Date` and `Transfer-Encoding`. So nothing here confirms or refutes the 1× vs 20× question and §10
+item 1 stays open exactly as written. Lane A still makes one call per race; the ensemble switch did
+not add a second (the blended call it replaces is gone, not doubled).

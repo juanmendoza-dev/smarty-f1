@@ -45,7 +45,12 @@ The project is split into independent tracks. Don't conflate them — most confu
 - `docs/04-outcome-expansion-algo.md` — podium, points, DNF, fastest lap (Phase A4)
 - `docs/05-trained-model.md` — the trained winner model (Phase A3, **current focus**). Read `02` first; A3's whole design turns on the fact that `02`'s scorer is already a conditional logit with hand-set coefficients
 - `docs/03-live-telemetry-overtakes.md` — Lane B's live data source and tick client (Phase B0). **Now a build spec** (2026-08-26), with the original source research preserved as §§1–3. Read §§4–5 before touching anything in this lane: they set the authorized scope (personal research/development only, no hosted deployment) and record the ToS risk the owner identified and knowingly accepted. The client may be built; the prediction layer on top of it is gated on B1's delay measurement
-- `docs/06-weather-ensemble-signal.md` — multi-model weather ensemble spec. **Verified against 44 races, not approved, not implemented** — queries four named weather models instead of one blend, and uses their disagreement to flag when our own forecast can't be trusted. Blocked on one owner decision: whether a 0.1mm trace should keep counting as a wet race (§6.1)
+- `docs/06-weather-ensemble-signal.md` — multi-model weather ensemble spec. **Verified against 44
+  races, decided 2026-09-01, implemented 2026-09-04** — queries four named weather models instead of
+  one blend, and uses their disagreement to flag when our own forecast can't be trusted. The 0.1mm
+  question this bullet used to be blocked on is answered: a wet race is `≥ 0.5mm` (§6.1), and F7's
+  gate reads `p_mean` (§6.2). Read §13 before touching weather again — tightening the wet rule left
+  Zandvoort with no wet edition at all, so F7's branch is live but has less history to stand on
 - `docs/08-overtake-model.md` — the overtake model (Phase B2), **specced 2026-08-26, not approved,
   not built**. Load-bearing for Lane B: it records the decision that Lane B's output feeds a live
   win-probability model — overtake probability → live win probability — as a standalone live-prediction

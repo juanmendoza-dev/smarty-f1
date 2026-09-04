@@ -232,7 +232,11 @@ applies equally.
 - `precipitation_probability` is only present in the **forecast** API. The **archive** API has no
   probability field — it has observed `precipitation` in mm. Any feature defined on "chance of
   rain" cannot be computed for historical races. Define wet-race history on observed
-  `precipitation > 0`, not on probability, or the feature will be uncomputable for training data.
+  `precipitation`, not on probability, or the feature will be uncomputable for training data.
+  **Corrected 2026-09-04:** this said `precipitation > 0`. That was the rule in force when it was
+  written, but `06` §6.1 tightened it to `≥ 0.5 mm` (`snapshot.WET_PRECIP_MM`) — a 0.1 mm trace
+  leaves the track dry and is not a wet race. The point of the bullet is unchanged: define it on
+  observed mm, whatever the threshold.
 - The archive has a multi-day ingestion lag; it is not a substitute for the forecast API on race
   weekend.
 - Values are hourly arrays parallel to `hourly.time`. Join by index, and select by the local-time
