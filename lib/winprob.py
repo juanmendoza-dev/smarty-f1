@@ -267,6 +267,15 @@ class WinProbLayer:
         use_om = self.use_overtake_model if use_overtake_model is None else use_overtake_model
         lap_total = self.lap_total or max(self.laps_done.values() or [1])
         lap_current = self.lap_current or 1
+        # The flag. `LapCount.CurrentLap` stops at `lap_total` and stays there,
+        # so "the leader is on the last lap" and "the leader has finished it"
+        # look identical on that field alone; the leader's own completed-lap
+        # count is what separates them. Without this the layer simulates one
+        # more partial lap after the race has ended and 09 sec11.3's endgame
+        # identity cannot hold -- the leader stays passable at the flag.
+        leader_laps = self.laps_done.get(running[0])
+        if leader_laps is not None and leader_laps >= lap_total:
+            lap_current = lap_total + 1
         hz = lap_hazards({c: self.prior.f_dnf.get(c, 0.0) for c in running},
                          self.prior.hazard, max(lap_current - 1, 0), lap_total)
 
