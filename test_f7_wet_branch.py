@@ -25,6 +25,7 @@ import copy
 import json
 import os
 import unittest
+import unittest.mock
 
 import score
 import snapshot
@@ -354,6 +355,67 @@ class TestWindowSpanningALocalDateBoundary(unittest.TestCase):
         self.assertEqual(times[0][:10], "2026-09-09")
         self.assertEqual(times[-1][:10], "2026-09-10")
         self.assertIsNotNone(weather["p_mean"])
+
+
+class TestInvariantsFire(unittest.TestCase):
+    """The guards are require(), not assert, so they survive python -O
+    (lib/invariants.py). These check they actually trip -- an invariant nobody
+    has seen fail is an invariant nobody knows is wired up.
+    """
+
+    def test_probability_outside_0_100_is_rejected(self):
+        with self.assertRaises(InvariantError) as cm:
+            snapshot.ensemble_aggregates([[10, 20, 30, 140]])
+        self.assertIn("outside [0, 100]", str(cm.exception))
+
+    def test_ragged_hours_are_rejected(self):
+        with self.assertRaises(InvariantError):
+            snapshot.ensemble_aggregates([[10, 20, 30, 40], [10, 20, 30]])
+
+    def test_an_empty_window_yields_no_aggregates_rather_than_a_zero(self):
+        self.assertEqual(
+            snapshot.ensemble_aggregates([]),
+            {"p_mean": None, "p_max": None, "p_spread": None, "agree": None},
+        )
+
+    def test_a_model_missing_from_the_response_is_named_in_the_failure(self):
+        """Open-Meteo 400s on a model name it doesn't know, so this is the guard
+        for a model silently dropping out of an otherwise-200 response -- stub
+        the transport rather than try to provoke it live.
+        """
+        from lib import openmeteo
+        body = {"hourly": {"time": ["2026-09-06T13:00"]}, "hourly_units": {}}
+        for field in openmeteo.HOURLY_FIELDS:
+            body["hourly"][f"{field}_ecmwf_ifs025"] = [10]
+        with unittest.mock.patch.object(openmeteo.httpcache, "cached_get_json",
+                                        return_value=(body, {"status": 200})):
+            with self.assertRaises(InvariantError) as cm:
+                openmeteo.forecast_ensemble(0, 0, "2026-09-06", "2026-09-06", "UTC",
+                                            CACHE_DIR, models=["ecmwf_ifs025", "gfs_seamless"])
+        self.assertIn("gfs_seamless", str(cm.exception))
+
+    def test_a_null_inside_the_window_is_not_read_as_a_dry_forecast(self):
+        """06 sec3.3's silent-null gap: per-model keys full of nulls under a 200."""
+        from lib import openmeteo
+        times = [f"2026-09-06T{h:02d}:00" for h in range(11, 20)]
+        body = {"hourly": {"time": times}, "hourly_units": {}}
+        for m in openmeteo.ENSEMBLE_MODELS:
+            for field in openmeteo.HOURLY_FIELDS:
+                body["hourly"][f"{field}_{m}"] = [0] * len(times)
+        body["hourly"]["precipitation_probability_gem_seamless"] = [None] * len(times)
+        lat, lon = _latlon(MONZA[0])
+        with unittest.mock.patch.object(openmeteo.httpcache, "cached_get_json",
+                                        return_value=(body, {"status": 200})):
+            with self.assertRaises(InvariantError) as cm:
+                snapshot.build_weather(lat, lon, MONZA[1], MONZA[2], MONZA[0], CACHE_DIR)
+        self.assertIn("gem_seamless", str(cm.exception))
+
+    def test_per_model_carries_exactly_the_four_models(self):
+        lat, lon = _latlon(MONZA[0])
+        weather, _ = snapshot.build_weather(lat, lon, MONZA[1], MONZA[2], MONZA[0], CACHE_DIR)
+        self.assertEqual(len(weather["per_model"]), 4)
+        self.assertEqual(sorted(weather["per_model"]),
+                         sorted(snapshot.openmeteo.ENSEMBLE_MODELS))
 
 
 if __name__ == "__main__":
