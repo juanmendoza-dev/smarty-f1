@@ -1022,7 +1022,8 @@ Three readings, and the third is a defect:
    reproducing `p_algo` by construction (§5.5's t = 0 identity), so this is Lane A's prior losing to
    "the pole-sitter usually wins", not the estimator failing.
 3. **In the last two deciles the ladder beats the layer, by a lot** — 0.061 vs 0.281 and 0.058 vs
-   0.119. §10.2 is that defect, measured.
+   0.119. §10.2 measures that defect and traces it to one cell of §5.4's band conditioning, **not**
+   to any general property of the simulator, which tracks the archive to within 1%.
 
 ### §10.2 The leader does not converge hard enough late, and the cause is narrower than it first looked
 

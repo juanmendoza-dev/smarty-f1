@@ -227,8 +227,11 @@ real advantage, of a size this corpus can see but not measure precisely.*
   §5.7 pre-registered that "if it lands anywhere near 34.5%, the layer is silent through most of the
   race and that is a headline result, not a tuning detail." At 28.5% it lands nearer 34.5% than to
   the "narrow enough" case §5.7 hoped for.
-- And in the closing tenth of the race the **position-only ladder beats the full layer** (log-loss
-  0.058 vs 0.119), which is where §2.3's over-dispersion shows up as a scoring loss.
+- **Not** the closing tenth, where the position-only ladder beats the full layer (log-loss 0.058 vs
+  0.119). That is a real defect and it belongs to someone else: `09` §10.2 traces it to §5.4's front
+  band handing the P1/P2 pair the pooled P1–P3 rate, and `09` §13 item 6 owns the fix. It is named
+  here only so that it is not silently absorbed into this model's case — §6's outcome 3 disclaims it
+  explicitly, and the funding argument below does not rest on it.
 
 **This is the strongest available argument for funding this model, and it is an argument from
 measurement rather than from mechanism.** It is also the honest counter-argument: `09` §10's layer

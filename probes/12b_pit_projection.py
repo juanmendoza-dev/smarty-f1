@@ -12,7 +12,9 @@ questions the spec cannot be written without.
      pools P1/P2 with P2/P3. B4's replay showed the layer under-converging on
      the leader late in the race, so: what is the P1/P2 pair's OWN lap-to-lap
      swap rate, by race quarter, against the pooled P1-P3 rate the layer feeds
-     the simulator?
+     the simulator? (Answered by probes/09b_dispersion.py, which measures the
+     real simulator rather than inferring it from these counts -- read that
+     one's header before quoting anything here about 09's layer.)
 
   2. **How much of that is transient?** A simulator treats every swap as
      permanent. A pit cycle's swap is not -- the leader who stops rejoins
@@ -318,8 +320,12 @@ if tn1 and tn5:
     cmp5 = 1 - (1 - q1) ** 5
     print("%-10s %-10s %8d %9.4f %11.4f %11.4f %8.2f"
           % ("POOLED", "all", tn1, q1, cmp5, tk5 / tn5, (tk5 / tn5) / cmp5))
-    print("  read: net/cmp well below 1 means swaps REVERT, so a per-lap rate fed to a")
-    print("  simulator that makes every swap permanent over-disperses the field.")
+    print("  read: net/cmp well below 1 means swaps REVERT, so a per-lap rate is NOT a net")
+    print("  displacement -- anything that treats every swap as permanent will over-disperse.")
+    print("  This is a property of the RATE, not a measurement of 09's simulator, which also")
+    print("  shrinks, excludes retirement, scales by circuit and applies a strength tilt.")
+    print("  probes/09b_dispersion.py measures the simulator directly: 0.99, i.e. no general")
+    print("  over-dispersion. Do not quote the ratio above as a defect of 09 (09 sec16.6 item 7).")
 
 print("\n=== 2. how much of a lead change is transient? ===")
 lc = lead_changes
