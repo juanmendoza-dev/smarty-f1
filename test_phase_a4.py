@@ -50,6 +50,15 @@ class TestDutchGP2026OutcomeOnly(unittest.TestCase):
         with open(score.load_latest_snapshot(SNAPSHOT_DIR)) as f:
             cls.snapshot = json.load(f)
         cls.algo_snapshot = {k: v for k, v in cls.snapshot.items() if k != "markets"}
+        # This snapshot predates the weather ensemble as well as Phase A4: it
+        # carries a blended p_max of 37 and no p_mean, and 06 sec6.2 moved F7's
+        # gate onto p_mean. Patch in the real four-model value for this race --
+        # 32.5, reproduced independently by weather_backtest.py and pinned in
+        # test_f7_wet_branch.py -- rather than a stub, since it is a number this
+        # race actually has. F7 is dormant either way (37 and 32.5 are both
+        # under 40), so nothing A4 measures moves. In memory only; the file on
+        # disk stays immutable (01 sec8.3).
+        cls.algo_snapshot["weather"] = dict(cls.algo_snapshot["weather"], p_mean=32.5)
         season = cls.snapshot["meta"]["season"]
         round_ = cls.snapshot["meta"]["round"]
         # The project's persistent cache (data/cache) has a stale entry for
