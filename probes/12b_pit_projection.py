@@ -49,6 +49,14 @@ REVERT_WINDOW = 5          # laps within which a lead change counts as transient
 
 lead_pair = collections.defaultdict(lambda: [0, 0])    # quarter -> [pairs, swaps]
 band_pair = collections.defaultdict(lambda: [0, 0])    # quarter -> [pairs, swaps] over P1-P3
+# 1b. The distinction that matters for 09 sec5.4's q: a per-lap swap RATE
+# compounded over n laps answers "did this pair swap at least once", but a
+# simulator that treats every swap as permanent needs "is the behind car ahead
+# n laps later". Swaps revert, so the two differ, and the gap is the layer's
+# over-dispersion. Same error caught in the undercut normalisation below, now
+# looked for inside q itself.
+net5 = collections.defaultdict(lambda: [0, 0])         # (band, quarter) -> [pairs, behind ahead]
+lap1 = collections.defaultdict(lambda: [0, 0])         # (band, quarter) -> [pairs, swaps]
 lead_changes = {"total": 0, "reverted": 0, "pit": 0, "pit_reverted": 0,
                 "nonpit": 0, "nonpit_reverted": 0}
 deltas = collections.defaultdict(list)
@@ -129,6 +137,38 @@ for _, ev in sched.iterrows():
                 lead_pair[q][0] += 1
                 if p2 < p1:
                     lead_pair[q][1] += 1
+
+    # --- 1b. net displacement over 5 laps vs the per-lap rate compounded ---
+    BANDS = (("P1-P3", 1, 3), ("P4-P6", 4, 6), ("P7-P10", 7, 10),
+             ("P11-P15", 11, 15), ("P16+", 16, 99))
+
+    def band_of(p):
+        for nm, lo, hi in BANDS:
+            if lo <= p <= hi:
+                return nm
+        return BANDS[-1][0]
+
+    SPAN = 5
+    for L in range(1, total):
+        a_ord = order.get(L)
+        if not a_ord:
+            continue
+        q = min(int((L / float(total)) * 4), 3)
+        nxt = rorder.get(L + 1)
+        far = rorder.get(L + SPAN)
+        for pos in sorted(a_ord):
+            if pos + 1 not in a_ord:
+                continue
+            ahead_c, behind_c = a_ord[pos], a_ord[pos + 1]
+            key = (band_of(pos), q)
+            if nxt and ahead_c in nxt and behind_c in nxt:
+                lap1[key][0] += 1
+                if nxt[behind_c] < nxt[ahead_c]:
+                    lap1[key][1] += 1
+            if far and ahead_c in far and behind_c in far:
+                net5[key][0] += 1
+                if far[behind_c] < far[ahead_c]:
+                    net5[key][1] += 1
 
     # --- 2. transience of lead changes ---
     prev = None
@@ -253,6 +293,33 @@ if tl and bl:
     print("%-10s %10d %8d %10.4f | %10d %8d %10.4f"
           % ("POOLED", tl, tk, tk / tl, bl, bk2, bk2 / bl))
     print("  ratio (band rate / lead-pair rate): %.2fx" % ((bk2 / bl) / (tk / tl)))
+
+print("\n=== 1b. net displacement over 5 laps vs the per-lap rate compounded ===")
+print("09 sec5.4's q is a per-lap SWAP rate; the simulator makes every swap permanent.")
+print("%-10s %-10s %8s %9s %11s %11s %8s" %
+      ("band", "quarter", "pairs", "q/lap", "1-(1-q)^5", "net@5laps", "net/cmp"))
+for nm, _, _ in (("P1-P3", 0, 0), ("P4-P6", 0, 0), ("P7-P10", 0, 0),
+                 ("P11-P15", 0, 0), ("P16+", 0, 0)):
+    for qq in range(4):
+        n1, k1 = lap1[(nm, qq)]
+        n5, k5 = net5[(nm, qq)]
+        if n1 < 50 or n5 < 50:
+            continue
+        q1 = k1 / n1
+        cmp5 = 1 - (1 - q1) ** 5
+        net = k5 / n5
+        print("%-10s %-10s %8d %9.4f %11.4f %11.4f %8.2f"
+              % (nm, "%.2f-%.2f" % (qq / 4, (qq + 1) / 4), n1, q1, cmp5, net,
+                 net / cmp5 if cmp5 > 0 else float("nan")))
+tn1 = sum(v[0] for v in lap1.values()); tk1 = sum(v[1] for v in lap1.values())
+tn5 = sum(v[0] for v in net5.values()); tk5 = sum(v[1] for v in net5.values())
+if tn1 and tn5:
+    q1 = tk1 / tn1
+    cmp5 = 1 - (1 - q1) ** 5
+    print("%-10s %-10s %8d %9.4f %11.4f %11.4f %8.2f"
+          % ("POOLED", "all", tn1, q1, cmp5, tk5 / tn5, (tk5 / tn5) / cmp5))
+    print("  read: net/cmp well below 1 means swaps REVERT, so a per-lap rate fed to a")
+    print("  simulator that makes every swap permanent over-disperses the field.")
 
 print("\n=== 2. how much of a lead change is transient? ===")
 lc = lead_changes
