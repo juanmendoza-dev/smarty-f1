@@ -8,6 +8,10 @@ training matrix; they build nothing and they are not part of any model's code pa
 established that measurements come before specs, and this directory is where the measurements live
 so a claim in a document can be re-derived instead of taken on trust.
 
+**Not everything a spec quotes lives here.** `09` §10.1's results come from the layer itself, not
+from a probe — `winprob_fit.py`, then `winprob_validate.py`, both from the repo root on `.venv312`,
+writing to the gitignored `data/live/winprob/`. `09` §15 has the commands and the runtimes.
+
 ## Running them
 
 Use `.venv312` — `fastf1` is not installed anywhere else (`08` §13.2). Run from the repo root. The
@@ -34,7 +38,7 @@ is gitignored (`03` §11.2 — it is F1 timing data and this repo is public).
 | `09_domain_bands.py` | 264,049 test rows, 986 overtakes; P1–P3 holds 47 overtakes, 32 in-domain, 68.1% retained; front-band calibration worst ratio 2.33 |
 | `09_theta_front.py` | θ_front mean 0.01046, range 0.00949–0.01160; keeps 77.4% of front-of-field overtakes in 41.0% of rows; 3/3 bins within 2×, worst 1.31 |
 | `12_pit_loss.py` | pit δ pooled median **23.0s** (IQR 20.6–26.3), per-circuit 19–30s across 306 stops; eventual top-6 move a net 0 through the pit phase (\|move\|≥2 in 27%); of 32 pit-attributable P1 changes only **38%** stuck to the flag; undercut succeeds **15%** of 154 clean attempts |
-| `12b_pit_projection.py` | lead pair swaps at **0.0055/lap in the final quarter** against the P1–P3 band's 0.0351 — a 6.4× gap the layer's band conditioning cannot see; 19% of lead changes revert within 5 laps; δ pooled median **22.8s**, MAD 3.7, per-circuit 19.4–28.3 over 286 stops on the tightened green filter; stint-age hazard runs 0.015–0.075 on a 0.037 base, so stint age barely says which lap a stop lands on; **undercut 14.9% against a matched background of 9.9%** |
+| `12b_pit_projection.py` | **net displacement at 5 laps is 0.61× what the per-lap swap rate compounded predicts, in every band and every quarter (0.41–0.78)** — `09` §5.4's rate over-disperses the simulator; lead pair swaps 0.0055/lap in the final quarter against the P1–P3 band's 0.0351; 19% of lead changes revert within 5 laps; δ pooled median **22.8s**, MAD 3.7, per-circuit 19.4–28.3 over 286 stops on the tightened green filter; stint-age hazard 0.015–0.075 on a 0.037 base, so stint age barely says which lap a stop lands on; **undercut 14.9% against a matched background of 9.9%** |
 
 **A second correction, made 2026-09-03 while building B4.** `12_pit_loss.py`'s undercut line was
 read as "barely above the background swap rate over the same span", comparing a 15% success rate
