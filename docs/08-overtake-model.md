@@ -575,9 +575,27 @@ next. **It was, on 2026-08-27: `docs/09-live-win-probability.md`, and its offlin
 approved for build on 2026-09-03** (`03` §4.4, extended). `09` §13's own open items remain the
 owner's.
 
+**The consumer now exists, and it measured what this model is worth.** The live win-probability
+layer (§9) was built and validated on 2026-09-04 (`09` §10.1, §10.3). Under common random numbers,
+the ablation — the same state estimator with this model switched off — is worse by
+**0.00064 pooled log-loss, 95% CI [−0.00145, −0.00001]** over 8 races and 520 checkpoints.
+
+Read that with all three of its qualifications, because the headline alone is misleading:
+
+- It is **real and correctly signed**: the interval excludes zero, and the comparison is paired
+  (`09` §7.4's common random numbers), so it is not an artifact of Monte Carlo noise.
+- It is **0.4% of the layer's own margin over a position-only ladder** (0.00064 against 0.176).
+  This model is not what makes that layer work.
+- It **helps in 5 races, hurts in 2, ties in 1**, and the pooled figure is carried by two races.
+
+This model spoke at all on **46.5% of checkpoints** — 242 of 520 carried an in-domain pair after
+both θ and θ_front. `09` §3 predicted the effect would be "real and small" from this model's own
+observed pass rates, before any of it was built, and that is exactly how it came out. `09` §2.1
+remains the frame: pit stops cause 71% of lead changes and this model is the fourth-biggest mover
+of P(win).
+
 **Not started:**
-- The **live win-probability layer** (§9) — the consumer this model was shaped for. Specced in
-  `09-live-win-probability.md` (2026-08-27); **offline build approved 2026-09-03**, not yet built.
+- **`docs/12`'s pit-strategy model** — specced 2026-09-04 off `09` §5.7, not approved, not built.
 - **Gate 2 / B1**, the broadcast-delay measurement, still unrun and still the owner's stated next
   step for the *live* half, per `03` §3.
 - **Anything live.** `03` §4.4's amendment authorizes the offline model only.

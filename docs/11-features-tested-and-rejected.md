@@ -81,3 +81,12 @@ The two directions with evidence behind them:
    is tracking in-race mechanical change (retirements, pit cycles, closing pursuits, laps
    remaining) continuously rather than once. `09` §1.3 is honest that this cannot fix a weak
    prior — but it is the only place genuinely new information enters after lights-out.
+
+---
+
+**Update 2026-09-04 — the pit-execution entry's "reopen if" pointer now resolves.**
+`docs/12-pit-strategy-model.md` is specced. It is **not** a reopening of the null recorded here,
+and `12` §1 states why in terms: this register's entry tested *race-aggregate, pre-race crew
+speed* as a feature of the Lane A scorer, and `12` specs an *in-race, per-stop* projection of track
+position through a pit cycle. Different claim, different lane, different evidence. Crew speed does
+not appear in `12` as a feature and is not proposed as one.
