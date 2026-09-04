@@ -494,9 +494,34 @@ swaps, retirements and on-track passes. Retirement is modelled separately (§5.5
 caused position changes must be removed from the background fit** — a driver who retires vacates
 positions, and if that vacancy is in both the background rate and the hazard model the layer
 double-counts attrition exactly the way `04` §6.3 rejected. The fit therefore excludes any
-adjacent-pair observation where either car retires within the lap. Pit-cycle swaps stay *in* the
-background rate, because §5.7 does not model pit strategy explicitly. `08`'s step-0 contribution
+adjacent-pair observation where either car retires within the lap. `08`'s step-0 contribution
 covers only the first 10 s and is not part of any lap-scale rate, so it needs no subtraction.
+
+> **Amended 2026-09-04, when `docs/12` was built.** This section used to end "Pit-cycle swaps stay
+> *in* the background rate, because §5.7 does not model pit strategy explicitly." That was correct
+> for as long as it was true that nothing modelled the pit cycle. `12` §4 is now built, and
+> `lib/pit_strategy.py` projects a cycle in progress onto track position explicitly, so a `q` that
+> still contained pit-cycle swaps would count the cycle twice — the same double count `04` §6.3
+> rejected and this paragraph already applies to retirement.
+>
+> **`q` is therefore refit with pit-cycle swaps removed** (`winprob_fit.py --pit-refit`), and `12`
+> §7 assertion 4 makes a layer that runs the projection against an un-refit rate refuse to be
+> constructed at all rather than quietly produce a plausible number. The exclusion window is
+> pre-registered in `lib/winprob_background.py`: an observation spanning `L → L+1` is dropped if
+> either car has a pit-in on `L-1`, `L` or `L+1`, so both endpoint laps are clean of the in-lap and
+> the out-lap that `12` §2.1 measures `δ` over.
+>
+> **What the refit measured, including the part that failed.** Pit cycles turn out to be a much
+> larger share of `q` than this document assumed: the pooled adjacent-swap rate falls from **0.0667
+> to 0.0363**, so nearly half of every adjacent swap in the corpus happens inside a pit cycle.
+> `12` §6's outcome 2 predicted that removing them would move §2.3's net-at-5-laps / compounded
+> ratio from 0.61 **toward** 1.0. It did not: net@5 falls from 0.1776 to 0.0997, almost exactly in
+> proportion, and the ratio goes to **0.59** — marginally the wrong way. Pit-cycle swaps are not
+> disproportionately transient; the over-dispersion §2.3 measures is a property of the swap process
+> generally and not of pit strategy. The refit is still required — it is a double count either way
+> — but it buys correct bookkeeping rather than a better-behaved rate, and that is a
+> pre-registered prediction failing cleanly rather than a detail. Reproduce with
+> `probes/12c_q_refit.py`.
 
 This is a required assertion (§11): the sum of modelled position-change sources must not exceed the
 measured total, checked on the training folds.
@@ -638,10 +663,33 @@ leading and overstate his P(win). The error is largest exactly where the market 
   and that is a headline result, not a tuning detail. **Measured 2026-09-04: 28.5% of 520
   checkpoints** (§10.4). That is nearer the headline than the narrow case this bullet hoped for,
   and it is the argument `docs/12` is built on.
+
+  > **Narrowed 2026-09-04, when `docs/12` was built** (`12` §4, `12` §10). With
+  > `lib/pit_strategy.py` active the condition is no longer the stop-count spread. The estimate is
+  > suppressed only for a **top-three car whose rejoin is not projectable** — a stop under caution,
+  > a degraded or stale tick, an unparseable gap (`12` §5.3). A cycle the model has corrected no
+  > longer silences the estimate, because the correction is the answer the suppression was standing
+  > in for.
+  >
+  > **What that does not fix, recorded here rather than left to be discovered.** Most of the 28.5%
+  > was never a car in the pit lane. Measured at the checkpoint instants over the 8 scoreable
+  > races, a top-three car is mid-cycle at only **4.8%** of them; the rest of the old condition is a
+  > completed-stop spread persisting *between* cycles — a leader who has yet to stop and will lose
+  > the place when he does. Projecting that needs stop *timing*, which `12` §2.4 measured and
+  > rejected as unsupported by this corpus. So the narrowing un-suppresses checkpoints whose
+  > underlying error `12` does not touch, and `winprob_validate.py` reports the fall decomposed into
+  > what the projection corrected and what the rule change merely stopped counting, precisely so
+  > that the two are not read as one number.
 - A real fix is an **undercut/pit-loss model** — expected time loss per stop per circuit, projected
   onto post-cycle track position. That is a genuine second model, it needs its own measurements,
   and building it inside this spec would be exactly the scope creep `welcome.md` warns against. It
   is §13 item 2 and it is the most valuable thing this layer could gain.
+  **That model is `docs/12`, approved and built 2026-09-04.** It is narrower than this bullet
+  imagined: it projects a stop *already in progress* and does not predict when a car will stop
+  (`12` §2.4). The `pit_offset` field above keeps its meaning unchanged — the owner's call on `12`
+  §9 item 4 was that a field published as diagnostic information should not quietly change
+  semantics under something downstream that may already read it, so the projection is reported in
+  its own `pit_projected` / `pit_order_changed` / `pit_cycle_in_top3` fields alongside it.
 
 ---
 
