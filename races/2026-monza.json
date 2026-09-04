@@ -1,5 +1,5 @@
 {
-  "_comment": "Italian GP (Monza) 2026, round 13. Polymarket slugs verified live 2026-08-23 against the open f1 tag listing. Kalshi tickers are null because Kalshi had not opened its Monza events yet at that point -- 04-outcome-expansion-algo.md sec2 notes Kalshi opens race markets later than Polymarket. Fill them in once they exist; see the error snapshot.py raises for how to list them.",
+  "_comment": "Italian GP (Monza) 2026, round 13. Polymarket slugs verified live 2026-08-23 against the open f1 tag listing. Kalshi event tickers filled 2026-09-03 once Kalshi opened its Monza events (KXF1RACE / PODIUM / TOP10 / FASTLAP, all -ITAGP26). Race is Sunday 2026-09-06 15:00 local (13:00 UTC).",
   "season": 2026,
   "round": 13,
   "polymarket_slug": "f1-italian-grand-prix-winner-2026-09-06",
@@ -7,8 +7,8 @@
   "polymarket_podium_slug": "f1-italian-grand-prix-driver-podium-2026-09-06",
   "polymarket_fastestlap_slug": "f1-italian-grand-prix-driver-fastest-lap-2026-09-06",
   "kalshi_series": "KXF1RACE",
-  "kalshi_event_ticker": null,
-  "kalshi_podium_ticker": null,
-  "kalshi_top10_ticker": null,
-  "kalshi_fastlap_ticker": null
+  "kalshi_event_ticker": "KXF1RACE-ITAGP26",
+  "kalshi_podium_ticker": "KXF1RACEPODIUM-ITAGP26",
+  "kalshi_top10_ticker": "KXF1TOP10-ITAGP26",
+  "kalshi_fastlap_ticker": "KXF1FASTLAP-ITAGP26"
 }
