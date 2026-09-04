@@ -162,7 +162,7 @@ def _swap_pass(order, w_arr, n_alive, slot_q, u, first_slot):
 def forward_simulate(session_key, order_codes, strengths, hazards, background,
                      lap_current, lap_total, track_frac=0.0, m=1.0,
                      lap_time_s=DEFAULT_LAP_TIME_S, pursuits=(), n_paths=SERVE_N,
-                     use_overtake_model=True, collect_orders=False):
+                     use_overtake_model=True, collect_orders=False, horizon_laps=None):
     """P(classified first at the flag) for every code in `order_codes`.
 
     `order_codes` is the current classified order of cars still running; retired
@@ -170,6 +170,13 @@ def forward_simulate(session_key, order_codes, strengths, hazards, background,
     `hazards` is {code: [per-lap retirement probability]} covering the current
     lap and every lap after it, from `winprob_priors.lap_hazards`.
     `pursuits` is 09 sec5.3's in-domain (pursuer, ahead, p_overtake) triples.
+
+    `horizon_laps` stops the simulation after that many lap steps instead of
+    running to the flag, WITHOUT changing how `progress` is computed -- every
+    step still knows where it sits in the real race. It exists so 09 sec10.2's
+    dispersion claim can be measured against this simulator rather than inferred
+    from the archive counts the rate was fitted on; nothing in the serve path
+    passes it.
 
     `use_overtake_model=False` is 09 sec10 baseline 3, the ablation: step 0 is
     dropped and the same uniforms carry the rest of the race unchanged. That
@@ -235,6 +242,8 @@ def forward_simulate(session_key, order_codes, strengths, hazards, background,
             step0_applied.append((pursuer, ahead, float(p_overtake)))
 
     n_steps = max(lap_total - lap_idx0, 0)
+    if horizon_laps is not None:
+        n_steps = min(n_steps, int(horizon_laps))
 
     # -- retirement, drawn once per (path, car) by inverse CDF rather than as a
     # Bernoulli coin on every simulated lap. Identical in distribution, ~60x
