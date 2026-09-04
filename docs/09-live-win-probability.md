@@ -1024,36 +1024,74 @@ Three readings, and the third is a defect:
 3. **In the last two deciles the ladder beats the layer, by a lot** — 0.061 vs 0.281 and 0.058 vs
    0.119. §10.2 is that defect, measured.
 
-### §10.2 The layer over-disperses, and it is measured rather than inferred
+### §10.2 The leader does not converge hard enough late, and the cause is narrower than it first looked
 
-The mean leader `p_win` at `progress ≥ 0.90` is **0.891** over 57 checkpoints. §11 assertion 3's
-smoke band asks for ≥ 0.9, so this is a **near miss, reported as a miss**. §2.2 measured the real
-leader converting 120 of 120 inside ten laps to go.
+**§11 assertion 3's band fails.** Filtered exactly as §11.3 defines it — **≤ 5 laps remaining and
+green flag** — the leader's `p_win` averages **0.8973** over 42 qualifying checkpoints, and **16 of
+those 42 sit below the 0.9 band**, with a minimum of **0.714** (R10 lap 39, R9 lap 47, R7 lap 61).
+§2.2 measured the real leader converting 120 of 120 inside ten laps to go. This is a failure of the
+assertion, not a near miss of it, and the mean alone would have hidden that.
 
-The mechanism was diagnosed before it was written up, and the first diagnosis was wrong. The
-obvious reading — "§5.4's P1–P3 band pools the P1/P2 pair with P2/P3, and the lead pair swaps far
-less" — is true (the lead pair swaps at 0.0055/lap in the final quarter against the band's 0.0351)
-but it is the *smaller* effect. Measuring the alternative reading found the larger one, and it is
-general:
+*(An earlier draft of this section reported 0.891 at `progress ≥ 0.90` including caution
+checkpoints. That is a different quantity from the one §11.3 defines — `progress ≥ 0.90` is the last
+4.4 laps at Spa and the last 7.8 at Monaco — and reporting it as though it were the assertion was
+wrong. Corrected here; §16.6 item 7.)*
 
-**A per-lap swap rate fed to a simulator that makes every swap permanent over-disperses the field,
-because swaps revert.** Net displacement at five laps against `1 − (1−q)⁵` from the same pairs'
-own one-lap rate, over 13,056 adjacent-pair observations: **0.61 pooled**, and between 0.41 and
-0.78 in *every* band and *every* quarter. The simulator spreads the field about 1.6× faster than
-the archive does.
+**The diagnosis took two attempts and the first published one was wrong.** It is worth recording
+both, because the wrong one is more plausible than the right one.
 
-This is the same error as the one caught in `docs/12` §2.5's undercut comparison, one level down:
-**"swapped at least once over n laps" is not "ahead after n laps."** §5.4 as written is not wrong —
-it specifies a swap rate and that is what was fitted — but the consumer of that rate needs a net
-displacement, and the gap between the two is a measured 39%.
+*Attempt one, and what it actually measured.* `probes/12b_pit_projection.py` measures that in the
+archive, net displacement at five laps is **0.61×** what the same pairs' own per-lap swap rate
+compounded predicts — 0.41 to 0.78 in every band and every quarter, over 13,056 pair-observations.
+Swaps revert; a rate is not a net displacement. That is a real and useful fact **about the archive
+and about §5.4's rate**, and it was written up here as "the simulator spreads the field about 1.6×
+faster than the archive does."
 
-**It is not fixed in v1, and that is deliberate.** The obvious repair — recondition `q`, or damp it
-by the measured ratio — would be fitting a change to the model *after* seeing the validation
-result, which is the failure `05` §6.4.1 documents and the reason §10's criteria were pre-registered
-at all. It is §13 item 7, with the measurement already in hand. `docs/12` §4 makes the sharper
-point: pit cycles are a principal generator of transient swaps, so a pit-strategy model would
-remove much of this from `q` as a side effect, and `docs/12` §6 pre-registers that as a testable
-prediction.
+**That inference was wrong, and measuring it directly is what showed it.** The simulator does not
+consume the raw rate. It consumes a cell rate that has been shrunk toward its band, had
+retirement-driven changes removed, and been scaled by `exp(c·(m−1))`, and it then multiplies that by
+the strength tilt `2w_b/(w_a+w_b)` — which is **asymmetric**, so a strong car ahead of a weak one
+swaps well below `q`. Those steps absorb the gap almost exactly.
+`probes/09b_dispersion.py` runs the real `forward_simulate` for five lap-steps from observed orders
+across the eight races and compares it against the same pairs' archive outcome:
+
+| Band | mean `q` | simulator net @ 5 laps | archive net @ 5 laps | sim / archive |
+|---|---|---|---|---|
+| P1–P3 | 0.0606 | 0.1627 | 0.1853 | 0.88 |
+| P4–P6 | 0.0631 | 0.1571 | 0.1682 | 0.93 |
+| P7–P10 | 0.0653 | 0.1640 | 0.1299 | 1.26 |
+| P11–P15 | 0.0774 | 0.2011 | 0.2147 | 0.94 |
+| P16+ | 0.0628 | 0.1815 | 0.1851 | 0.98 |
+| **Pooled** | | **0.1760** | **0.1782** | **0.99** |
+
+**The simulator tracks the archive to within 1% pooled.** There is no general over-dispersion. The
+0.61 figure is a property of the rate, not of the layer, and §5.4's shrinkage and §5.4's strength
+tilt are between the two.
+
+*Attempt two — the original diagnosis, now measured properly.* §5.4 conditions on §2.3's position
+bands, so the **P1/P2 pair is handed the pooled P1–P3 band rate**. It should not be: `12b` measures
+the lead pair swapping at **0.0055/lap in the final quarter against the band's 0.0351**. Restricting
+`09b`'s comparison to the lead pair alone:
+
+| Race quarter | simulator net @ 5 laps | archive net @ 5 laps | sim / archive | pairs |
+|---|---|---|---|---|
+| 0.00–0.25 | 0.1791 | 0.1129 | 1.59 | 124 |
+| 0.25–0.50 | 0.2014 | 0.2823 | 0.71 | 124 |
+| 0.50–0.75 | 0.1351 | 0.3258 | 0.41 | 132 |
+| **0.75–1.00** | **0.1147** | **0.0116** | **9.87** | 86 |
+| Pooled | 0.1607 | 0.1996 | 0.81 | 466 |
+
+**Over a whole race the lead pair is fine (0.81). In the closing quarter the simulator says the
+leader loses the lead 11.5% of the time over five laps where the archive says 1.2%.** That is a
+factor of **9.9**, it is confined to one cell, and it is the whole of the §11.3 failure above.
+
+**Not fixed in v1, and that is deliberate.** The repair is a finer front band — a P1-only cell in
+§5.4 — and adding it now would be reconditioning the model *after* seeing the validation result,
+which is the failure `05` §6.4.1 documents and the reason §10's criteria were pre-registered at
+all. It is §13 item 6, with the measurement already in hand and the cell already identified. §5.4's
+own stated reason for not going finer was data thinness; the lead pair carries 730 observations and
+43 swaps across 12 races, which is thinner than the band but not obviously too thin, and that is the
+judgement the owner now gets to make with numbers rather than in the abstract.
 
 ### §10.3 What `08` contributed — the number this validation existed to produce
 
@@ -1205,7 +1243,11 @@ a plausible wrong number is the failure mode this project has been bitten by.
    tail mass are both reported per race alongside it, so the amendment narrows what is asserted
    without hiding what is not.
 3. **The endgame identity (§2.2).** With zero laps remaining, the leader's `p_win` is 1.0 and
-   everyone else's is 0.0. With ≤ 5 laps remaining and green flag, the leader's `p_win` ≥ 0.9 —
+   everyone else's is 0.0. **The zero-laps half is a unit test and passes.** The ≤ 5 laps / green
+   half is measured over the real replayed races by `winprob_validate.py` and asserted in
+   `test_winprob.py` against the saved run — **and as of 2026-09-04 it FAILS**: 16 of 42 qualifying
+   checkpoints sit below the band, minimum 0.714 (§10.2). With ≤ 5 laps remaining and green flag,
+   the leader's `p_win` ≥ 0.9 —
    `08` §10's precedent for a band asserted from a small measured sample applies, so this is
    labelled a **smoke test set from 12 races, not a validated ground truth**, exactly as `08` §10's
    label-count band is.
@@ -1277,13 +1319,18 @@ a plausible wrong number is the failure mode this project has been bitten by.
    exactly its own horizon, so a shorter, better-timed `08` (via `08` §5.2's sub-second refinement)
    translates directly into an earlier P(win) move. That reframes `08`'s open item from a modelling
    nicety into the thing this layer's timeliness depends on.
-6. **The layer over-disperses the field by a measured 39% (§10.2), and the fix is deferred on
-   purpose.** Net displacement at five laps is 0.61 of what §5.4's per-lap swap rate compounded
-   predicts, in every band and every quarter. Reconditioning or damping `q` now would be fitting a
-   change after seeing the validation result — the failure `05` §6.4.1 documents. Two routes:
-   damp `q` by the measured ratio and re-validate on the pre-registered criteria, or build
-   `docs/12`'s pit-strategy model, which `docs/12` §6 pre-registers as removing much of the
-   transience as a side effect. **The second is the better bet and it is item 2's decision.**
+6. **§5.4's front band is too coarse at the lead pair, and the fix is deferred on purpose
+   (§10.2).** In the closing quarter the simulator disperses the P1/P2 pair **9.9× faster than the
+   archive** — 0.115 against 0.012 net over five laps — because §5.4 hands the lead pair the pooled
+   P1–P3 band rate, and the lead pair swaps at 0.0055/lap there against the band's 0.0351. This is
+   the whole of §11 assertion 3's failure. The repair is a **P1-only cell in §5.4**, refit
+   race-forward and re-validated against §10's pre-registered criteria rather than tuned against
+   them; doing it now would be reconditioning after seeing the result (`05` §6.4.1). §5.4's stated
+   reason for not going finer was data thinness, and the number is now known: **730 lead-pair
+   observations and 43 swaps across 12 races.** Thinner than the band, not obviously too thin.
+   Note what this item is **not**: it is not the general over-dispersion an earlier draft claimed.
+   The simulator tracks the archive to within 1% pooled (§10.2), and `docs/12` §2.3's 0.61 is a
+   property of the archive's own rate rather than of this layer.
 
 7. **B1 remains unrun and is unchanged by this document.** `08` §12 item 7's observation stands:
    `03` §3 specs B1 as feed-vs-broadcast, and §8.1's `t_wall` is what makes any future
@@ -1463,6 +1510,21 @@ characterised. It succeeds. §10.2 and §10.4 are the two defects it does not fi
 5. **A degraded-mode injection keyed on wall-clock seconds never coincides with a lap-boundary
    checkpoint** (§10.6), so the run came back byte-identical to the clean one and the test could not
    fail.
-6. **"Swapped at least once over n laps" is not "ahead after n laps"** (§10.2, `docs/12` §2.3, §2.5).
-   This one was made twice — once inside `q` and once in the undercut comparison — which is why it
+6. **"Swapped at least once over n laps" is not "ahead after n laps"** (`docs/12` §2.3, §2.5).
+   This one was made twice — once about `q` and once in the undercut comparison — which is why it
    is worth stating as a general rule rather than as two incidents.
+7. **And then the correction to that correction, which is the worst one here.** Having measured that
+   the archive's net displacement is 0.61× its own compounded rate, §10.2 was written up as *"the
+   simulator spreads the field about 1.6× faster than the archive does"* — and that sentence reached
+   two documents before it was checked. It is an **inference from archive counts, not a measurement
+   of the simulator**, which consumes a shrunk, retirement-excluded, circuit-scaled rate and then
+   applies an asymmetric strength tilt. Measured directly (`probes/09b_dispersion.py`) the simulator
+   tracks the archive at **0.99 pooled**. The real defect is one cell — the lead pair in the closing
+   quarter, 9.9× — which was the *first* diagnosis, discarded in favour of the more general-sounding
+   one. **The lesson is not "measure things", which this project already knows. It is that a
+   plausible general explanation displaced a correct narrow one, and the general one was written up
+   because it was more satisfying.**
+8. **§11 assertion 3 was reported against the wrong filter.** The assertion says "≤ 5 laps remaining
+   and green flag"; the first write-up reported the mean at `progress ≥ 0.90` with caution
+   checkpoints included — a different set, and one that made a failure (16 of 42 below the band)
+   read as a near miss of the mean (§10.2).
