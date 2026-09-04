@@ -40,6 +40,12 @@ DEFAULT_OUT_DIR = os.path.join(REPO_ROOT, "data", "snapshots")
 # Kept in sync with lib/circuits.OVERTAKING_MULTIPLIER: a circuit you can score
 # but can't resolve a timezone for is a snapshot that dies partway through, so
 # every circuit listed there is listed here (test_config.py asserts it).
+
+# 06 sec6.1 (decided 2026-09-01). Observed race-window mm at or above this
+# counts an edition as wet, for F5's per-edition flag and so for the wet-only
+# subset F7's active branch scores drivers over.
+WET_PRECIP_MM = 0.5
+
 # Indexed as a bare dict lookup in build_track_history and build_weather, so a
 # missing circuit is a KeyError, not a degraded feature. That is deliberate --
 # guessing a timezone silently shifts the race window and corrupts F5's wet
@@ -354,7 +360,15 @@ def build_track_history(circuit_id, lat, lon, grid, race_date, cache_dir):
         editions_weather[date_str] = {
             "date": date_str,
             "race_window_precip_max_mm": max_precip,
-            "wet": max_precip > 0.0,
+            # 06 sec6.1, decided 2026-09-01: wet is >= 0.5mm, tightened from
+            # > 0.0mm. A 0.1mm trace leaves the track dry and is not the
+            # phenomenon F7 exists to model, but the old rule counted it, so
+            # the same race was wet in the code and dry in the prose. Every
+            # race that mattered in 06 sec5.4's table clears 0.5mm by a wide
+            # margin. Moves in lockstep with F7's gate input becoming p_mean
+            # (06 sec6.2) -- shipping either alone puts a gate tuned for
+            # material rain against a history feature built on traces.
+            "wet": max_precip >= WET_PRECIP_MM,
             # False means the figure above is a whole-day max, not a race window
             "race_time_known": time_str is not None,
         }
