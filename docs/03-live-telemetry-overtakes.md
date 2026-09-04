@@ -306,14 +306,17 @@ overtake model, trigger conditions, scoring — is not authorized until B1 retur
 >
 > The bar for the live half stays: seconds, not minutes.
 >
-> **Pending, 2026-08-27 — an extension is requested, not taken.** `09-live-win-probability.md`
-> specs a *second* offline model (the live win-probability layer) on the same reasoning: it
-> replays archived races, needs no live connection, and so B1's delay cannot bear on whether it is
-> correct. But the amendment above names `08-overtake-model.md` **explicitly**, and `08` §1 says
-> in terms that it does not authorize the win-probability layer. So approving `09` extends this
-> amendment rather than falling under it, and that extension should be dated here when it is made.
-> Until then `09` is a spec and nothing built from it is authorized. `09` §1.2 states the same
-> thing from the other side.
+> **Extended 2026-09-03 by owner decision.** `09-live-win-probability.md` specs a *second* offline
+> model (the live win-probability layer) on the same reasoning: it replays archived races, needs
+> no live connection, and so B1's delay cannot bear on whether it is correct. The 2026-08-26
+> amendment above names `08-overtake-model.md` explicitly and `08` §1 says in terms that it does
+> not authorize the win-probability layer, so this is a fresh dated decision rather than an
+> inheritance (`09` §1.2). The extended gate:
+>
+> - **Authorized now:** building and validating the live win-probability layer **offline, by
+>   replaying archived races** (`09` §9), including its §10 baselines and the `08`-off ablation.
+> - **Still gated on B1:** running that layer against a *live* feed. Unchanged — seconds, not
+>   minutes.
 
 Building the client first is the cheapest ordering, not a way around the gate. §13's acceptance
 run and B1's measurement are close to the same exercise.

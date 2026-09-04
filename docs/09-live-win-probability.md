@@ -1,10 +1,17 @@
 # 09 — Live Win Probability (Phase B4)
 
-Status: **specced 2026-08-27, not approved, not built.** This is the consumer `08-overtake-model.md`
-was shaped for — it is `08` §12 item 5, the top open decision for Lane B. It builds **no new
-predictive model**: it is a state estimator that carries Lane A's pre-race distribution forward
-through a race, using `03` §7's tick stream and `08`'s calibrated in-domain overtake probabilities
-as its inputs.
+Status: **specced 2026-08-27; the offline layer approved for build by owner decision 2026-09-03;
+not built.** This is the consumer `08-overtake-model.md` was shaped for — it is `08` §12 item 5,
+the top open decision for Lane B. It builds **no new predictive model**: it is a state estimator
+that carries Lane A's pre-race distribution forward through a race, using `03` §7's tick stream
+and `08`'s calibrated in-domain overtake probabilities as its inputs.
+
+**What 2026-09-03 authorizes:** building and validating the layer **offline, by replaying the 12
+archived races** (§9), including §10's baselines and the `08`-off ablation. This extends `03`
+§4.4's 2026-08-26 amendment by the reasoning §1.2 sets out — dated in `03` §4.4 in place.
+**Unchanged:** running this layer against a *live* feed stays gated on B1 (`03` §4.4, §1.2), which
+is still unrun; Monza FP1 is the first opportunity. Nothing in the 2026-09-03 decision touches the
+live gate.
 
 Read `welcome.md`, `00-roadmap.md` (Lane B), `03-live-telemetry-overtakes.md`
 (§4.4's amended gate, §7's tick contract), `08-overtake-model.md` (all of it,

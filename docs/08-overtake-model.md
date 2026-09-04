@@ -490,8 +490,8 @@ per-fold θ and Platt `(a,b)`; `data/live/overtakes/fit_recal.json` records it (
    seasons would settle them; dropping them now would be premature. No action needed unless the
    owner wants the feature set trimmed for explainability.
 5. ~~**Does the win-probability layer get specced next, or does the overtake model ship alone?**~~
-   **Specced 2026-08-27: `09-live-win-probability.md`.** Not approved, not built — the owner's call
-   is now approve/decline on that document rather than whether to write it. Two things `09` measured
+   **Specced 2026-08-27: `09-live-win-probability.md`. Offline layer approved for build 2026-09-03**
+   (`03` §4.4, extended). Live use stays gated on B1. Two things `09` measured
    that bear directly on this model: pit stops cause **71% of lead changes** and on-track passes at
    most 27% (`09` §2.1), so `08` is the *fourth* largest mover of P(win) rather than the engine;
    and this model's average in-domain contribution to P(win) at the front of the field works out at
@@ -571,13 +571,13 @@ top ~20% of pairs by score (89% of overtakes), 10/10 calibration bins within 2×
 isotonic doesn't help; damped Platt helps a little *in-domain* only; the domain gate is the fix.
 
 **The top open decision** was §12 item 5 — whether the **live win-probability layer** gets specced
-next. **It was, on 2026-08-27: `docs/09-live-win-probability.md`.** That doc is not approved and
-nothing is built from it; the decision in front of the owner is now approve/decline, plus `09`
-§13's own open items.
+next. **It was, on 2026-08-27: `docs/09-live-win-probability.md`, and its offline layer was
+approved for build on 2026-09-03** (`03` §4.4, extended). `09` §13's own open items remain the
+owner's.
 
-**Not started, and deliberately so:**
-- The **live win-probability layer** (§9) — the consumer this model was shaped for. **Now specced
-  in `09-live-win-probability.md` (2026-08-27), not approved and not built.**
+**Not started:**
+- The **live win-probability layer** (§9) — the consumer this model was shaped for. Specced in
+  `09-live-win-probability.md` (2026-08-27); **offline build approved 2026-09-03**, not yet built.
 - **Gate 2 / B1**, the broadcast-delay measurement, still unrun and still the owner's stated next
   step for the *live* half, per `03` §3.
 - **Anything live.** `03` §4.4's amendment authorizes the offline model only.
