@@ -504,16 +504,26 @@ mode.
 
 ## 9. Open items — the owner's call
 
-1. **Fund this at all?** `09` §13 item 2's question, now with numbers on both sides: 28.5% of
-   checkpoints suppressed and the ladder beating the layer in the last tenth argue for; `09` §10's
-   layer already succeeding without it argues that this is an improvement, not a rescue.
-2. **Is `δ` per circuit, or per circuit-and-season?** 286 stops over 12 races supports a per-circuit
-   median. It does not support a per-circuit trend, and regulations change.
-3. **Does a caution-time `δ` get measured separately** (§2.1's four noisy circuits), or does the
-   model keep refusing to project under caution? The refusal is cheap and safe; the measurement is
-   a fifth probe.
-4. **Does this model also correct `09` §5.7's `pit_offset` field**, or only the order? The field is
-   published as diagnostic information and something downstream may already read it.
+**All four were decided by the owner on 2026-09-04, before the build started.** Recorded here as
+the decision log, with what each one cost or bought.
+
+1. **Fund this at all?** — **Approved.** §6.1 is what the funding bought: two failed predictions,
+   one measurement worth keeping (`q` is ~45% pit-cycle swaps), and a model that is not recommended
+   for use. `09` §13 item 2 is closed by this rather than left open.
+2. **Is `δ` per circuit, or per circuit-and-season?** — **Per circuit and season.** The archive
+   holds one scoreable season, so this changed no number in §2.1's table; `pit_fit.py` keys on
+   `(season, circuit)` so that a 2027 regulation change gets its own row instead of being averaged
+   into 2026's. A cost of zero today and the reason is recorded for whoever refits it.
+3. **Caution-time `δ`, or keep refusing?** — **Keep refusing.** `lib/pit_strategy.py` returns no
+   projection under `track_status != 1`. Measured cost over the run: 230 of the refusals were
+   caution, against 1,319 for an unreadable gap — so the caution refusal is a small part of what
+   the model declines to do, and the fifth probe stays unbuilt.
+4. **Correct `09` §5.7's published `pit_offset` field, or only the order?** — **Only the order**
+   (decided by the implementer on the owner's delegation). `pit_offset` keeps its `09` §5.7
+   meaning, the raw spread in completed stops, because it is published as diagnostic information
+   and something downstream may already read it. The projection is reported in new fields beside
+   it — `pit_projected`, `pit_refused`, `pit_order_changed`, `pit_cycle_in_top3` — so no existing
+   consumer's field silently changes semantics.
 
 ---
 
@@ -538,7 +548,32 @@ mode.
 # environment: .venv312, run from the repo root (08 sec13.2)
 .venv312/bin/python probes/12_pit_loss.py           # sec2.1 first pass, sec2.2, sec2.5's raw rate
 .venv312/bin/python probes/12b_pit_projection.py    # sec2.1 tightened, sec2.3, sec2.4, sec2.5
+.venv312/bin/python probes/12c_q_refit.py           # sec6.1 outcome 2
 ```
+
+**The model, and §6.1's three arms.** `pit_fit.py` reproduces §2.1's table exactly — 22.8 s pooled
+over 286 stops, and all twelve per-circuit medians — and writes `data/live/winprob/pit_loss.json`;
+`lib/pit_loss.py` carries the same table as the served constant, and `test_pit_strategy.py` fails
+if the two drift apart.
+
+```bash
+.venv312/bin/python pit_fit.py                      # delta per (season, circuit)
+.venv312/bin/python test_pit_strategy.py            # sec7's seven assertions, sec5.3's refusals
+
+# arm A -- 09's B4 layer as shipped (the baseline sec3 quotes)
+.venv312/bin/python winprob_fit.py                                   # ~23 min
+.venv312/bin/python winprob_validate.py                              # ~12 min
+
+# arms B and C -- the refit q, without and with the projection
+.venv312/bin/python winprob_fit.py --pit-refit --out data/live/winprob/fit_pitrefit.json
+.venv312/bin/python winprob_validate.py --fit data/live/winprob/fit_pitrefit.json \
+    --out data/live/winprob/validation_qrefit.json                   # arm B
+.venv312/bin/python winprob_validate.py --fit data/live/winprob/fit_pitrefit.json --pit-model \
+    --out data/live/winprob/validation_pitmodel.json                 # arm C
+```
+
+Arm C against arm A's `fit.json` does not run at all, by design: §7 assertion 4 refuses to
+construct the layer against a `q` that still contains pit-cycle swaps.
 
 **Environment**: `.venv312` — `fastf1` is not installed anywhere else (`08` §13.2). Cache at
 `data/cache/fastf1/`, warm. `probes/README.md` carries the expected output for both.
