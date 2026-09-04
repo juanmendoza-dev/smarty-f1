@@ -1119,7 +1119,58 @@ recorded because §10 asked for it, and with the caveat §10 asked for.
 
 ### §10.6 The variants §5.5 and §5.3 require reported alongside
 
-VARIANTS_PLACEHOLDER
+Three variants, all on the same 8 races, checkpoints and folds. Each is required by a section of
+this spec, and each is here because that section said "report both" rather than because a number
+was wanted.
+
+**§5.5's flat-hazard variant.** §2.5 said n = 50 retirements does not settle a hazard shape and
+required the flat variant reported alongside the two-segment one, so the choice is visible rather
+than assumed.
+
+| | pooled log-loss | Brier | layer − ladder | layer − ablation |
+|---|---|---|---|---|
+| **Two-segment hazard (v1)** | **0.79935** | 0.41938 | −0.1756 [−0.4381, +0.2260] | −0.00064 [−0.00145, −0.00001] |
+| Flat hazard | 0.80303 | 0.42131 | −0.1728 [−0.4331, +0.2230] | −0.00063 [−0.00143, −0.00001] |
+
+**The two-segment hazard is better by 0.0037 log-loss and that is not a result.** Both variants
+succeed on §10's criteria, both produce essentially identical bootstrap intervals, and both put the
+leader's late `p_win` at 0.89. §2.5's caution stands unchanged: **the hazard shape is not settled
+by this corpus, and v1's choice of the two-segment form is not vindicated by this run** — it is
+merely not contradicted by it.
+
+**§5.3's calibrator variant.** §5.3 chose `p_raw` directly over `08`'s damped-Platt map for v1, on
+the reasoning that the raw probability already passes in-domain and one fewer fitted object is worth
+more than 0.4 of a calibration-ratio point. §10 required both reported.
+
+| | pooled log-loss | in-domain checkpoints | layer − ablation |
+|---|---|---|---|
+| **`p_raw` (v1)** | **0.79935** | 242 (46.5%) | −0.00064 [−0.00145, −0.00001] |
+| Damped Platt | 0.79964 | 244 (46.9%) | −0.00037 [−0.00087, −0.00001] |
+
+**§5.3's choice is vindicated, mildly.** Raw is marginally better on log-loss and its ablation
+effect is larger, so the Platt map is not buying anything here that would justify the extra fitted
+object. Note the ablation arm scores **identically (0.80003) under both**, which it must — `08` is
+switched off in that arm — and that identity is a free consistency check on the harness.
+
+**§9.1's degraded-mode injection.** §9.1 required the replayer to be able to inject `03` §8's
+degraded modes so the `reliable` logic is exercised offline rather than first meeting a degraded
+tick during a race. Injecting a missing `CarData` window on every fifth lap:
+
+| | unreliable | reasons | in-domain checkpoints | pooled log-loss |
+|---|---|---|---|---|
+| Clean | 33.3% | pit 28.5%, caution 6.5% | 242 (46.5%) | 0.79935 |
+| Degraded every 5th lap | **46.2%** | pit 28.5%, **degraded 19.4%**, caution 6.5% | **197 (37.9%)** | 0.79938 |
+
+Three things this confirms, and one it caught. The `degraded` flag propagates from tick to estimate
+and sets `reliable = False` with its own reason code (§8.1); `08` correctly falls silent on those
+ticks — in-domain coverage drops from 46.5% to 37.9%, because §5.3 requires the feature vector to be
+computable with no `None` and a missing `CarData` window means no speed, throttle or brake; and the
+estimate itself is essentially unchanged (0.79938 vs 0.79935), because the simulator's own inputs —
+order, laps, retirement — come from `TimingData` and are not degraded here. **What it caught:** the
+first version of the injection keyed on wall-clock seconds, and since §9.2 scores at *lap
+boundaries* a few-second degraded window almost never coincided with a checkpoint. That run came
+back byte-identical to the clean one, which is how it was noticed. The trigger is now the lap.
+A test that cannot fail is worse than no test.
 
 ### §10.7 The two things this run had to fix, recorded so they are not re-made
 
