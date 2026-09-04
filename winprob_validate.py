@@ -400,7 +400,21 @@ def main():
           "finishing order (DIAGNOSTIC, not the winner metric)")
     pl = [r["pl_ll"] for r in all_cp]
     print("  mean per checkpoint: %.3f" % (sum(pl) / max(len(pl), 1)))
+    # A pooled mean would hide the only thing this diagnostic is good for.
+    # Reported against progress: a state estimator that is working should place
+    # the realised finishing order better as the race resolves.
+    print("  %-10s %6s %12s" % ("progress", "n", "mean PL LL"))
+    pl_curve = []
+    for b in range(10):
+        lo, hi = b / 10.0, (b + 1) / 10.0
+        vals = [r["pl_ll"] for r in all_cp
+                if lo <= r["progress"] < hi or (b == 9 and r["progress"] >= hi)]
+        if vals:
+            m = sum(vals) / len(vals)
+            pl_curve.append({"bucket": "%.1f-%.1f" % (lo, hi), "n": len(vals), "pl_ll": m})
+            print("  %-10s %6d %12.2f" % ("%.1f-%.1f" % (lo, hi), len(vals), m))
     report["pl_loglik_mean"] = sum(pl) / max(len(pl), 1)
+    report["pl_loglik_curve"] = pl_curve
 
     # 09 sec2.2's ladder is the cheapest sanity assertion in the spec.
     late = [r for r in all_cp if r["progress"] >= 0.9]
