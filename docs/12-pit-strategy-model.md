@@ -447,6 +447,27 @@ coverage improves, and **accuracy falls** — 0.799 → 0.913 pooled, of which 0
 its place in arm C (ablation CI `[-0.0030, +0.0000]` crosses zero), because a corrected order pulls
 `08`'s in-domain pairs apart.
 
+**Assertion 7, answered rather than asserted.** `12` §7 assertion 7 requires `09` §11's assertions
+to still hold. They do, with one honest qualification that belongs here rather than in a footnote:
+**`09` §11 assertion 3 was already failing before this model existed.** The leader's `p_win` with
+≤ 5 laps remaining under green is below the 0.9 band at **16 of 42** qualifying checkpoints in arm
+A. In arm C it is below at **12 of 42**, mean 0.897 → 0.913. So the assertion still does not hold,
+this model did not break it, and the small improvement is the `q` refit rather than the projection
+— arm B and arm C are identical over the closing deciles, which is what §6's outcome 3 predicted
+about *not* claiming the late race. The `t = 0` identity (§11.2), the `p_win` sum, and the
+retirement zero all hold exactly, and `test_pit_strategy.py` checks each of them against a layer
+with the model active.
+
+**One bug was found and fixed between the first run and the reported one**, and the numbers above
+are from after it. A car whose `gap_leader` never becomes numeric again — a lapped car reading the
+`LAP n` form — left its pit cycle open for the rest of the race, because the close condition waited
+for an observation that never arrived. On R7 that left 8 cycles open at the flag, the oldest 43 laps
+past its stop. It inflated the refusal tallies roughly tenfold (1,549 against the 84 above) and fed
+the narrowed suppression rule cars that had finished stopping long before. **It changed no other
+number in this section** — a stuck cycle refuses rather than projects, so it never moved an order —
+and the two runs are identical on every figure in the tables above. It was found by noticing that
+the refusal count was an order of magnitude larger than §6.1's own overlap measurement allowed.
+
 **What this means for the layer, plainly.** `09`'s B4 layer as shipped (arm A) remains the better
 configuration and nothing in this build changes that. This model is committed, tested and
 reproducible, and it is **not recommended for use** on this corpus.
@@ -515,9 +536,10 @@ the decision log, with what each one cost or bought.
    `(season, circuit)` so that a 2027 regulation change gets its own row instead of being averaged
    into 2026's. A cost of zero today and the reason is recorded for whoever refits it.
 3. **Caution-time `δ`, or keep refusing?** — **Keep refusing.** `lib/pit_strategy.py` returns no
-   projection under `track_status != 1`. Measured cost over the run: 230 of the refusals were
-   caution, against 1,319 for an unreadable gap — so the caution refusal is a small part of what
-   the model declines to do, and the fifth probe stays unbuilt.
+   projection under `track_status != 1`. Measured cost over the run: **55 caution refusals against
+   29 for an unreadable gap**, out of 84 in total — so the caution rule is the larger half of what
+   the model declines to do, and a caution-time `δ` is the one of §9's items that would actually
+   buy coverage. It stays unbuilt anyway, because §6.1 says the projection is not worth extending.
 4. **Correct `09` §5.7's published `pit_offset` field, or only the order?** — **Only the order**
    (decided by the implementer on the owner's delegation). `pit_offset` keeps its `09` §5.7
    meaning, the raw spread in completed stops, because it is published as diagnostic information
