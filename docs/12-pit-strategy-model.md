@@ -1,9 +1,17 @@
 # 12 — Pit-Strategy Model (pit-loss projection)
 
-Status: **specced 2026-09-04; not approved; not built.** No code for this model exists or is
-authorized to exist (`welcome.md`: no implementation without an approved spec). The measurements
-behind it are committed under `probes/12_pit_loss.py` and `probes/12b_pit_projection.py`, and §11
-reproduces every number below.
+Status: **specced 2026-09-04; approved 2026-09-04; BUILT AND VALIDATED 2026-09-04.** The
+measurements behind it are committed under `probes/12_pit_loss.py`, `probes/12b_pit_projection.py`
+and `probes/12c_q_refit.py`, and §11 reproduces every number below.
+
+> **Read §6.1 before using anything here.** All three of §6's pre-registered outcomes were run and
+> **the model does not earn its place on this corpus.** Outcome 1's coverage fall is real but is
+> 97% rule change rather than projection; outcome 2 failed outright; outcome 3 went the wrong way.
+> The build is kept, complete and reproducible, because the measurements it produced are worth more
+> than the model: `q` turns out to be nearly half pit-cycle swaps, and removing them — which `§4`
+> makes mandatory the moment this model exists — costs the layer more accuracy than the projection
+> buys back. **`09`'s B4 layer as shipped is still the better configuration**, and §6.1 states what
+> would have to change before that is revisited.
 
 This is the model `09` §5.7 names as "the most valuable thing this layer could gain" and `09` §13
 item 2 puts to the owner as a funding decision. It exists because `09` §2.1 measured **pit stops
@@ -355,6 +363,106 @@ already meets its success criteria with the pit cycle unmodelled. **If this mode
 without improving pooled log-loss beyond the bootstrap width, the correct report is that pit-cycle
 projection buys availability and not accuracy** — which would be a real and useful finding, and is
 nameable now rather than argued about afterwards.
+
+### 6.1 What the run measured, 2026-09-04
+
+Three arms, same 8 scoreable races, same folds, same 520 checkpoints, `N = 40,000`:
+
+| arm | what it is | log-loss | Brier | top-1 | `reliable=False` | pit-suppressed |
+|---|---|---|---|---|---|---|
+| **A** | `09`'s B4 layer as shipped | **0.799** | 0.419 | 0.737 | 173 (33.3%) | 148 (28.5%) |
+| **B** | `q` refit only, no projection | 0.906 | 0.483 | 0.623 | 173 (33.3%) | 148 (28.5%) |
+| **C** | `q` refit **and** the projection | 0.913 | 0.487 | 0.617 | **40 (7.7%)** | **14 (2.7%)** |
+
+The position-only ladder is 1.000 in every arm. All three arms still pass `09` §10's pre-registered
+verdict — each beats the static prior and the ladder and wins ≥ 6 of 8 races — so nothing here
+breaks the layer. It gets **less accurate**.
+
+**Outcome 1 — coverage. Met on its face, and the decomposition is why that is not a result.**
+The `pit_offset` suppression fraction falls **28.5% → 2.7%**, far more than the half §6 asked for.
+But of the 139 checkpoints the narrowing frees, **4 were ones where a top-three car was actually
+mid-cycle and the projection corrected it, and 135 had no top-three car in a pit cycle at all.**
+The other 97% are the completed-stop spread that persists *between* cycles — a leader who has yet
+to stop — which needs stop *timing*, which §2.4 measured and put out of scope. **The projection
+bought about 0.8 points of the 25.8-point fall; the rule change bought the rest.** `09` §5.7's
+suppression was standing in for a wider problem than this model addresses, and reporting the
+28.5 → 2.7 fall as this model's coverage win would be exactly the strained positive `05` §6.4.1
+rules out.
+
+And the freed checkpoints are not ones the layer earns: on all 139 the ladder beats the layer
+(**1.061 against 1.079**), which is direct evidence that the narrowing declares reliable a set of
+checkpoints on which the layer is not, in fact, more trustworthy than a position ladder.
+
+**Outcome 2 — the rate prediction. Failed cleanly, and it is the sharpest thing this build found.**
+`probes/12c_q_refit.py`, span rule pre-registered before the run:
+
+| | pairs | `q`/lap | `1-(1-q)⁵` | net @ 5 laps | net/compounded |
+|---|---|---|---|---|---|
+| all pairs | 13,056 | 0.0667 | 0.2919 | 0.1776 | **0.61** |
+| pit cycles removed | 10,898 | 0.0363 | 0.1690 | 0.0997 | **0.59** |
+
+The prediction was that 0.61 would move **toward** 1.0. It moved to 0.59 — marginally the wrong
+way. The reason is visible in the same table and is worth more than the prediction was: **pit
+cycles are nearly half of every adjacent swap in the corpus** (`q` falls 0.0667 → 0.0363), but the
+five-lap net displacement falls almost exactly in proportion. Pit-cycle swaps are *not*
+disproportionately transient. §2.3's over-dispersion is a property of the swap process in general,
+not of pit strategy, and this document's §4 assumed otherwise.
+
+**Outcome 3 — mid-race scoring. Failed, and the attribution is unusually clean.** The prediction
+was improvement around half distance, where the stops are. Layer log-loss by progress decile:
+
+| progress | A (shipped) | B (`q` refit) | C (+ projection) | ladder |
+|---|---|---|---|---|
+| 0.4–0.5 | 1.086 | 1.283 | 1.305 | 1.605 |
+| 0.5–0.6 | **0.955** | 1.115 | 1.188 | 1.457 |
+| 0.6–0.7 | 0.839 | 1.064 | 1.074 | 1.216 |
+| 0.8–0.9 | 0.281 | 0.236 | 0.236 | 0.061 |
+| 0.9–1.0 | 0.119 | 0.099 | 0.099 | 0.058 |
+
+Mid-race is where the layer got **worse**, not better, and most of that is arm B — the mandatory
+`q` refit — rather than the projection. Isolating the projection by differencing C against B on
+matched checkpoints:
+
+- on the **503** checkpoints where the projection did not change the order, `C − B = +0.0000`
+  exactly, which is the wiring behaving: the model is inert when it should be;
+- on the **17** where it did change the order, `C − B = +0.2173`. Every one of them got worse.
+
+**The four checkpoints where the projection corrected a top-three car are the whole story, and
+n = 4 is stated before the numbers are.** Layer log-loss goes from 0.790 (B) to **2.904** (C) on
+them; the ladder scores 0.359. Individually: R9/26 → 3.15, R11/18 → 1.99, R11/40 → 3.26,
+R12/48 → 3.22.
+
+**Why, and this document should have seen it coming.** §2.2 measured that only **38%** of
+pit-attributable P1 changes convert to a win, and that the other 62% are "the cycle resolving
+itself — the leader who stopped comes back past". The projection is correct about *track position*
+and `09`'s simulator reads the order it is handed as *race position*. So demoting a leader who is
+in the pit lane throws away exactly the fact §2.2 measured: he is going to get the place back when
+the cars ahead of him stop. §5.2 and §2.2 are in tension and this document put them in different
+sections without connecting them.
+
+**The pre-registered null, and then some.** §6's null said "if coverage improves without accuracy,
+report that it buys availability and not accuracy". The measured result is worse than the null:
+coverage improves, and **accuracy falls** — 0.799 → 0.913 pooled, of which 0.799 → 0.906 is the
+`q` refit this model makes mandatory and 0.906 → 0.913 is the projection. `08` also stops earning
+its place in arm C (ablation CI `[-0.0030, +0.0000]` crosses zero), because a corrected order pulls
+`08`'s in-domain pairs apart.
+
+**What this means for the layer, plainly.** `09`'s B4 layer as shipped (arm A) remains the better
+configuration and nothing in this build changes that. This model is committed, tested and
+reproducible, and it is **not recommended for use** on this corpus.
+
+**What would have to change before revisiting it**, stated now rather than after the next attempt:
+
+1. **A model of the rest of the cycle, not just the stop.** §2.2's 38% says the projection needs to
+   know that the cars ahead still owe a stop — which is the stop-*timing* model §2.4 measured as
+   unsupported. That is the honest blocker, and it is the same wall from the other side.
+2. **A `q` that keeps what the refit removes.** Pit cycles are ~45% of `q`; taking them out with
+   nothing modelling future stops leaves a hole the projection does not fill. Either both halves
+   land together or neither should.
+3. **More than 4 front-of-field cycle checkpoints.** A top-three car is mid-cycle at 4.8% of
+   checkpoint instants and the order actually moves at 3.3%. This corpus cannot resolve a
+   front-of-field pit effect at 1 Hz sampling on 8 races, and `09` §9.3's power warning applies
+   here harder than anywhere it has been applied yet.
 
 ---
 
