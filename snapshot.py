@@ -489,15 +489,30 @@ def build_weather(lat, lon, race_date_str, race_time_str, circuit_id, cache_dir,
     """
     tz_name = CIRCUIT_TIMEZONE[circuit_id]
     tz = ZoneInfo(tz_name)
-    per_model, units, meta = openmeteo.forecast_ensemble(
-        lat, lon, race_date_str, tz_name, cache_dir, force_refresh=force_refresh
-    )
-    models = sorted(per_model)
-
     start_utc = datetime.fromisoformat(f"{race_date_str}T{race_time_str.replace('Z', '+00:00')}")
     start_local = start_utc.astimezone(tz)
     window_start = start_local - timedelta(hours=2)
     window_end = start_local + timedelta(hours=2)
+
+    # Pad the pull a day either side of the window rather than asking for the
+    # race date alone, which is what weather_backtest.py already does.
+    #
+    # This is a pre-existing bug, found while adding the aggregates' invariants
+    # and not introduced by the ensemble switch. race_date_str is Jolpica's UTC
+    # date, and the window is local, so for a race late enough in the day the
+    # two are different dates. Las Vegas 2026 is the live case on the current
+    # calendar: race_date 2026-11-22, local window 2026-11-21 18:00-22:00, so a
+    # single-date request returned a response with no window hours in it at all
+    # and F7 went dormant on an empty forecast rather than a dry one. One of 23
+    # races in 2026; the require() below turns any future instance into a
+    # failure instead of a silent dormancy.
+    per_model, units, meta = openmeteo.forecast_ensemble(
+        lat, lon,
+        (window_start - timedelta(days=1)).date().isoformat(),
+        (window_end + timedelta(days=1)).date().isoformat(),
+        tz_name, cache_dir, force_refresh=force_refresh,
+    )
+    models = sorted(per_model)
 
     # Index off the shared time array once. Every model came back parallel to it
     # (checked in the client), so one index set covers all four.
@@ -507,6 +522,12 @@ def build_weather(lat, lon, race_date_str, race_time_str, circuit_id, cache_dir,
         t = datetime.fromisoformat(t_str).replace(tzinfo=tz)
         if window_start <= t <= window_end:
             idx.append(i)
+
+    require(
+        idx,
+        f"no forecast hours inside the race window {window_start.isoformat()} .. "
+        f"{window_end.isoformat()} -- an empty window is not a dry forecast",
+    )
 
     window_by_model = {}
     for m in models:
@@ -902,7 +923,7 @@ def main():
             # disagreement is marked here the same way 01 sec5.6 marks a wet
             # race out-of-domain for A3. Flag only -- whether p_spread ever
             # becomes a feature in its own right is still open (06 sec10).
-            "weather_uncertain": weather["agree"] is False,
+            "weather_uncertain": not weather["agree"],
         },
         "provenance": provenance,
         "grid": grid,

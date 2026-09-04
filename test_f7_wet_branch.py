@@ -330,5 +330,31 @@ class TestAggregatesMatchTheIndependentBacktest(unittest.TestCase):
         self.assertEqual(disagree, 19, "disagree bucket should hold 19 races")
 
 
+class TestWindowSpanningALocalDateBoundary(unittest.TestCase):
+    """A race whose local window is not on its UTC date still gets a forecast.
+
+    Jolpica's race date is UTC; the window is circuit-local. Las Vegas 2026 is
+    the live case -- race_date 2026-11-22, local window 2026-11-21 18:00-22:00 --
+    and a forecast pull bounded to the race date alone contained none of those
+    hours, so F7 went dormant on an empty response rather than a dry forecast.
+    Pre-existing, found while adding the aggregates' invariants.
+
+    Vegas itself is past the forecast horizon until November, so this reproduces
+    the same geometry at the same circuit on a date the endpoint serves: a UTC
+    time late enough that the window sits on the previous local day and crosses
+    midnight.
+    """
+
+    def test_all_five_window_hours_are_present_across_the_boundary(self):
+        lat, lon = _latlon("vegas")
+        weather, _ = snapshot.build_weather(lat, lon, "2026-09-10", "06:00:00Z",
+                                            "vegas", CACHE_DIR)
+        times = [r["local_time"] for r in weather["hourly_window"]]
+        self.assertEqual(len(times), 5, f"window came back as {times}")
+        self.assertEqual(times[0][:10], "2026-09-09")
+        self.assertEqual(times[-1][:10], "2026-09-10")
+        self.assertIsNotNone(weather["p_mean"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -58,7 +58,8 @@ def archive(lat, lon, start_date, end_date, tz, cache_dir):
     return httpcache.cached_get_json(url, cache_dir)
 
 
-def forecast_ensemble(lat, lon, date, tz, cache_dir, models=None, force_refresh=False):
+def forecast_ensemble(lat, lon, start_date, end_date, tz, cache_dir, models=None,
+                      force_refresh=False):
     """Same forecast endpoint, but naming four models explicitly -> per-model series.
 
     Returns ({model: {field: [values]}}, units, meta). Every model carries its
@@ -84,8 +85,8 @@ def forecast_ensemble(lat, lon, date, tz, cache_dir, models=None, force_refresh=
         "latitude": lat,
         "longitude": lon,
         "hourly": ",".join(HOURLY_FIELDS),
-        "start_date": date,
-        "end_date": date,
+        "start_date": start_date,
+        "end_date": end_date,
         "timezone": tz,
         "models": ",".join(models),
     }
