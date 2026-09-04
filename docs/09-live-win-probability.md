@@ -1372,3 +1372,97 @@ that was never checked against a known quantity — is the one this project keep
 *on-track* lead changes through a five-filter labeller; §2.1 counts *any* change of the car in P1,
 including pit cycles, through a much looser end-of-lap comparison. Both are correct answers to
 different questions, and the gap between them is the design (§3).
+
+---
+
+## 16. Reproducing this — everything a cold session needs
+
+`08` §13's convention. Written so a fresh agent, or the owner months later, can rebuild and
+re-validate without re-deriving anything from chat history. **This section is the handoff.**
+
+### 16.1 What exists, and what each file is for
+
+| File | Role |
+|---|---|
+| `lib/winprob.py` | The state estimator: `WinProbState` (§4), `WinProbEstimate` (§8.1), `RacePrior`, the fast path (`fold`) and the slow path (`estimate`), and the `reliable` contract |
+| `lib/winprob_sim.py` | §5's Monte Carlo forward simulation, vectorized across paths, with §7.4's counter-based common random numbers |
+| `lib/winprob_priors.py` | §6's prior from `backfill.py`'s `p_a1`, `04` §5's `F_dnf` read race-forward, §2.5's two-segment hazard, and §5.5's IPF |
+| `lib/winprob_background.py` | §5.4's background rate and §10 baseline 2's position-only ladder, both fitted race-forward |
+| `lib/overtake_serve.py` | `08` as a serve-time artifact — weights, standardisation, θ, θ_front — plus its feature row built from one tick (§5.3) |
+| `lib/winprob_replay.py` | §9.1's tick replayer: lap-boundary and 1 Hz-with-telemetry modes, and `03` §8 degraded-mode injection |
+| `winprob_fit.py` | CLI: `08` fold models, background rate, hazard, ladder, §5.5's reconciliation → `data/live/winprob/fit.json` |
+| `winprob_validate.py` | CLI: §9's replay, §10's four baselines, §9.3's block bootstrap → `data/live/winprob/validation.json` |
+| `test_winprob.py` | §11's assertions and §8.2's interlock. Synthetic fixtures only, per `03` §11.2 |
+
+### 16.2 Commands
+
+```bash
+# environment: .venv312 -- fastf1 is not installed anywhere else (08 sec13.2)
+.venv312/bin/python winprob_fit.py            # ~23 min warm
+.venv312/bin/python winprob_validate.py       # ~12 min warm
+.venv312/bin/python test_winprob.py           # instant
+```
+
+`winprob_fit.py --rounds 5 --quick --skip-overtake` fits one race at reduced budgets, which is the
+fast way to check a change; **never quote a `--quick` run**, its IPF budget is below §5.5's. Both
+scripts need `data/live/overtakes/training.csv`, which `overtake_build.py` produces and which is
+gitignored — `08` §13.4.
+
+### 16.3 Expected output, so a regression is visible
+
+- **Fit:** 8 `08` fold models with Platt `a` in **0.75–1.16** (matching `08` §11.1's own range, and
+  the cheapest check that the fold structure is right); background `q(P1–P3, late)` around 0.03–0.13
+  depending on circuit; hazard `a ≈ 1.36–2.00`, `b ≈ 0.67–0.88`; **IPF conditional residual ≤ 0.0002
+  on every race**, absolute residual 0.009–0.028 (that is §5.5's corrected tail artifact, not a
+  failure).
+- **Validate:** 8 races, **520 checkpoints**, pooled log-loss **layer 0.799 / ablation 0.800 /
+  ladder 1.000 / static 1.177**; layer beats static 8/8 and the ladder 7/8; `reliable = False` on
+  **33.3%**; `08` in-domain on **46.5%** of checkpoints.
+- **Tests:** all pass, with the t = 0 identity reported at a worst conditional residual around
+  0.0001 against a tolerance of 0.00335.
+
+If the validation reports **zero checkpoints**, read §10.7 item 1 before anything else — that is
+the driver-key failure, and it looks like a degraded feed rather than like a bug.
+
+### 16.4 Data locations
+
+- `data/live/winprob/fit.json`, `validation.json`, and any `R<n>.jsonl` from `--emit-jsonl` —
+  **gitignored** (`.gitignore`'s `data/live/`), and this is load-bearing rather than incidental:
+  they are derived from F1 timing data and this repo is public (`03` §11.2, §8.2).
+- `data/training/winner.csv` — committed. §6's prior comes from its `p_a1` column.
+- `data/cache/fastf1/` — the archive, gitignored, reconstructible, ~GB scale.
+
+### 16.5 State of play — where to pick up
+
+**Done:** the layer is built, validated against §10's pre-registered criteria, and honestly
+characterised. It succeeds. §10.2 and §10.4 are the two defects it does not fix.
+
+**The top open decisions**, in the order the run suggests rather than the order §13 lists them:
+
+1. **§13 item 2 — fund `docs/12`'s pit-strategy model?** It addresses both defects at once: the
+   28.5% suppression directly, and the over-dispersion as a side effect (`docs/12` §6's
+   pre-registered prediction).
+2. **§13 item 6 — the over-dispersion**, if item 2 is declined. Damping `q` by the measured 0.61 is
+   the cheap route and it must be re-validated on §10's criteria, not tuned against them.
+3. **§13 item 1 — live pace updating.** R9 is the evidence and it is one race.
+
+**Not started:** anything live. B1 is still unrun. `03` §4.4's live gate is untouched by all of this.
+
+### 16.6 Corrections made during this build, so they are not re-made
+
+`08` §13.6's convention, and the same reason: each was wrong first and measured second.
+
+1. **§5.4 had no strength term**, so §5.5's IPF had no lever and §11 assertion 2 was unreachable.
+   Found by tracing the step structure before writing the simulator. Fixed by a strength tilt that
+   reduces to 1.0 on equal strengths — §5.4's dated correction.
+2. **IPF against absolute `p_algo` targets cannot converge**, and the floor is `02`'s softmax tail
+   rather than a bug — §5.5's dated correction, with the arithmetic.
+3. **The archive's two driver key spaces are not interchangeable** (§10.7 item 1). Silent: it looks
+   like a degraded feed.
+4. **`LapCount.CurrentLap` does not distinguish "on the last lap" from "finished"** (§10.7 item 2).
+5. **A degraded-mode injection keyed on wall-clock seconds never coincides with a lap-boundary
+   checkpoint** (§10.6), so the run came back byte-identical to the clean one and the test could not
+   fail.
+6. **"Swapped at least once over n laps" is not "ahead after n laps"** (§10.2, `docs/12` §2.3, §2.5).
+   This one was made twice — once inside `q` and once in the undercut comparison — which is why it
+   is worth stating as a general rule rather than as two incidents.
