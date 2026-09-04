@@ -575,6 +575,15 @@ if the two drift apart.
 Arm C against arm A's `fit.json` does not run at all, by design: §7 assertion 4 refuses to
 construct the layer against a `q` that still contains pit-cycle swaps.
 
+**One assertion is not exercised by the reported run, and it should be said rather than assumed.**
+`lib/winprob_replay.full_ticks` sets `pit_out = False` on every tick — the archive carries pit
+windows, not the live feed's `pit_out` edge — so §7 assertion 3's `pit_out` path is exercised only
+by the synthetic ticks in `test_pit_strategy.py` and **never fires during the run that produced
+§6.1's numbers**. Assertion 3's other half does fire: in replay a cycle closes when the car is out
+of the lane and a numeric gap arrives. Retrofitting `pit_out` into the replay was deliberately not
+done, because it would perturb the arm A baseline this build reproduced exactly and the replay's
+job is to validate the estimator rather than the live plumbing (`09` §9.1).
+
 **Environment**: `.venv312` — `fastf1` is not installed anywhere else (`08` §13.2). Cache at
 `data/cache/fastf1/`, warm. `probes/README.md` carries the expected output for both.
 
