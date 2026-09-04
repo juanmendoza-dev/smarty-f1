@@ -77,6 +77,19 @@ class RaceArchive:
         self.total_laps = int(laps["LapNumber"].max())
         self.results = self.session.results
         self.codes = sorted(set(str(d) for d in laps["Driver"].dropna().unique()))
+        # Two key spaces meet here and they are NOT interchangeable. `session.laps`
+        # is keyed on the FIA three-letter code (`01` sec8.2's locked canonical
+        # key), while the timing stream, `car_data` and `pos_data` are all keyed
+        # on the racing number -- which is also what `03` sec7.1's DriverList
+        # join uses live. Getting this wrong is silent: every asof join simply
+        # matches nothing and every telemetry field comes back None, which looks
+        # exactly like `03` sec8's degraded mode rather than like a bug.
+        self.number_of = {}
+        for _, r in laps[["Driver", "DriverNumber"]].dropna().drop_duplicates().iterrows():
+            self.number_of[str(r["Driver"])] = str(r["DriverNumber"])
+        require(len(self.number_of) == len(self.codes),
+                "driver code <-> number map is incomplete: %d codes, %d numbers"
+                % (len(self.codes), len(self.number_of)))
         self.circuit_id = _circuit_id(self.session)
 
         self._stream = None
@@ -224,7 +237,7 @@ def lap_ticks(archive, inject=None):
                 latched.add(code)
             pos = next((p for p, d in order.items() if d == code), None)
             cars[code] = CarState(
-                code=code, racing_number="", position=pos,
+                code=code, racing_number=archive.number_of.get(code, ""), position=pos,
                 gap_leader=None, gap_ahead=None, catching_ahead=None,
                 in_pit=lap in pit_laps.get(code, ()),
                 pit_out=False, retired=code in latched, stopped=False,
@@ -265,7 +278,8 @@ def full_ticks(archive, hz=REPLAY_HZ, inject=None):
 
     per_driver = {}
     for code in archive.codes:
-        sub = stream[stream["Driver"] == code]
+        num = archive.number_of[code]
+        sub = stream[stream["Driver"] == num]
         chan = {}
         pos_f = sub[["t", "Position"]].dropna()
         chan["position"] = (_asof(pos_f, grid, ["Position"], 3600.0)["Position"].values
@@ -274,7 +288,7 @@ def full_ticks(archive, hz=REPLAY_HZ, inject=None):
             f = sub[["t", src]].dropna()
             chan[key] = (_asof(f, grid, [src], 3600.0)[src].values
                          if len(f) else np.array([None] * len(grid), dtype=object))
-        car = archive.session.car_data.get(code)
+        car = archive.session.car_data.get(num)
         if car is not None and not car.empty:
             cf = pd.DataFrame({
                 "t": car["SessionTime"].dt.total_seconds().values,
@@ -288,7 +302,7 @@ def full_ticks(archive, hz=REPLAY_HZ, inject=None):
         else:
             nan = np.full(len(grid), np.nan)
             chan["speed"] = chan["throttle"] = chan["brake"] = nan
-        pdta = archive.session.pos_data.get(code)
+        pdta = archive.session.pos_data.get(num)
         if pdta is not None and not pdta.empty:
             pf = pd.DataFrame({
                 "t": pdta["SessionTime"].dt.total_seconds().values,
@@ -321,7 +335,7 @@ def full_ticks(archive, hz=REPLAY_HZ, inject=None):
                 latched.add(code)
             pos = ch["position"][i]
             cars[code] = CarState(
-                code=code, racing_number="",
+                code=code, racing_number=archive.number_of[code],
                 position=int(pos) if pos == pos else None,
                 gap_leader=_str_or_none(ch["gap_leader"][i]),
                 gap_ahead=_str_or_none(ch["gap_ahead"][i]),
