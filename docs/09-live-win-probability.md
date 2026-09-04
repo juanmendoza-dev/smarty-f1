@@ -1,7 +1,8 @@
 # 09 — Live Win Probability (Phase B4)
 
-Status: **specced 2026-08-27; the offline layer approved for build by owner decision 2026-09-03;
-not built.** This is the consumer `08-overtake-model.md` was shaped for — it is `08` §12 item 5,
+Status: **specced 2026-08-27; approved for build 2026-09-03; the offline layer is BUILT and
+VALIDATED as of 2026-09-04 — §10.1 has the results, and the layer meets §10's pre-registered
+success criteria.** Live use remains gated on B1 and is untouched by any of this. This is the consumer `08-overtake-model.md` was shaped for — it is `08` §12 item 5,
 the top open decision for Lane B. It builds **no new predictive model**: it is a state estimator
 that carries Lane A's pre-race distribution forward through a race, using `03` §7's tick stream
 and `08`'s calibrated in-domain overtake probabilities as its inputs.
@@ -634,7 +635,9 @@ leading and overstate his P(win). The error is largest exactly where the market 
   34.5% figure is not the suppression rate, because most of those laps involve stops outside the
   podium fight. §10 must **measure the realised suppression fraction over the 12 replayed races
   and report it**; if it lands anywhere near 34.5%, the layer is silent through most of the race
-  and that is a headline result, not a tuning detail.
+  and that is a headline result, not a tuning detail. **Measured 2026-09-04: 28.5% of 520
+  checkpoints** (§10.4). That is nearer the headline than the narrow case this bullet hoped for,
+  and it is the argument `docs/12` is built on.
 - A real fix is an **undercut/pit-loss model** — expected time loss per stop per circuit, projected
   onto post-cycle track position. That is a genuine second model, it needs its own measurements,
   and building it inside this spec would be exactly the scope creep `welcome.md` warns against. It
@@ -923,6 +926,218 @@ is why `05` §6.4.1 is a usable negative result rather than a rationalization.
 
 ---
 
+## 10.1 Results — the run, 2026-09-04
+
+**Built and validated.** Eight scoreable races (R5–R12), **520 checkpoints**, full-fidelity 1 Hz
+tick replay with telemetry, `N = 40,000` paths, everything fitted race-forward. §15 reproduces it.
+The success criteria below were fixed in §10 before the layer existed and are not restated here in
+a weaker form.
+
+### The pre-registered verdict
+
+| Arm | pooled log-loss | multi-class Brier | top-1 |
+|---|---|---|---|
+| **The layer** | **0.79935** | **0.41938** | **0.737** |
+| Ablation — the same simulator with `08` off (§10 baseline 3) | 0.80003 | 0.41974 | 0.737 |
+| Position-only ladder (§10 baseline 2) | 1.00000 | 0.50328 | 0.658 |
+| Lane A static pre-race number (§10 baseline 1) | 1.17665 | 0.60009 | 0.644 |
+
+**The layer succeeds on §10's criteria.** It beats the static Lane A number on pooled log-loss
+(0.799 vs 1.177) and the position-only ladder (0.799 vs 1.000), and on the per-race breakdown it
+beats static in **8 of 8** races and the ladder in **7 of 8** — against a bar of 6.
+
+Per race, mean log-loss:
+
+| | race | layer | ablation | ladder | static |
+|---|---|---|---|---|---|
+| R5 | Canadian | **0.5573** | 0.5573 | 0.6683 | 1.1793 |
+| R6 | Monaco | **0.1370** | 0.1370 | 0.4522 | 0.2293 |
+| R7 | Barcelona | **1.4663** | 1.4684 | 1.7283 | 1.6548 |
+| R8 | Austrian | **0.5219** | 0.5219 | 0.9242 | 0.7112 |
+| R9 | British | 2.0395 | 2.0397 | **0.9098** | 3.4494 |
+| R10 | Belgian | **0.5854** | 0.5854 | 1.2279 | 0.7342 |
+| R11 | Hungarian | **0.6715** | 0.6717 | 1.0670 | 1.0018 |
+| R12 | Dutch | **0.7638** | 0.7665 | 1.1701 | 1.0200 |
+
+### The interval is wide, and on one comparison it crosses zero
+
+§9.3 requirement 2, block-bootstrapped over whole races — 8 blocks, never over checkpoints:
+
+| Difference | point | 95% CI |
+|---|---|---|
+| layer − static | **−0.4047** | [−0.7176, −0.1830] |
+| layer − ladder | **−0.1756** | [−0.4381, **+0.2260**] |
+| layer − ablation | −0.00064 | [−0.00145, −0.00001] |
+
+**The layer's advantage over the position ladder is not separable from zero at eight blocks.** It
+meets §10's pre-registered criteria — which are about pooled log-loss and the per-race count, and
+were chosen in advance precisely so this could not be renegotiated — but the interval straddles
+zero and the honest statement is that eight races cannot establish the size of the gap. §9.3 said
+"it will be wide. That is the finding, not a presentational problem", and it is.
+
+**The whole width comes from one race.** Per-race layer − ladder runs −0.11, −0.32, −0.26, −0.40,
+**+1.13**, −0.64, −0.40, −0.41. R9, the British GP, is the single loss and it is a large one.
+
+### R9, and what it says about §1.3
+
+R9 is the race where Lane A's prior was badly wrong: static log-loss **3.4494**, i.e. `p_algo` gave
+the eventual winner about 3%. The layer starts from that prior with strengths frozen for the race
+(§6), so it starts wrong and only track position digs it out — it recovers to 2.04, better than
+static but far worse than a ladder that never had an opinion to be wrong about.
+
+That is §1.3 happening exactly as pre-registered: *the layer cannot fix a bad prior, and this spec
+does not claim it will.* Reading the table as a whole:
+
+- On the **seven races where the prior was reasonable**, the layer beats both baselines, and it
+  beats the ladder by 0.11–0.64 log-loss — the state estimate is adding something the free
+  information does not have.
+- On the **one race where the prior was wrong**, the ladder wins by 1.13, and the layer's frozen
+  strengths are the reason. §13 item 1 (live pace updating) is the open item that addresses this,
+  and this run is the first evidence with a number attached to it.
+
+### Where in the race the layer is better — and where it is not
+
+§9.2 asked for a curve rather than a pooled number, because "is the layer better" hides "where".
+Mean log-loss by progress decile:
+
+| progress | n | layer | ablation | ladder | static |
+|---|---|---|---|---|---|
+| 0.0–0.1 | 47 | 1.0927 | 1.0925 | **1.0378** | 1.1860 |
+| 0.1–0.2 | 52 | **1.0771** | 1.0771 | 1.4239 | 1.1729 |
+| 0.2–0.3 | 52 | **1.0657** | 1.0657 | 1.3190 | 1.1552 |
+| 0.3–0.4 | 52 | **1.0274** | 1.0274 | 1.1500 | 1.1729 |
+| 0.4–0.5 | 49 | **1.0863** | 1.0864 | 1.6048 | 1.1821 |
+| 0.5–0.6 | 55 | **0.9552** | 0.9579 | 1.4566 | 1.2035 |
+| 0.6–0.7 | 52 | **0.8391** | 0.8394 | 1.2157 | 1.1729 |
+| 0.7–0.8 | 52 | **0.5510** | 0.5549 | 0.7763 | 1.1552 |
+| 0.8–0.9 | 52 | 0.2814 | 0.2814 | **0.0609** | 1.1729 |
+| 0.9–1.0 | 57 | 0.1187 | 0.1187 | **0.0576** | 1.1913 |
+
+Three readings, and the third is a defect:
+
+1. **The layer's advantage is a mid-race advantage.** From 10% to 80% distance it beats both
+   baselines, and the margin over the ladder peaks around half distance (0.96 vs 1.46) — which is
+   exactly the pit-cycle window where raw track position is not the running order (§5.7).
+2. **At lights-out the ladder is slightly ahead** (1.038 vs 1.093). At `progress ≈ 0` the layer is
+   reproducing `p_algo` by construction (§5.5's t = 0 identity), so this is Lane A's prior losing to
+   "the pole-sitter usually wins", not the estimator failing.
+3. **In the last two deciles the ladder beats the layer, by a lot** — 0.061 vs 0.281 and 0.058 vs
+   0.119. §10.2 is that defect, measured.
+
+### §10.2 The layer over-disperses, and it is measured rather than inferred
+
+The mean leader `p_win` at `progress ≥ 0.90` is **0.891** over 57 checkpoints. §11 assertion 3's
+smoke band asks for ≥ 0.9, so this is a **near miss, reported as a miss**. §2.2 measured the real
+leader converting 120 of 120 inside ten laps to go.
+
+The mechanism was diagnosed before it was written up, and the first diagnosis was wrong. The
+obvious reading — "§5.4's P1–P3 band pools the P1/P2 pair with P2/P3, and the lead pair swaps far
+less" — is true (the lead pair swaps at 0.0055/lap in the final quarter against the band's 0.0351)
+but it is the *smaller* effect. Measuring the alternative reading found the larger one, and it is
+general:
+
+**A per-lap swap rate fed to a simulator that makes every swap permanent over-disperses the field,
+because swaps revert.** Net displacement at five laps against `1 − (1−q)⁵` from the same pairs'
+own one-lap rate, over 13,056 adjacent-pair observations: **0.61 pooled**, and between 0.41 and
+0.78 in *every* band and *every* quarter. The simulator spreads the field about 1.6× faster than
+the archive does.
+
+This is the same error as the one caught in `docs/12` §2.5's undercut comparison, one level down:
+**"swapped at least once over n laps" is not "ahead after n laps."** §5.4 as written is not wrong —
+it specifies a swap rate and that is what was fitted — but the consumer of that rate needs a net
+displacement, and the gap between the two is a measured 39%.
+
+**It is not fixed in v1, and that is deliberate.** The obvious repair — recondition `q`, or damp it
+by the measured ratio — would be fitting a change to the model *after* seeing the validation
+result, which is the failure `05` §6.4.1 documents and the reason §10's criteria were pre-registered
+at all. It is §13 item 7, with the measurement already in hand. `docs/12` §4 makes the sharper
+point: pit cycles are a principal generator of transient swaps, so a pit-strategy model would
+remove much of this from `q` as a side effect, and `docs/12` §6 pre-registers that as a testable
+prediction.
+
+### §10.3 What `08` contributed — the number this validation existed to produce
+
+§10 called the ablation "the most important number this validation produces", because it is the
+measurement Lane B's whole rationale for building the overtake model rests on. Under common random
+numbers (§7.4), so the comparison is paired and not swamped by either arm's own standard error:
+
+**layer − ablation = −0.00064 pooled log-loss, 95% CI [−0.00145, −0.00001].**
+
+By the letter of §10's rule, `08` earns its place: the ablation is worse, and the bootstrap interval
+excludes zero. **Every qualification that number needs, stated with it:**
+
+- **The magnitude is 0.4% of the layer's own margin over the position ladder** (0.00064 against
+  0.1756) and 0.16% of its margin over static Lane A. `08` is not what makes this layer work.
+- **The interval's upper bound is −0.00001.** It excludes zero by a rounding error's worth.
+- **Per race it helps in 5, hurts in 2 and ties in 1**, and the pooled figure is carried by two
+  races: R7 (−0.0022) and R12 (−0.0028). A result resting on two races out of eight is exactly what
+  §9.3 requirement 1 exists to expose.
+- `08` spoke at all on **46.5% of checkpoints** — 242 of 520 carried at least one in-domain pair
+  after both θ and θ_front.
+
+**This is §3's arithmetic confirmed, not contradicted.** §3 predicted an average in-domain
+front-of-field pursuit worth ~0.4 points of P(win) against a 1-point market tick, and called the
+signal "real and small". It is real: correctly signed, paired, and measurable. It is small: three
+orders of magnitude below what the state estimator itself contributes. §2.1's finding stands
+unchanged — pit cycles cause 71% of lead changes and `08` is the fourth-biggest mover of P(win).
+
+### §10.4 Reported regardless of outcome (§5.7, §7.3)
+
+- **`reliable = False` on 173 of 520 checkpoints — 33.3%.**
+- **The pit-offset rule alone accounts for 28.5 points of that** (148 checkpoints). §5.7 required
+  this measured and said: "if it lands anywhere near 34.5%, the layer is silent through most of the
+  race and that is a headline result, not a tuning detail." **At 28.5% against §2.6's 34.5% of
+  race-laps, it lands nearer the headline than the hoped-for narrow case.** The layer is silent, by
+  its own contract, on more than a quarter of the race — and disproportionately during the pit
+  window, which is where §10.1's curve shows it is *most* useful. That tension is the argument
+  `docs/12` is built on.
+- Caution accounted for the other 6.5% (34 checkpoints).
+- **`se_mc` never triggered the reliability rule** at `N = 40,000`: mean max `se_mc` = **0.00215**,
+  against the half-tick threshold of 0.005. At the spec'd serve budget of `N = 10,000` the same
+  states would sit near 0.0043 — under the threshold, but not by much, which is worth knowing before
+  anyone lowers `N`.
+- **§9.3 requirement 3, the Plackett-Luce diagnostic**: mean per-checkpoint log-likelihood of the
+  full realised finishing order improves monotonically with race progress, **−82.3 in the first
+  decile to −44.4 in the last**. It carries real information — it moves — and it is still a
+  diagnostic, not the winner metric.
+
+### §10.5 The market, on one race, as colour
+
+§10 baseline 4 and `05` §6.3's rule: **colour on a single race, never a baseline.** On the 2026
+Dutch GP, the only race this project holds live snapshotted prices for:
+
+| | log-loss on the winner |
+|---|---|
+| Market mean (pre-race, held constant) | 1.0682 |
+| **The layer** | **0.7638** |
+| Lane A static | 1.0200 |
+
+**This comparison is not a claim to beat the market and must not be read as one.** It compares a
+*static pre-race price* against a *live layer that watched the race happen*; the market repriced
+continuously and those prices were never captured. One race settles nothing (`05` §6.4). It is
+recorded because §10 asked for it, and with the caveat §10 asked for.
+
+### §10.6 The variants §5.5 and §5.3 require reported alongside
+
+VARIANTS_PLACEHOLDER
+
+### §10.7 The two things this run had to fix, recorded so they are not re-made
+
+`08` §13.6's convention. Both were silent failures, which is why they are here.
+
+1. **The archive's two driver key spaces are not interchangeable.** `session.laps` is keyed on the
+   FIA three-letter code (`01` §8.2's canonical key); the timing stream, `car_data` and `pos_data`
+   are keyed on the racing number. Joining the stream on the code matches *no rows*, so every
+   telemetry field comes back `None` — which is indistinguishable from `03` §8's degraded mode
+   until you notice the run produced **zero checkpoints**. The full-fidelity replay was silently
+   empty until this was found.
+2. **`LapCount.CurrentLap` stops at `lap_total` and stays there**, so "the leader is on the last
+   lap" and "the leader has finished it" look identical on that field alone. The layer simulated one
+   further partial lap after the flag and the leader stayed passable, which made §11 assertion 3's
+   endgame identity unreachable. The leader's own completed-lap count is what separates the two.
+
+---
+
 ## 11. Required assertions
 
 Via `lib.invariants.require`, never bare `assert` — `05`/`08` convention, and `03` §12's reasoning:
@@ -980,7 +1195,11 @@ a plausible wrong number is the failure mode this project has been bitten by.
 
 ## 13. Open items — the owner's call
 
-1. **Does the layer update driver strength from in-race pace, or stay frozen (§6)?** v1 freezes,
+1. **Does the layer update driver strength from in-race pace, or stay frozen (§6)?**
+   **This item gained its first real evidence on 2026-09-04 (§10.1).** R9 is the one race of eight
+   where the layer loses to the position-only ladder, and it loses by 1.13 log-loss because Lane A's
+   prior gave the eventual winner ~3% and the frozen strengths carried that all race. Seven of eight
+   races say freezing is fine; the eighth says exactly what this item warns about, with a number. v1 freezes,
    on the strength of `05` §6.4.1 — A3 tried to beat A1's hand-set weights over 48 races and lost,
    so an online update over a handful of in-race laps is a weaker version of a bet already
    measured as losing. Counter-argument: track position alone gives no credit to a car that is
@@ -996,13 +1215,26 @@ a plausible wrong number is the failure mode this project has been bitten by.
    offline. Recommended sequencing — **run §9's replay validation before B1, not after.** If the
    ablation comes back at zero, B1's result stops mattering for this chain and the owner has saved
    the live-connection risk entirely.
+   **Answered 2026-09-04, and the answer is "yes for the layer, barely for `08`" (§10.3).** The
+   layer beats both baselines; `08`'s own contribution is −0.00064 log-loss, 0.4% of the layer's
+   margin over the position ladder, carried by two races of eight. The recommended sequencing was
+   followed — this ran before B1 — and what it bought the owner is that **B1's risk now sits behind
+   a layer with a measured result rather than a hoped-for one.**
 4. **Does the layer also emit in-race podium / top-10 (§12)?** Free from the same simulator via
    `04` §6.2's machinery. A portfolio/completeness call, not yet motivated by anything measured.
 5. **`08` §12 item 1 (the 5s horizon) is now this layer's decision too.** §5.2 lets `08` enter at
    exactly its own horizon, so a shorter, better-timed `08` (via `08` §5.2's sub-second refinement)
    translates directly into an earlier P(win) move. That reframes `08`'s open item from a modelling
    nicety into the thing this layer's timeliness depends on.
-6. **B1 remains unrun and is unchanged by this document.** `08` §12 item 7's observation stands:
+6. **The layer over-disperses the field by a measured 39% (§10.2), and the fix is deferred on
+   purpose.** Net displacement at five laps is 0.61 of what §5.4's per-lap swap rate compounded
+   predicts, in every band and every quarter. Reconditioning or damping `q` now would be fitting a
+   change after seeing the validation result — the failure `05` §6.4.1 documents. Two routes:
+   damp `q` by the measured ratio and re-validate on the pre-registered criteria, or build
+   `docs/12`'s pit-strategy model, which `docs/12` §6 pre-registers as removing much of the
+   transience as a side effect. **The second is the better bet and it is item 2's decision.**
+
+7. **B1 remains unrun and is unchanged by this document.** `08` §12 item 7's observation stands:
    `03` §3 specs B1 as feed-vs-broadcast, and §8.1's `t_wall` is what makes any future
    feed-vs-external comparison measurable when someone decides to make one.
 
@@ -1050,6 +1282,18 @@ that have since propagated into `08`'s status banner, `00-roadmap.md`'s Phase B4
 .venv312/bin/python probes/09_domain_bands.py            # sec2.4, position bands
 .venv312/bin/python probes/09_theta_front.py             # sec2.4, theta_front
 ```
+
+**And §10.1's results, which are the layer itself rather than a probe:**
+
+```bash
+.venv312/bin/python winprob_fit.py         # ~23 min: 08 fold models, background rate,
+                                           #   hazard, ladder, and the sec5.5 reconciliation
+.venv312/bin/python winprob_validate.py    # ~12 min: sec9's replay, sec10's four baselines
+.venv312/bin/python test_winprob.py        # instant: sec11's assertions + sec8.2's interlock
+```
+
+Both write to `data/live/winprob/`, which is gitignored — it is derived F1 timing data and this
+repo is public (`03` §11.2). §10.6's variants are `--flat-hazard`, `--platt` and `--degrade N`.
 
 **Environment**: `.venv312`, per `08` §13.2 — `fastf1` is not installed anywhere else. Cache at
 `data/cache/fastf1/` (`08` §13.4), warm.
