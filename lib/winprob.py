@@ -29,6 +29,7 @@ from types import MappingProxyType
 from typing import Optional
 
 from . import overtake_serve as osv
+from . import pit_strategy as pitmod
 from . import winprob_sim as wsim
 from .invariants import require
 from .winprob_priors import lap_hazards
@@ -99,6 +100,10 @@ class WinProbEstimate:
     n_paths: int
     in_domain: tuple
     pit_offset: int
+    pit_projected: tuple
+    pit_refused: tuple
+    pit_order_changed: bool
+    pit_cycle_in_top3: bool
     degraded: frozenset
     stale: bool
     reliable: bool
@@ -113,7 +118,12 @@ class WinProbEstimate:
             "prior_id": self.prior_id, "model_id": self.model_id,
             "n_paths": self.n_paths,
             "in_domain": [list(x) for x in self.in_domain],
-            "pit_offset": self.pit_offset, "degraded": sorted(self.degraded),
+            "pit_offset": self.pit_offset,
+            "pit_projected": [dict(p) for p in self.pit_projected],
+            "pit_refused": [list(x) for x in self.pit_refused],
+            "pit_order_changed": self.pit_order_changed,
+            "pit_cycle_in_top3": self.pit_cycle_in_top3,
+            "degraded": sorted(self.degraded),
             "stale": self.stale, "reliable": self.reliable,
             "reasons": list(self.reasons),
         }
@@ -130,9 +140,21 @@ class WinProbLayer:
 
     def __init__(self, prior, background, overtake_model=None, m=1.0,
                  n_paths=wsim.SERVE_N, use_overtake_model=True, use_platt=False,
-                 model_id="08:none"):
+                 model_id="08:none", pit_projector=None):
+        # 12 sec7 assertion 4, and it fires HERE -- at construction, before a
+        # single tick is folded -- rather than at scoring time. A layer running
+        # `docs/12`'s projection against a background rate that still contains
+        # pit-cycle swaps counts the pit cycle twice, and the number it produces
+        # is plausible, which is this project's demonstrated failure mode
+        # (03 sec12). Loudly, or not at all.
+        require(pit_projector is None or background.pit_swaps_removed,
+                "12 sec7 assertion 4: the pit-strategy projection is active but "
+                "09 sec5.4's background rate still contains pit-cycle swaps. "
+                "Refit with `winprob_fit.py --pit-refit`; scoring against this "
+                "rate would double-count every pit cycle.")
         self.prior = prior
         self.background = background
+        self.pit_projector = pit_projector
         self.overtake_model = overtake_model
         self.m = float(m)
         self.n_paths = int(n_paths)
@@ -199,6 +221,12 @@ class WinProbLayer:
         if placed:
             self.order = [c for _, c in sorted(placed)]
 
+        # The pit state machine advances on the fast path with everything else:
+        # it is a fold over `in_pit` / `pit_out`, and 09 sec7.2 rate-limits the
+        # simulator, not the bookkeeping.
+        if self.pit_projector is not None:
+            self.pit_projector.fold(tick)
+
         self.pursuits = self._compute_pursuits(tick)
         self.last_tick = tick
 
@@ -253,8 +281,53 @@ class WinProbLayer:
         counts = [self.stops_done.get(c, 0) for c in top]
         return max(counts) - min(counts)
 
+    @staticmethod
+    def _cycle_in_top3(correction, order):
+        return any(c in correction.in_cycle for c in order[:3])
+
+    def _pit_suppressed(self, correction, order):
+        """09 sec5.7's suppression rule, narrowed by `docs/12` (12 sec4).
+
+        **Before:** `reliable = False` while `pit_offset > 0` among the top
+        three. Measured at 28.5% of checkpoints (09 sec10.4) -- the layer silent
+        over more than a quarter of the race, and the number `docs/12` was
+        funded to move.
+
+        **After:** the estimate is suppressed only for a top-three car whose
+        rejoin is *not projectable* -- a stop under caution, a degraded or stale
+        tick, an unparseable gap (12 sec5.3). A cycle this model has corrected
+        no longer silences the estimate, because the correction is the answer
+        the suppression was standing in for.
+
+        **What this does not fix, stated here rather than discovered later.**
+        Most of the old 28.5% is not a car in the pit lane at all: it is a
+        completed-stop spread that persists between cycles -- a leader who has
+        yet to stop and will lose the place when he does. Projecting that needs
+        stop *timing*, which 12 sec2.4 measured and rejected as out of scope. So
+        this rule change un-suppresses checkpoints whose underlying error this
+        model does not touch, and 12 sec6's outcome 3 is the empirical check on
+        whether that was warranted.
+        """
+        if self.pit_projector is None:
+            return self._pit_offset_top3() > 0
+        return any(c in correction.refusals for c in order[:3])
+
     def running_order(self):
+        """Raw track position, retired cars removed.
+
+        Deliberately NOT the pit-corrected order: 09 sec10's position-only
+        ladder is a baseline built on track position and nothing else, and
+        handing it this model's correction would stop it being that baseline.
+        The correction goes to the simulator, in `estimate()`.
+        """
         return [c for c in self.order if c not in self.retired]
+
+    def pit_correction(self, running=None):
+        """`docs/12`'s corrected order for the current tick, or the identity."""
+        running = self.running_order() if running is None else running
+        if self.pit_projector is None or self.last_tick is None:
+            return pitmod.Correction(list(running), [], {}, {})
+        return self.pit_projector.project(self.last_tick, running)
 
     def estimate(self, n_paths=None, use_overtake_model=None, collect_orders=False):
         """Re-simulate and emit one `WinProbEstimate`. 09 sec8.1."""
@@ -262,6 +335,13 @@ class WinProbLayer:
         require(tick is not None, "estimate() before any tick was folded")
         running = self.running_order()
         require(running, "estimate(): every car in the field is latched retired")
+
+        correction = self.pit_correction(running)
+        # The permutation the simulator sees. Every downstream identity -- the
+        # p_win sum, the retirement zero, the t=0 baseline -- is over the same
+        # set of cars, because 12 sec4's correction reorders the field and never
+        # changes who is in it.
+        sim_order = correction.order
 
         n_paths = int(n_paths or self.n_paths)
         use_om = self.use_overtake_model if use_overtake_model is None else use_overtake_model
@@ -280,7 +360,7 @@ class WinProbLayer:
                          self.prior.hazard, max(lap_current - 1, 0), lap_total)
 
         p_win, se_mc, info = wsim.forward_simulate(
-            self.session_key or "session", running, self.prior.strengths, hz,
+            self.session_key or "session", sim_order, self.prior.strengths, hz,
             self.background, lap_current, lap_total, track_frac=self._track_frac,
             m=self.m, lap_time_s=self._lap_time_s,
             pursuits=self.pursuits if use_om else (), n_paths=n_paths,
@@ -303,7 +383,7 @@ class WinProbLayer:
             reasons.append(REASON_DEGRADED)
         if tick.track_status != 1:
             reasons.append(REASON_CAUTION)
-        if self._pit_offset_top3() > 0:
+        if self._pit_suppressed(correction, sim_order):
             reasons.append(REASON_PIT_OFFSET)
         if tick.gap_after_reconnect:
             reasons.append(REASON_RECONNECT)
@@ -318,7 +398,17 @@ class WinProbLayer:
             p_win=MappingProxyType(dict(p_win)), se_mc=MappingProxyType(dict(se_mc)),
             prior_id=self.prior.prior_id, model_id=self.model_id, n_paths=n_paths,
             in_domain=tuple(tuple(x) for x in (self.pursuits if use_om else ())),
-            pit_offset=self.pit_offset, degraded=tick.degraded, stale=tick.stale,
+            # 12 sec9 item 4, owner's call 2026-09-04: the published diagnostic
+            # keeps its 09 sec5.7 meaning -- the raw spread in completed stops --
+            # because it is published and something downstream may read it. The
+            # projection is reported alongside it in its own fields rather than
+            # by quietly changing what an existing one means.
+            pit_offset=self.pit_offset,
+            pit_projected=tuple(p.as_json() for p in correction.projections),
+            pit_refused=tuple(sorted(correction.refusals.items())),
+            pit_order_changed=correction.changed,
+            pit_cycle_in_top3=self._cycle_in_top3(correction, sim_order),
+            degraded=tick.degraded, stale=tick.stale,
             reliable=not reasons, reasons=tuple(reasons))
         check_estimate(est)
         return (est, info) if collect_orders else est
