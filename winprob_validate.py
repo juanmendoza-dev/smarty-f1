@@ -438,14 +438,29 @@ def main():
     report["pl_loglik_mean"] = sum(pl) / max(len(pl), 1)
     report["pl_loglik_curve"] = pl_curve
 
-    # 09 sec2.2's ladder is the cheapest sanity assertion in the spec.
-    late = [r for r in all_cp if r["progress"] >= 0.9]
+    # 09 sec11 assertion 3, filtered EXACTLY as sec11.3 defines it: <= 5 laps
+    # remaining AND green flag. An earlier version reported the mean at
+    # `progress >= 0.90` with caution checkpoints included, which is a different
+    # set -- progress >= 0.90 is the last 4.4 laps at Spa and the last 7.8 at
+    # Monaco -- and it turned a failure into what read as a near miss of a mean.
+    late = []
+    for race in races:
+        for r in race["checkpoints"]:
+            if (race["total_laps"] - r["lap"]) <= 5 and wp.REASON_CAUTION not in r["reasons"]:
+                late.append(r)
     if late:
-        print("\n09 sec2.2 -- leader's p_win in the closing tenth of the race "
-              "(measured 120/120 conversions inside 10 laps to go)")
-        print("  mean leader p_win at progress >= 0.90: %.3f over %d checkpoints"
-              % (sum(r["p_leader"] for r in late) / len(late), len(late)))
-        report["late_leader_p_win"] = sum(r["p_leader"] for r in late) / len(late)
+        below = [r for r in late if r["p_leader"] < 0.9]
+        print("\n09 sec11 assertion 3 -- leader's p_win with <=5 laps remaining under green")
+        print("  (09 sec2.2 measured the real leader converting 120 of 120 inside 10 laps to go)")
+        print("  qualifying checkpoints : %d" % len(late))
+        print("  mean leader p_win      : %.4f" % (sum(r["p_leader"] for r in late) / len(late)))
+        print("  minimum                : %.4f" % min(r["p_leader"] for r in late))
+        print("  BELOW the 0.9 band     : %d of %d  -> ASSERTION 3 %s"
+              % (len(below), len(late), "FAILS" if below else "HOLDS"))
+        report["assertion3"] = {
+            "n": len(late), "mean": sum(r["p_leader"] for r in late) / len(late),
+            "min": min(r["p_leader"] for r in late), "n_below": len(below),
+            "holds": not below}
 
     mkt = market_prices()
     dutch = next((r for r in races if r["round"] == 12), None)
