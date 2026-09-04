@@ -158,7 +158,7 @@ def market_prices():
 
 
 def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, flat=False,
-               verbose=True):
+               emit_jsonl=False, verbose=True):
     """Replay one race and score every arm at every lap boundary."""
     telemetry = (mode == "full")
     archive = wpr.RaceArchive(SEASON, rnd, telemetry=telemetry)
@@ -180,6 +180,7 @@ def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, flat=False,
 
     static = dict(prior.p_algo)
     rows = []
+    emitted = []
     n_ticks = 0
     last_lap = None
     ticks = (wpr.full_ticks(archive, inject=inject) if telemetry
@@ -197,6 +198,8 @@ def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, flat=False,
         est = layer.estimate(n_paths=n_paths, use_overtake_model=True)
         abl = layer.estimate(n_paths=n_paths, use_overtake_model=False)
         p_ladder = ladder.at(running, layer.progress)
+        if emit_jsonl:
+            emitted.append(est)
         rows.append({
             "round": rnd, "lap": tick.lap_current, "progress": layer.progress,
             "reliable": est.reliable, "reasons": list(est.reasons),
@@ -220,6 +223,14 @@ def score_race(rnd, race_blob, mode, n_paths, use_platt, inject, flat=False,
             "leader": running[0],
             "pl_ll": pl_loglik(dict(est.p_win), [c for c in realised if c in est.p_win]),
         })
+    if emit_jsonl and emitted:
+        # 09 sec8.2: a local append-only JSONL log under data/live/winprob/,
+        # gitignored, 03 sec11.2's rule unchanged and for its unchanged reason --
+        # this is derived F1 timing data and the repo is public.
+        path = os.path.join(wp.DEFAULT_OUT_DIR, "R%d.jsonl" % rnd)
+        if os.path.exists(path):
+            os.remove(path)
+        wp.write_jsonl(emitted, path)
     if verbose:
         print("    R%-2d %-24s %s: %d ticks, %d checkpoints, %.0fs"
               % (rnd, str(archive.session.event["EventName"])[:24], mode,
@@ -297,6 +308,9 @@ def main():
     ap.add_argument("--n", type=int, default=wsim.VALIDATE_N)
     ap.add_argument("--platt", action="store_true",
                     help="consume 08's damped-Platt map instead of p_raw (09 sec5.3)")
+    ap.add_argument("--emit-jsonl", action="store_true",
+                    help="also write 09 sec8.1's records to data/live/winprob/R<n>.jsonl "
+                         "(sec8.2's output interface, gitignored)")
     ap.add_argument("--flat-hazard", action="store_true",
                     help="09 sec5.5 requires the flat-hazard variant reported alongside "
                          "the two-segment one -- n=50 does not settle a hazard shape")
@@ -321,7 +335,7 @@ def main():
         if om is None:
             print("    R%-2d no 08 fold model -- the ablation arm is meaningless here" % rnd)
         races.append(score_race(rnd, blob, args.mode, args.n, args.platt, inject,
-                                flat=args.flat_hazard))
+                                flat=args.flat_hazard, emit_jsonl=args.emit_jsonl))
 
     report = {"mode": args.mode, "n_paths": args.n, "eps": EPS,
               "platt": args.platt, "degrade_every": args.degrade,
