@@ -24,6 +24,7 @@ FastF1 cache at `data/cache/fastf1/` should be warm; a cold run downloads per-ra
 .venv312/bin/python probes/09_theta_front.py             # 09 sec2.4 theta_front       ~4 min
 .venv312/bin/python probes/12_pit_loss.py                # docs/12 pit-strategy spec   ~3 min warm
 .venv312/bin/python probes/12b_pit_projection.py         # docs/12, second pass        ~4 min warm
+.venv312/bin/python probes/12c_q_refit.py                # docs/12 sec6 outcome 2      ~4 min warm
 .venv312/bin/python probes/09b_dispersion.py             # 09 sec10.2                  ~3 min warm
 ```
 
@@ -41,6 +42,15 @@ is gitignored (`03` §11.2 — it is F1 timing data and this repo is public).
 | `12_pit_loss.py` | pit δ pooled median **23.0s** (IQR 20.6–26.3), per-circuit 19–30s across 306 stops; eventual top-6 move a net 0 through the pit phase (\|move\|≥2 in 27%); of 32 pit-attributable P1 changes only **38%** stuck to the flag; undercut succeeds **15%** of 154 clean attempts |
 | `12b_pit_projection.py` | **net displacement at 5 laps is 0.61× what the same pairs' per-lap swap rate compounded predicts, in every band and every quarter (0.41–0.78)** — a property of the raw rate, *not* of `09`'s simulator (see `09b` below); lead pair swaps 0.0055/lap in the final quarter against the P1–P3 band's 0.0351; 19% of lead changes revert within 5 laps; δ pooled median **22.8s**, MAD 3.7, per-circuit 19.4–28.3 over 286 stops on the tightened green filter; stint-age hazard 0.015–0.075 on a 0.037 base, so stint age barely says which lap a stop lands on; **undercut 14.9% against a matched background of 9.9%** |
 | `09b_dispersion.py` | the real simulator's net displacement at 5 laps against the same pairs' archive outcome: **0.176 vs 0.178, ratio 0.99 pooled** — no general over-dispersion. The defect is one cell: the **lead pair in the closing quarter, 0.115 vs 0.012, ratio 9.9×** |
+
+| `12c_q_refit.py` | 12 sec6's **outcome 2, and it failed.** Pit cycles are a far bigger share of `q` than `09` assumed — removing them takes the pooled adjacent-swap rate from **0.0667 to 0.0363**, so nearly half of every adjacent swap in the corpus happens inside a pit cycle. But the net displacement at 5 laps falls in almost exact proportion (0.1776 → 0.0997), so `12b`'s 0.61 goes to **0.59**, marginally *away* from the 1.0 the spec predicted. Pit-cycle swaps are not disproportionately transient. The refit is still mandatory (it is a double count either way, `12` §4) — it buys correct bookkeeping, not a better-behaved rate |
+
+**A pre-registered prediction that failed, 2026-09-04.** The row above is `docs/12` §6 outcome 2,
+and it is recorded here as a result rather than explained away, on `05` §6.4.1's precedent. The
+prediction was reasonable and specific — pit cycles generate transient swaps, so taking them out of
+`q` should move the net/compounded ratio toward 1 — and the corpus says no. Both the span rule and
+the direction of the prediction were committed before the probe was run (`git log`), which is the
+only reason the failure is readable as one.
 
 **A third correction, 2026-09-04, and the one worth reading.** `12b`'s 0.61 was written up in `09`
 §10.2 and `docs/12` §2.3 as *"the simulator over-disperses the field by 1.6×"*. It is not: 0.61 is
