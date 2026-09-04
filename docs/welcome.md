@@ -76,8 +76,10 @@ The project is split into independent tracks. Don't conflate them — most confu
   approved, not built**. `09` §5.7's named gap, scoped to *projecting a stop already in progress*
   rather than predicting when a car will stop — a scope set by measurement (`12` §2.4: stint age
   barely moves the per-lap stop hazard) rather than by preference. Read `12` §2.3 even if you never
-  build it: it measures that a per-lap swap rate fed to a simulator that makes every swap permanent
-  over-disperses the field by 39%, which is a property of `09` §5.4 and not only of this document
+  build it: it measures that a per-lap swap rate implies about 1.6× more net movement than actually
+  happens, because swaps revert — a hazard for anything that reuses `09` §5.4's rate. `09`'s own
+  simulator turns out to absorb it (measured at 0.99), and §2.3's dated correction records that the
+  first write-up claimed otherwise
 - `docs/11-features-tested-and-rejected.md` — running register of candidate features that were
   spiked against the real 264-race corpus and came back null (wind, temperature, humidity,
   cross-model disagreement beyond rain, pit-crew execution). Read it before proposing a new

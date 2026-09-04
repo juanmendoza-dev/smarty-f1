@@ -24,6 +24,7 @@ FastF1 cache at `data/cache/fastf1/` should be warm; a cold run downloads per-ra
 .venv312/bin/python probes/09_theta_front.py             # 09 sec2.4 theta_front       ~4 min
 .venv312/bin/python probes/12_pit_loss.py                # docs/12 pit-strategy spec   ~3 min warm
 .venv312/bin/python probes/12b_pit_projection.py         # docs/12, second pass        ~4 min warm
+.venv312/bin/python probes/09b_dispersion.py             # 09 sec10.2                  ~3 min warm
 ```
 
 The last two need `data/live/overtakes/training.csv`, which `overtake_build.py` produces and which
@@ -38,7 +39,17 @@ is gitignored (`03` §11.2 — it is F1 timing data and this repo is public).
 | `09_domain_bands.py` | 264,049 test rows, 986 overtakes; P1–P3 holds 47 overtakes, 32 in-domain, 68.1% retained; front-band calibration worst ratio 2.33 |
 | `09_theta_front.py` | θ_front mean 0.01046, range 0.00949–0.01160; keeps 77.4% of front-of-field overtakes in 41.0% of rows; 3/3 bins within 2×, worst 1.31 |
 | `12_pit_loss.py` | pit δ pooled median **23.0s** (IQR 20.6–26.3), per-circuit 19–30s across 306 stops; eventual top-6 move a net 0 through the pit phase (\|move\|≥2 in 27%); of 32 pit-attributable P1 changes only **38%** stuck to the flag; undercut succeeds **15%** of 154 clean attempts |
-| `12b_pit_projection.py` | **net displacement at 5 laps is 0.61× what the per-lap swap rate compounded predicts, in every band and every quarter (0.41–0.78)** — `09` §5.4's rate over-disperses the simulator; lead pair swaps 0.0055/lap in the final quarter against the P1–P3 band's 0.0351; 19% of lead changes revert within 5 laps; δ pooled median **22.8s**, MAD 3.7, per-circuit 19.4–28.3 over 286 stops on the tightened green filter; stint-age hazard 0.015–0.075 on a 0.037 base, so stint age barely says which lap a stop lands on; **undercut 14.9% against a matched background of 9.9%** |
+| `12b_pit_projection.py` | **net displacement at 5 laps is 0.61× what the same pairs' per-lap swap rate compounded predicts, in every band and every quarter (0.41–0.78)** — a property of the raw rate, *not* of `09`'s simulator (see `09b` below); lead pair swaps 0.0055/lap in the final quarter against the P1–P3 band's 0.0351; 19% of lead changes revert within 5 laps; δ pooled median **22.8s**, MAD 3.7, per-circuit 19.4–28.3 over 286 stops on the tightened green filter; stint-age hazard 0.015–0.075 on a 0.037 base, so stint age barely says which lap a stop lands on; **undercut 14.9% against a matched background of 9.9%** |
+| `09b_dispersion.py` | the real simulator's net displacement at 5 laps against the same pairs' archive outcome: **0.176 vs 0.178, ratio 0.99 pooled** — no general over-dispersion. The defect is one cell: the **lead pair in the closing quarter, 0.115 vs 0.012, ratio 9.9×** |
+
+**A third correction, 2026-09-04, and the one worth reading.** `12b`'s 0.61 was written up in `09`
+§10.2 and `docs/12` §2.3 as *"the simulator over-disperses the field by 1.6×"*. It is not: 0.61 is
+computed from raw archive swap counts, and `09`'s simulator consumes a shrunk, retirement-excluded,
+circuit-scaled rate and then applies an asymmetric strength tilt. `09b_dispersion.py` exists because
+of this — it runs the **real** `forward_simulate` and measures **0.99**. Both documents are
+corrected in place. `09` §16.6 item 7 records the shape of the mistake: a plausible general
+explanation displaced a correct narrow one (the lead-pair band cell, which `09b` measures at 9.9×),
+and the general one got written up because it was more satisfying.
 
 **A second correction, made 2026-09-03 while building B4.** `12_pit_loss.py`'s undercut line was
 read as "barely above the background swap rate over the same span", comparing a 15% success rate
