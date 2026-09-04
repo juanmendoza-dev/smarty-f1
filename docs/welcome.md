@@ -55,7 +55,8 @@ The project is split into independent tracks. Don't conflate them — most confu
   handoff** — how to rebuild and re-validate from cold, expected outputs, where to pick up, and the
   six corrections made during the build so they are not re-made
 - `docs/09-live-win-probability.md` — the live win-probability layer (Phase B4), **specced
-  2026-08-27, not approved, not built**. The consumer `08` was built to feed: a state estimator
+  2026-08-27, approved 2026-09-03, built and validated 2026-09-04** — it meets `09` §10's
+  pre-registered success criteria, and `09` §10.2 and §10.4 report two defects it does not fix. The consumer `08` was built to feed: a state estimator
   that carries Lane A's pre-race distribution through a race by Monte Carlo forward simulation over
   field orderings, not a new predictive model. Read `08` first. Six measurements were run before it
   was written and two of them reshape the lane: **pit stops cause 71% of lead changes** (`09` §2.1),
@@ -71,6 +72,12 @@ The project is split into independent tracks. Don't conflate them — most confu
   broadcast at all — is a go/no-go for the track map. Its §13 flags one thing worth knowing before
   anyone screenshots it: a screenshot of a real capture is live timing data under `03` §11.2, so it
   cannot be published while `03` §16 item 4 is open
+- `docs/12-pit-strategy-model.md` — the pit-strategy model (Phase B5), **specced 2026-09-04, not
+  approved, not built**. `09` §5.7's named gap, scoped to *projecting a stop already in progress*
+  rather than predicting when a car will stop — a scope set by measurement (`12` §2.4: stint age
+  barely moves the per-lap stop hazard) rather than by preference. Read `12` §2.3 even if you never
+  build it: it measures that a per-lap swap rate fed to a simulator that makes every swap permanent
+  over-disperses the field by 39%, which is a property of `09` §5.4 and not only of this document
 - `docs/11-features-tested-and-rejected.md` — running register of candidate features that were
   spiked against the real 264-race corpus and came back null (wind, temperature, humidity,
   cross-model disagreement beyond rain, pit-crew execution). Read it before proposing a new
