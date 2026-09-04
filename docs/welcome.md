@@ -71,5 +71,10 @@ The project is split into independent tracks. Don't conflate them — most confu
   broadcast at all — is a go/no-go for the track map. Its §13 flags one thing worth knowing before
   anyone screenshots it: a screenshot of a real capture is live timing data under `03` §11.2, so it
   cannot be published while `03` §16 item 4 is open
+- `docs/11-features-tested-and-rejected.md` — running register of candidate features that were
+  spiked against the real 264-race corpus and came back null (wind, temperature, humidity,
+  cross-model disagreement beyond rain, pit-crew execution). Read it before proposing a new
+  pre-race feature: five have been tried, five were null, and `05` §6.4.1 already showed the
+  scorer's ceiling is its feature set rather than its weights
 
 If a decision you need isn't documented, don't assume — it means it hasn't been locked in yet. Ask.

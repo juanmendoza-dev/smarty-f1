@@ -537,6 +537,10 @@ of this project holds itself to: does it move something real in the 264-race cor
 here rather than left unwritten, same reasoning as the corrected first draft in §§1–4 — a tested
 and rejected idea is worth more to the next reader than a silently dropped one.
 
+These four, plus later non-weather spikes, are indexed at
+`11-features-tested-and-rejected.md` — the project-level register. The numbers for the weather
+ones stay here.
+
 ### 12.1 Wind — speed and gusts, full corpus
 
 Hypothesis: wind gusts unsettle the car, so windy races should show more DNFs and more grid-to-
