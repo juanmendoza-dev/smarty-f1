@@ -93,10 +93,11 @@ class PitProjection:
     """Where one car in a cycle is projected to rejoin, and off what."""
 
     __slots__ = ("code", "state", "delta_s", "remaining_s", "gap_now",
-                 "projected_gap", "observed_index", "projected_index", "flagged")
+                 "projected_gap", "observed_index", "n_ahead", "projected_index",
+                 "flagged")
 
     def __init__(self, code, state, delta_s, remaining_s, gap_now, projected_gap,
-                 observed_index, projected_index, flagged):
+                 observed_index, n_ahead, flagged):
         self.code = code
         self.state = state
         self.delta_s = delta_s
@@ -104,7 +105,13 @@ class PitProjection:
         self.gap_now = gap_now
         self.projected_gap = projected_gap
         self.observed_index = observed_index
-        self.projected_index = projected_index
+        # How many cars that are NOT themselves mid-cycle the car rejoins
+        # behind. It is the insertion point, not the final index: another car in
+        # the same cycle can land ahead of it and push it back one more, which
+        # is why `projected_index` is read off the built order rather than
+        # predicted here.
+        self.n_ahead = n_ahead
+        self.projected_index = None
         self.flagged = flagged
 
     @property
@@ -262,35 +269,56 @@ class PitProjector:
             require(shift >= 0,
                     "12 sec7 assertion 2: %s projected forward by %d places"
                     % (code, -shift))
+            ahead_stationary = sum(1 for other in observed_order[:idx]
+                                   if other not in in_cycle)
             projections.append(PitProjection(
                 code, state, self.pit_loss.delta_s, remaining, g_now,
-                projected_gap, idx, idx + shift, self.pit_loss.flagged))
+                projected_gap, idx, ahead_stationary + shift,
+                self.pit_loss.flagged))
 
         order = _reinsert(observed_order, projections)
         require(sorted(order) == sorted(observed_order),
                 "12 sec4: the corrected order must be a permutation of the "
                 "observed one, not a different field")
+        for p in projections:
+            p.projected_index = order.index(p.code)
+            # 12 sec7 assertion 2, checked on the order that was actually built
+            # rather than on the arithmetic that was supposed to build it.
+            require(p.projected_index >= p.observed_index,
+                    "12 sec7 assertion 2: %s was projected from P%d to P%d -- a "
+                    "car in the pit lane cannot gain a place"
+                    % (p.code, p.observed_index + 1, p.projected_index + 1))
         return Correction(order, projections, refusals, in_cycle)
 
 
 def _reinsert(observed_order, projections):
-    """Rebuild the order with each projected car moved back `places_lost` slots.
+    """Rebuild the order, cutting each projected car back into the cars that
+    are not themselves mid-cycle.
 
-    A stable sort on (target index, is-projected, tie-break) rather than a
-    list insertion: with two cars in a cycle at once -- a double stack, which
-    12 sec2.4 measured as the reason the 0-4 lap stint bucket is elevated --
-    successive insertions would have each one shifting the other's target out
-    from under it.
+    **The subtlety, which cost a bug the double-stack test caught.** A car that
+    drops behind `k` others does not land at `observed_index + k`: every car it
+    passed moves *up* one, so the target has to be expressed against the cars
+    that are standing still, not against the original indices. Positions are
+    therefore counted among the stationary cars alone, and a projected car with
+    `n_ahead = k` sorts in ahead of stationary car `k`.
+
+    Two cars cut in at the same point keep the order they arrived in. A double
+    stack -- 12 sec2.4's elevated 0-4 lap stint bucket -- enters within a second
+    or two, so the difference between their projected gaps is far inside
+    `delta`'s own MAD (12 sec2.1: 3.7 s pooled); ordering them on it would be
+    inventing a distinction the measurement cannot support.
     """
     if not projections:
         return list(observed_order)
     moved = {p.code: p for p in projections}
     keyed = []
+    stationary_index = 0
     for i, code in enumerate(observed_order):
         p = moved.get(code)
         if p is None:
-            keyed.append(((i, 0, float(i)), code))
+            keyed.append(((stationary_index, 1, 0), code))
+            stationary_index += 1
         else:
-            keyed.append(((p.projected_index, 1, p.projected_gap), code))
+            keyed.append(((p.n_ahead, 0, p.observed_index), code))
     keyed.sort(key=lambda kv: kv[0])
     return [code for _, code in keyed]

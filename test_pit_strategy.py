@@ -151,9 +151,13 @@ def test_projection_moves_a_car():
     # Two cars stopping at once -- 12 sec2.4's double stack.
     proj = projector()
     c = run(proj, [make_tick(in_pit=["BBB", "CCC"], t=0.0)])
-    check("a double stack projects both without either shifting the other "
+    # BBB (1.0) rejoins at 4.0 and CCC (2.0) at 5.0, against DDD 3.0 and
+    # EEE 4.0 standing still -- so BBB cuts in behind DDD and CCC behind EEE.
+    # Counting each one's drop against the ORIGINAL indices puts BBB ahead of
+    # DDD, which is the bug this case exists to catch.
+    check("a double stack cuts both in against the cars standing still "
           "(order %s)" % c.order,
-          c.order == ["AAA", "DDD", "BBB", "CCC", "EEE", "FFF"])
+          c.order == ["AAA", "DDD", "BBB", "EEE", "CCC", "FFF"])
 
 
 # ------------------------------------------------------ sec7 assertion 1
