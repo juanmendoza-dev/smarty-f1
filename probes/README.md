@@ -19,6 +19,7 @@ FastF1 cache at `data/cache/fastf1/` should be warm; a cold run downloads per-ra
 .venv312/bin/python probes/09_domain_bands.py            # 09 sec2.4 position bands    ~4 min
 .venv312/bin/python probes/09_theta_front.py             # 09 sec2.4 theta_front       ~4 min
 .venv312/bin/python probes/12_pit_loss.py                # docs/12 pit-strategy spec   ~3 min warm
+.venv312/bin/python probes/12b_pit_projection.py         # docs/12, second pass        ~4 min warm
 ```
 
 The last two need `data/live/overtakes/training.csv`, which `overtake_build.py` produces and which
@@ -32,7 +33,19 @@ is gitignored (`03` §11.2 — it is F1 timing data and this repo is public).
 | `09_leadchange_attribution.py` | 71% of lead changes pit-attributable, 2% retirement, 27% neither; `Status` counts Finished 120 / Lapped 87 / Retired 50 / DNS 7; 50 retirements, median race-fraction 0.440 |
 | `09_domain_bands.py` | 264,049 test rows, 986 overtakes; P1–P3 holds 47 overtakes, 32 in-domain, 68.1% retained; front-band calibration worst ratio 2.33 |
 | `09_theta_front.py` | θ_front mean 0.01046, range 0.00949–0.01160; keeps 77.4% of front-of-field overtakes in 41.0% of rows; 3/3 bins within 2×, worst 1.31 |
-| `12_pit_loss.py` | pit δ pooled median **23.0s** (IQR 20.6–26.3), per-circuit 19–30s across 306 stops; eventual top-6 move a net 0 through the pit phase (\|move\|≥2 in 27%); of 32 pit-attributable P1 changes only **38%** stuck to the flag; undercut succeeds **15%** of 154 clean attempts, barely above the background swap rate over the same span |
+| `12_pit_loss.py` | pit δ pooled median **23.0s** (IQR 20.6–26.3), per-circuit 19–30s across 306 stops; eventual top-6 move a net 0 through the pit phase (\|move\|≥2 in 27%); of 32 pit-attributable P1 changes only **38%** stuck to the flag; undercut succeeds **15%** of 154 clean attempts |
+| `12b_pit_projection.py` | lead pair swaps at **0.0055/lap in the final quarter** against the P1–P3 band's 0.0351 — a 6.4× gap the layer's band conditioning cannot see; 19% of lead changes revert within 5 laps; δ pooled median **22.8s**, MAD 3.7, per-circuit 19.4–28.3 over 286 stops on the tightened green filter; stint-age hazard runs 0.015–0.075 on a 0.037 base, so stint age barely says which lap a stop lands on; **undercut 14.9% against a matched background of 9.9%** |
+
+**A second correction, made 2026-09-03 while building B4.** `12_pit_loss.py`'s undercut line was
+read as "barely above the background swap rate over the same span", comparing a 15% success rate
+against the ~6%/lap adjacent-swap rate compounded over ~4.7 laps (≈25%). **That background is
+wrong in the other direction:** compounding a per-lap swap rate counts *at least one swap*, and
+swaps revert, so it is not "the car behind is ahead at the end". `12b_pit_projection.py` measures
+the matched quantity — adjacent pairs over the same span with **no stop by either car** — at
+**9.9%**, against the undercut's 14.9%. So the undercut carries a real ~1.5× lift, not a null.
+It is still only 23 successes in 154 attempts clustered inside 12 races, so read it as "a modest
+effect this corpus cannot pin down", not as a measured edge. The README line above is corrected in
+place; the probe itself was not changed, only the comparison it is read against.
 
 **One correction already made and recorded** (`09` §15): `Status == "Lapped"` is a **finish**.
 Classifying it as a retirement inflates the count from 4.2/race to 6.6/race and flips the

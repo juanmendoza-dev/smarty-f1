@@ -54,6 +54,12 @@ lead_changes = {"total": 0, "reverted": 0, "pit": 0, "pit_reverted": 0,
 deltas = collections.defaultdict(list)
 stint_hazard = collections.defaultdict(lambda: [0, 0])  # stint age -> [laps at risk, stops]
 undercut_span = []          # (span_laps, success)
+# The right background for an undercut is NOT "did this pair swap at least once
+# over n laps" -- swaps revert, so compounding the per-lap rate overstates it.
+# It is "was the car that was behind at lap L ahead at lap L+n", measured over
+# adjacent pairs where NEITHER car stopped in the window, so strategy is out of
+# it by construction.
+background_ahead = collections.defaultdict(lambda: [0, 0])   # span -> [pairs, behind-car-ahead]
 races = []
 
 
@@ -208,6 +214,26 @@ for _, ev in sched.iterrows():
                 continue
             undercut_span.append((check - (La - 1), 1 if rorder[check][a] < rorder[check][b] else 0))
 
+    # --- 5b. the matched background: same spans, no stops by either car ---
+    for span in range(2, 9):
+        for L in range(1, total - span):
+            a_ord = order.get(L)
+            b_ord = rorder.get(L + span)
+            if not a_ord or not b_ord:
+                continue
+            for pos in sorted(a_ord):
+                if pos + 1 not in a_ord:
+                    continue
+                ahead_c, behind_c = a_ord[pos], a_ord[pos + 1]
+                if any(L <= x <= L + span for x in stops.get(ahead_c, [])) or \
+                        any(L <= x <= L + span for x in stops.get(behind_c, [])):
+                    continue
+                if ahead_c not in b_ord or behind_c not in b_ord:
+                    continue
+                background_ahead[span][0] += 1
+                if b_ord[behind_c] < b_ord[ahead_c]:
+                    background_ahead[span][1] += 1
+
     races.append(name)
     print("R%-2d %-28s laps=%d" % (rnd, name[:28], total), flush=True)
 
@@ -277,8 +303,18 @@ if undercut_span:
     mean_span = statistics.mean(spans)
     print("  %d attempts, %d succeeded (%.0f%%), mean span %.1f laps"
           % (n, k, 100 * k / n, mean_span))
-    if tl:
-        bg = tk / tl
-        print("  background lead-pair swap over the same span: 1-(1-%.4f)^%.1f = %.0f%%"
-              % (bg, mean_span, 100 * (1 - (1 - bg) ** mean_span)))
-    print("  (docs/12: the comparison the raw 15%% figure could not support)")
+    print("\n  matched background -- adjacent pairs over the same span with NO stop")
+    print("  by either car, so strategy is excluded by construction:")
+    print("  %-8s %10s %10s %10s" % ("span", "pairs", "behind won", "rate"))
+    for span in sorted(background_ahead):
+        n2, k2 = background_ahead[span]
+        if n2:
+            print("  %-8d %10d %10d %10.4f" % (span, n2, k2, k2 / n2))
+    near = [background_ahead[sp] for sp in (4, 5) if background_ahead[sp][0]]
+    if near:
+        bn = sum(x[0] for x in near); bk = sum(x[1] for x in near)
+        print("  at the undercut's mean span (%.1f laps): background %.1f%% vs "
+              "undercut %.1f%%" % (mean_span, 100 * bk / bn, 100 * k / n))
+        print("  NOTE: compounding the per-lap swap rate over n laps is the WRONG")
+        print("  background (swaps revert, so it counts 'at least one swap', not")
+        print("  'ahead at the end'). This is the matched version.")
